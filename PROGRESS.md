@@ -15,4 +15,8 @@
 - Pick up any of the tracking issues (#2–#10) — highest leverage: #2 (on-device LLM), #7 (Desktop)
 - Android project lives at: `hermes agent android/` inside this repo
 - Build: `cd "hermes agent android" && gradlew.bat assembleDebug`
-- Signing creds are in the OLD folder only: `E:\claude-projects\Hermes Android App\hermes-agent-android\KEYSTORE_CREDENTIALS.txt` — back these up
+- Signing keys live permanently in the old folder (intentional — do not move):
+  - `E:\claude-projects\Hermes Android App\hermes-agent-android\app\hermes-release.jks`
+  - `E:\claude-projects\Hermes Android App\hermes-agent-android\KEYSTORE_CREDENTIALS.txt`
+  - `E:\claude-projects\Hermes Android App\hermes-agent-android\hermes.local.properties`
+  For a release build from this repo, copy `hermes.local.properties` here or reference the `.jks` by its absolute path.
