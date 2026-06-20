@@ -25,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -83,37 +82,6 @@ fun SettingsScreen(
                 onThemeSelected = viewModel::setAppTheme,
             )
 
-            // --- Inference section ---
-            SectionHeader(text = stringResource(R.string.settings_section_inference))
-
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ToggleRow(
-                        title = stringResource(R.string.settings_on_device_enabled),
-                        subtitle = stringResource(R.string.settings_on_device_enabled_subtitle),
-                        checked = settings.onDeviceEnabled,
-                        onCheckedChange = viewModel::setOnDeviceEnabled,
-                    )
-                    HorizontalDivider()
-                    Text(
-                        text = "On-device model: ${settings.onDeviceModel}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "Idle unload (minutes): ${settings.idleUnloadMinutes}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Slider(
-                        value = settings.idleUnloadMinutes.toFloat(),
-                        onValueChange = { viewModel.setIdleUnloadMinutes(it.toInt()) },
-                        valueRange = 1f..30f,
-                        steps = 28,
-                    )
-                }
-            }
-
             // --- Cloud section ---
             SectionHeader(text = stringResource(R.string.settings_section_cloud))
 
@@ -167,16 +135,6 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Text(
-                        text = stringResource(R.string.settings_complexity_threshold),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Slider(
-                        value = settings.complexityThreshold,
-                        onValueChange = viewModel::setComplexityThreshold,
-                        valueRange = 0f..1f,
-                    )
                 }
             }
 

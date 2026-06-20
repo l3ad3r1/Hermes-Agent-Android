@@ -32,10 +32,8 @@ class HostPluginContext @Inject constructor(
     }
 
     override suspend fun hostSetting(key: String): String? = when (key) {
-        "on_device_enabled" -> settings.current().onDeviceEnabled.toString()
         "cloud_enabled" -> settings.current().cloudEnabled.toString()
         "cloud_model" -> settings.current().cloudModel
-        "on_device_model" -> settings.current().onDeviceModel
         else -> null
     }
 

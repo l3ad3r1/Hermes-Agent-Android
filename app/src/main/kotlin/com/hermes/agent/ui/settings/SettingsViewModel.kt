@@ -29,10 +29,6 @@ class SettingsViewModel @Inject constructor(
 
     val isKnoxAvailable: Boolean get() = knox.isKnoxAvailable
 
-    fun setOnDeviceEnabled(enabled: Boolean) = viewModelScope.launch {
-        settingsRepository.setOnDeviceEnabled(enabled)
-    }
-
     fun setCloudEnabled(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setCloudEnabled(enabled)
     }
@@ -47,14 +43,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setCloudModel(model: String) = viewModelScope.launch {
         settingsRepository.setCloudModel(model)
-    }
-
-    fun setComplexityThreshold(value: Float) = viewModelScope.launch {
-        settingsRepository.setComplexityThreshold(value)
-    }
-
-    fun setIdleUnloadMinutes(minutes: Int) = viewModelScope.launch {
-        settingsRepository.setIdleUnloadMinutes(minutes)
     }
 
     fun setAppTheme(themeName: String) = viewModelScope.launch {
