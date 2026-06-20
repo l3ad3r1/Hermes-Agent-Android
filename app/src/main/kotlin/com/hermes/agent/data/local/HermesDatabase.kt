@@ -9,31 +9,14 @@ import com.hermes.agent.data.local.dao.DocumentChunkDao
 import com.hermes.agent.data.local.dao.DocumentDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
+import com.hermes.agent.data.local.dao.ScheduledTaskDao
 import com.hermes.agent.data.local.entity.ConversationEntity
 import com.hermes.agent.data.local.entity.DocumentChunkEntity
 import com.hermes.agent.data.local.entity.DocumentEntity
 import com.hermes.agent.data.local.entity.MemoryEntity
 import com.hermes.agent.data.local.entity.MessageEntity
+import com.hermes.agent.data.local.entity.ScheduledTaskEntity
 
-/**
- * Hermes Agent local database.
- *
- * Phase 1 schema (version 1):
- *   - conversations
- *   - messages (FK → conversations, CASCADE delete)
- *   - memories (no embeddings yet)
- *
- * Phase 2 schema (version 2):
- *   - documents                  (new)
- *   - document_chunks            (new, FK → documents, CASCADE delete)
- *
- * Phase 3 will add:
- *   - sqlite_vss virtual table on memories.embedding
- *   - sqlite_vss virtual table on document_chunks.embedding
- *   - agent_runs table for orchestration tracing
- *
- * The database instance is provided by [com.hermes.agent.di.DatabaseModule].
- */
 @Database(
     entities = [
         ConversationEntity::class,
@@ -41,8 +24,9 @@ import com.hermes.agent.data.local.entity.MessageEntity
         MemoryEntity::class,
         DocumentEntity::class,
         DocumentChunkEntity::class,
+        ScheduledTaskEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -51,14 +35,11 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun memoryDao(): MemoryDao
     abstract fun documentDao(): DocumentDao
     abstract fun documentChunkDao(): DocumentChunkDao
+    abstract fun scheduledTaskDao(): ScheduledTaskDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
 
-        /**
-         * Phase 1 → Phase 2 migration: create the documents and
-         * document_chunks tables. No data needs to be moved.
-         */
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -75,7 +56,6 @@ abstract class HermesDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_documents_created_at ON documents(created_at)")
-
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS document_chunks (
@@ -91,6 +71,25 @@ abstract class HermesDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_document_chunks_document_id ON document_chunks(document_id)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_document_chunks_document_id_ordinal ON document_chunks(document_id, ordinal)")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS scheduled_tasks (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        label TEXT NOT NULL,
+                        prompt TEXT NOT NULL,
+                        scheduleName TEXT NOT NULL,
+                        isEnabled INTEGER NOT NULL DEFAULT 1,
+                        lastRunAt INTEGER,
+                        lastResult TEXT,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
             }
         }
     }

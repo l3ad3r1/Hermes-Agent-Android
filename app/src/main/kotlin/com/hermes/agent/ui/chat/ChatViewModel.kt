@@ -84,6 +84,9 @@ class ChatViewModel @Inject constructor(
                 isListening = isListening,
                 isSPenMode = _isSPenMode.value,
                 sPenAvailable = sPenManager.isAvailable,
+                estimatedTokens = messages.sumOf { it.content.length } / 4,
+                activeModel = ephemeral.activeModel,
+                isOnDevice = ephemeral.streamingIsOnDevice,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -300,4 +303,5 @@ private data class ChatEphemeralState(
     val errorMessage: String? = null,
     val plan: PlanSummary? = null,
     val toolCalls: List<ToolCallSummary> = emptyList(),
+    val activeModel: String = "",
 )

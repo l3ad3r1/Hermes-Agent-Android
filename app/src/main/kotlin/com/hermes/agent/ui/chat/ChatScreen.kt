@@ -1,5 +1,6 @@
 package com.hermes.agent.ui.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,17 +129,24 @@ fun ChatScreen(
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
-                ChatInputBar(
-                    isSending = uiState.isSending,
-                    isListening = uiState.isListening,
-                    isSPenMode = uiState.isSPenMode,
-                    sPenAvailable = uiState.sPenAvailable,
-                    onSend = viewModel::sendMessage,
-                    onCancel = viewModel::cancel,
-                    onMicToggle = viewModel::toggleVoiceInput,
-                    onSPenToggle = viewModel::toggleSPenMode,
-                    prefillText = uiState.inputPrefill,
-                )
+                androidx.compose.foundation.layout.Column {
+                    ChatInputBar(
+                        isSending = uiState.isSending,
+                        isListening = uiState.isListening,
+                        isSPenMode = uiState.isSPenMode,
+                        sPenAvailable = uiState.sPenAvailable,
+                        onSend = viewModel::sendMessage,
+                        onCancel = viewModel::cancel,
+                        onMicToggle = viewModel::toggleVoiceInput,
+                        onSPenToggle = viewModel::toggleSPenMode,
+                        prefillText = uiState.inputPrefill,
+                    )
+                    ChatStatusBar(
+                        estimatedTokens = uiState.estimatedTokens,
+                        activeModel = uiState.activeModel,
+                        isOnDevice = uiState.isOnDevice,
+                    )
+                }
             },
         ) { innerPadding ->
             Box(
@@ -238,6 +246,42 @@ private fun EmptyChatState(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth(),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun ChatStatusBar(
+    estimatedTokens: Int,
+    activeModel: String,
+    isOnDevice: Boolean,
+) {
+    androidx.compose.foundation.layout.Row(
+        modifier = androidx.compose.ui.Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (isOnDevice) "on-device" else "cloud",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (activeModel.isNotBlank()) {
+            Text(
+                text = activeModel,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = if (estimatedTokens > 0) "~${estimatedTokens}t" else "",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

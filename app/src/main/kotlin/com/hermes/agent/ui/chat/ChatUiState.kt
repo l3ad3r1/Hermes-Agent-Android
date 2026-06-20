@@ -33,6 +33,12 @@ data class ChatUiState(
     val isSPenMode: Boolean = false,
     /** Phase 3: true when the Samsung S Pen SDK is detected on this device. */
     val sPenAvailable: Boolean = false,
+    /** Estimated token count across all messages in this conversation. */
+    val estimatedTokens: Int = 0,
+    /** Active model name shown in the status bar. */
+    val activeModel: String = "",
+    /** True when the LLM is running on-device. */
+    val isOnDevice: Boolean = true,
 ) {
     /** Messages plus the in-flight streaming bubble, if any. */
     val visibleItems: List<ChatListItem>
