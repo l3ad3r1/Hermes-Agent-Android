@@ -4,12 +4,16 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.hermes.agent.data.local.dao.AgentTaskDao
+import com.hermes.agent.data.local.dao.ConnectorDao
 import com.hermes.agent.data.local.dao.ConversationDao
 import com.hermes.agent.data.local.dao.DocumentChunkDao
 import com.hermes.agent.data.local.dao.DocumentDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
+import com.hermes.agent.data.local.entity.AgentTaskEntity
+import com.hermes.agent.data.local.entity.ConnectorEntity
 import com.hermes.agent.data.local.entity.ConversationEntity
 import com.hermes.agent.data.local.entity.DocumentChunkEntity
 import com.hermes.agent.data.local.entity.DocumentEntity
@@ -25,8 +29,10 @@ import com.hermes.agent.data.local.entity.ScheduledTaskEntity
         DocumentEntity::class,
         DocumentChunkEntity::class,
         ScheduledTaskEntity::class,
+        ConnectorEntity::class,
+        AgentTaskEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -36,6 +42,8 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun documentDao(): DocumentDao
     abstract fun documentChunkDao(): DocumentChunkDao
     abstract fun scheduledTaskDao(): ScheduledTaskDao
+    abstract fun connectorDao(): ConnectorDao
+    abstract fun agentTaskDao(): AgentTaskDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
@@ -87,6 +95,38 @@ abstract class HermesDatabase : RoomDatabase() {
                         lastRunAt INTEGER,
                         lastResult TEXT,
                         createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS connectors (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        configJson TEXT NOT NULL,
+                        isEnabled INTEGER NOT NULL DEFAULT 1,
+                        createdAt INTEGER NOT NULL,
+                        lastUsedAt INTEGER
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS agent_tasks (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        label TEXT NOT NULL,
+                        prompt TEXT NOT NULL,
+                        statusName TEXT NOT NULL,
+                        result TEXT,
+                        createdAt INTEGER NOT NULL,
+                        startedAt INTEGER,
+                        completedAt INTEGER
                     )
                     """.trimIndent()
                 )

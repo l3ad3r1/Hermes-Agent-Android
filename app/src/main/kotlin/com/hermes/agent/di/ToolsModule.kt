@@ -7,6 +7,7 @@ import com.hermes.agent.data.tools.DateTimeTool
 import com.hermes.agent.data.tools.DeviceSettingsTool
 import com.hermes.agent.data.tools.NotesTool
 import com.hermes.agent.data.tools.WebSearchTool
+import com.hermes.agent.data.tools.WebhookTool
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolRegistry
 import dagger.Module
@@ -35,6 +36,7 @@ object ToolsModule {
         dateTimeTool: DateTimeTool,
         calculatorTool: CalculatorTool,
         webSearchTool: WebSearchTool,
+        webhookTool: WebhookTool,
         deviceSettingsTool: DeviceSettingsTool,
         notesTool: NotesTool,
         conversationSearchTool: ConversationSearchTool,
@@ -45,6 +47,7 @@ object ToolsModule {
             dateTimeTool,
             calculatorTool,
             webSearchTool,
+            webhookTool,
             deviceSettingsTool,
             notesTool,
             conversationSearchTool,

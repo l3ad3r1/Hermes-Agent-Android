@@ -18,17 +18,19 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.hermes.agent.ui.chat.ChatScreen
+import com.hermes.agent.ui.connect.ConnectScreen
 import com.hermes.agent.ui.conversations.ConversationsScreen
 import com.hermes.agent.ui.cron.CronScreen
-import com.hermes.agent.ui.documents.DocumentsScreen
+import com.hermes.agent.ui.delegate.DelegateScreen
+import com.hermes.agent.ui.experiment.ExperimentScreen
 import com.hermes.agent.ui.memory.MemoryScreen
 import com.hermes.agent.ui.settings.SettingsScreen
 
 private val bottomNavDestinations = listOf(
     TopLevelDestination.CONVERSATIONS,
-    TopLevelDestination.MEMORY,
-    TopLevelDestination.DOCUMENTS,
+    TopLevelDestination.CONNECT,
     TopLevelDestination.SCHEDULE,
+    TopLevelDestination.DELEGATE,
     TopLevelDestination.SETTINGS,
 )
 
@@ -84,9 +86,11 @@ fun HermesNavGraph() {
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(TopLevelDestination.MEMORY.route)    { MemoryScreen() }
-            composable(TopLevelDestination.DOCUMENTS.route) { DocumentsScreen() }
+            composable(TopLevelDestination.MEMORY.route)     { MemoryScreen() }
+            composable(TopLevelDestination.CONNECT.route)   { ConnectScreen() }
             composable(TopLevelDestination.SCHEDULE.route)  { CronScreen() }
+            composable(TopLevelDestination.DELEGATE.route)  { DelegateScreen() }
+            composable(TopLevelDestination.EXPERIMENT.route){ ExperimentScreen() }
             composable(TopLevelDestination.SETTINGS.route)  { SettingsScreen() }
         }
     }

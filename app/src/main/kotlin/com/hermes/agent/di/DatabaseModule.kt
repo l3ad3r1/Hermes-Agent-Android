@@ -3,6 +3,8 @@ package com.hermes.agent.di
 import android.content.Context
 import androidx.room.Room
 import com.hermes.agent.data.local.HermesDatabase
+import com.hermes.agent.data.local.dao.AgentTaskDao
+import com.hermes.agent.data.local.dao.ConnectorDao
 import com.hermes.agent.data.local.dao.ConversationDao
 import com.hermes.agent.data.local.dao.DocumentChunkDao
 import com.hermes.agent.data.local.dao.DocumentDao
@@ -28,7 +30,7 @@ object DatabaseModule {
             HermesDatabase::class.java,
             HermesDatabase.DATABASE_NAME,
         )
-            .addMigrations(HermesDatabase.MIGRATION_1_2, HermesDatabase.MIGRATION_2_3)
+            .addMigrations(HermesDatabase.MIGRATION_1_2, HermesDatabase.MIGRATION_2_3, HermesDatabase.MIGRATION_3_4)
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
@@ -39,4 +41,6 @@ object DatabaseModule {
     @Provides fun provideDocumentDao(db: HermesDatabase): DocumentDao = db.documentDao()
     @Provides fun provideDocumentChunkDao(db: HermesDatabase): DocumentChunkDao = db.documentChunkDao()
     @Provides fun provideScheduledTaskDao(db: HermesDatabase): ScheduledTaskDao = db.scheduledTaskDao()
+    @Provides fun provideConnectorDao(db: HermesDatabase): ConnectorDao = db.connectorDao()
+    @Provides fun provideAgentTaskDao(db: HermesDatabase): AgentTaskDao = db.agentTaskDao()
 }
