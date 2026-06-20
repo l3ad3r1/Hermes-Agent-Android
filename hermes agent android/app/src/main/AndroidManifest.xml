@@ -55,6 +55,10 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup"
                 tools:node="remove" />
+            <!-- Starts MemoryPressureMonitor before the first screen; HermesApp.onCreate is the fallback. -->
+            <meta-data
+                android:name="com.hermes.agent.data.performance.MemoryMonitorInitializer"
+                android:value="androidx.startup" />
         </provider>
     </application>
 </manifest>

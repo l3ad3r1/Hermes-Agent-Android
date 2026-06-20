@@ -25,3 +25,7 @@ captures/
 
 # --- Secrets ---
 secrets.properties
+
+# Plaintext keystore creds (local only)
+hermes.local.properties
+KEYSTORE_CREDENTIALS.txt
