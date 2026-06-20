@@ -278,16 +278,6 @@ Every assistant reply is automatically spoken aloud via Android's TTS
 engine. To stop speech mid-utterance, tap the **stop** button that
 appears in the input bar while a reply is streaming.
 
-### S Pen (Samsung devices only)
-
-On an S Pen-capable device, an **S Pen toggle**
-appears in the input bar between the mic and the text field. Tap it to
-toggle handwriting mode.
-
-> **Note:** Phase 4 only flips the toggle icon color — the actual stroke
-> capture surface is staged for Phase 3.x. The S Pen SDK is probed at
-> runtime via reflection; on non-Samsung devices the toggle is hidden.
-
 ### Plugins
 
 1. Tap the **Plugins** tab in the bottom nav.
@@ -407,12 +397,6 @@ and look for `FATAL EXCEPTION`. The most common causes:
 - If you see `Connection refused` on the emulator, you used
   `localhost` instead of `10.0.2.2`.
 
-### S Pen toggle doesn't appear
-
-- You're not on a Samsung device. The toggle is hidden via
-  `SPenManager.isAvailable` which probes for the Samsung SDK class at
-  runtime.
-
 ### Plugins tab is empty
 
 - The three first-party plugins (Weather / File Manager / Contacts) are
@@ -444,11 +428,10 @@ design — see `docs/PHASE4.md` § "What's still staged" for the full list.
 | On-device LLM | Mock | Canned replies — see `OnDeviceLlmProvider` |
 | Embeddings (for vector search) | Mock | SHA-256 hashing — search still works, just less semantic |
 | Memory consolidation | Working but simple | Regex-based fact extraction (no LLM summarization yet) |
-| S Pen stroke capture | Toggle-only | Icon flips color; no actual handwriting recognition yet |
 | gRPC plugin sandbox | Stub | Third-party plugins can't load (only first-party in-process) |
 
 The contracts (`LlmProvider`, `EmbeddingService`, `VectorStore`,
-`PluginSandbox`, `SPenManager`) are stable — swapping in real backends
+`PluginSandbox`) are stable — swapping in real backends
 is a per-class change documented in each file.
 
 ---

@@ -254,7 +254,6 @@ sequenceDiagram
 | Calendar               | Stub — no system write                     | Android CalendarContract provider                |
 | Conversation search    | Linear scan over recent messages           | Room FTS4 virtual table                          |
 | Plugin system          | Not started                                | gRPC sandbox + signed APK modules                |
-| S Pen SDK              | Not started                                | Samsung S Pen SDK                                |
 | Voice I/O              | Not started                                | Android SpeechRecognizer + TTS                   |
 
 ## How to demo Phase 2

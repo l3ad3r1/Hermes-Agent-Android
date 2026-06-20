@@ -29,10 +29,6 @@ data class ChatUiState(
     val inputPrefill: String = "",
     /** Phase 3: true while voice input is listening. */
     val isListening: Boolean = false,
-    /** Phase 3: true when S Pen handwriting mode is active. */
-    val isSPenMode: Boolean = false,
-    /** Phase 3: true when the Samsung S Pen SDK is detected on this device. */
-    val sPenAvailable: Boolean = false,
     /** Estimated token count across all messages in this conversation. */
     val estimatedTokens: Int = 0,
     /** Active model name shown in the status bar. */

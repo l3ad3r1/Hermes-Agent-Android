@@ -68,7 +68,6 @@ flowchart TB
 | 4.2 Tech components | `gradle/libs.versions.toml` (one entry per row of plan Table 3) |
 | 5.1 NPU acceleration| `data/llm/OnDeviceLlmProvider.kt` (mock; Phase 2 swaps in MLC-LLM) |
 | 5.2 Memory mgmt     | `data/local/HermesDatabase.kt` + `data/settings/UserSettings.idleUnloadMinutes` |
-| 5.3 S Pen SDK       | Deferred to Phase 3                                              |
 | 5.4 Battery optim   | `work/MemoryConsolidationWorker.kt` + lazy-load in OnDeviceLlm  |
 | 6.1 Multi-agent     | `domain/model/AgentRole.kt` (enum declared, orchestration in Phase 2) |
 | 6.2 Memory system   | `data/repository/MemoryRepositoryImpl.kt` (keyword search in Phase 1, ANN in Phase 2) |

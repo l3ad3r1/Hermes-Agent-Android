@@ -49,8 +49,7 @@
     <!-- Accessibility (Phase 4) -->
     <string name="a11y_stop_generating">Stop generating reply</string>
     <string name="a11y_voice_input">Voice input</string>
-    <string name="a11y_spen_toggle">Toggle S Pen handwriting input</string>
-    <string name="a11y_send_button">Send message</string>
+<string name="a11y_send_button">Send message</string>
     <string name="a11y_back">Back</string>
     <string name="a11y_view_plan">View execution plan</string>
     <string name="a11y_user_message">User message</string>

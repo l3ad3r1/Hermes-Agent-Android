@@ -7,8 +7,8 @@
       - INTERNET / ACCESS_NETWORK_STATE : cloud LLM fallback (Phase 1 stub wired)
       - RECORD_AUDIO                    : voice input placeholder (Phase 3)
       - POST_NOTIFICATIONS              : notification agent placeholder (Phase 3)
-    Hardware features (S Pen SDK / Knox) are declared as not-required at Phase 1
-    so the app installs on any Android 10+ device for development & testing.
+    Hardware features (Knox) are declared as not-required so the app installs on
+    any Android 10+ device for development & testing.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -18,8 +18,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Samsung S Pen SDK features — declared but not required for Phase 1 -->
-    <uses-feature android:name="com.sec.feature.spen_usp" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <application

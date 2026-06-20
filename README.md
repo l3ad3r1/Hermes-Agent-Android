@@ -34,7 +34,6 @@ A privacy-first, on-device AI agent platform for Android, built per the [Technic
 | **Plugin system**           | ✅      | Plugin/PluginManifest/PluginSandbox contracts + InProcessPluginSandbox + 3 first-party plugins (Weather, FileManager, Contacts) |
 | **Real SSE streaming**      | ✅      | Retrofit ResponseBody + line-by-line SSE parsing; fake-stream fallback retained |
 | **Voice I/O**               | ✅      | SpeechRecognizer input + TextToSpeech output, mic button in ChatInputBar, auto-speak replies |
-| **S Pen integration**       | ✅ scaffold | SPenManager + Stroke/StrokePoint models + HandwritingRecognitionService; SDK probe via reflection; capture surface deferred to Phase 3.x |
 | Settings UI                 | ✅      | DataStore-backed toggles + security audit panel (Phase 4)             |
 | Security scaffolding        | ✅      | Android Keystore + Knox stub + EncryptedSettingsRepository + cert pinning (Phase 4) |
 | **Onboarding flow**         | ✅      | 3-screen Welcome / Privacy / Permissions, first-run gate (Phase 4)    |
@@ -48,7 +47,6 @@ A privacy-first, on-device AI agent platform for Android, built per the [Technic
 | On-device MLC-LLM           | ⏳      | Phase 3.x (JNI bindings + Snapdragon NPU)                              |
 | Real embeddings (MiniLM)    | ⏳      | Phase 3.x (currently SHA-256 hashing mock)                             |
 | SQLite-VSS persistent index | ⏳      | Phase 3.x (currently in-memory brute-force ANN)                        |
-| S Pen stroke capture surface | ⏳     | Phase 3.x (currently toggle-only; SDK probe via reflection)            |
 | Real certificate hashes     | ⏳      | Phase 3.x (placeholders ship in Phase 4 — capture before public beta)  |
 
 See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the layered design,
@@ -133,9 +131,9 @@ For per-module responsibilities and the public API of each package, see
 |-------------------------------------|-----------|--------------------------------------------------|
 | Phase 1: Foundation (weeks 1–6)     | ✅        | UI shell, DI, Room, LLM interface, mock + cloud  |
 | Phase 2: Core Agent (weeks 7–14)    | ✅        | Orchestration, tool system, memory, RAG, function calling |
-| Phase 3: Platform (weeks 15–20)     | ✅        | Plugin framework + 3 plugins, real SSE streaming, voice I/O, S Pen scaffold |
+| Phase 3: Platform (weeks 15–20)     | ✅        | Plugin framework + 3 plugins, real SSE streaming, voice I/O |
 | Phase 4: Polish & Launch (21–24)    | ✅        | Onboarding, accessibility, localization, encrypted settings, cert pinning, memory-pressure shedding, v1.0.0 packaging |
-| Phase 3.x: Production backends      | staged    | MLC-LLM + NPU, real embeddings, SQLite-VSS, gRPC plugin sandbox, S Pen capture surface, real cert hashes |
+| Phase 3.x: Production backends      | staged    | MLC-LLM + NPU, real embeddings, SQLite-VSS, gRPC plugin sandbox, real cert hashes |
 
 ## License & attribution
 

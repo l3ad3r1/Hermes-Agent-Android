@@ -3,7 +3,6 @@ package com.hermes.agent.ui.chat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hermes.agent.data.spen.SPenManager
 import com.hermes.agent.data.voice.VoiceInputEvent
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
@@ -23,18 +22,10 @@ import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * Phase 3 chat ViewModel.
+ * Chat ViewModel.
  *
- * Phase 3 additions over Phase 2:
- *   - Voice input via [VoiceInputManager]. The mic button toggles
- *     listening; recognized text is dropped into the input field for
- *     the user to review and send.
- *   - Voice output via [VoiceOutputManager]. When the assistant
- *     finishes a reply, the TTS engine speaks it aloud (if the user
- *     has enabled voice output — surfaced as a toggle in Settings).
- *   - S Pen mode via [SPenManager]. When toggled, the input bar shows
- *     an S Pen handwriting surface instead of the keyboard. Phase 3
- *     only exposes the toggle; the capture surface lands in Phase 3.x.
+ * Supports voice input via [VoiceInputManager] and voice output via
+ * [VoiceOutputManager].
  */
 @HiltViewModel
 class ChatViewModel @Inject constructor(
@@ -43,7 +34,6 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val voiceInputManager: VoiceInputManager,
     private val voiceOutputManager: VoiceOutputManager,
-    private val sPenManager: SPenManager,
 ) : ViewModel() {
 
     val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
@@ -55,9 +45,6 @@ class ChatViewModel @Inject constructor(
 
     /** Phase 3: true while voice input is listening. */
     private val _isListening = MutableStateFlow(false)
-
-    /** Phase 3: true when S Pen handwriting mode is active. */
-    private val _isSPenMode = MutableStateFlow(false)
 
     private var sendJob: Job? = null
     private var listenJob: Job? = null
@@ -82,8 +69,6 @@ class ChatViewModel @Inject constructor(
                 toolCalls = ephemeral.toolCalls,
                 inputPrefill = prefill,
                 isListening = isListening,
-                isSPenMode = _isSPenMode.value,
-                sPenAvailable = sPenManager.isAvailable,
                 estimatedTokens = messages.sumOf { it.content.length } / 4,
                 activeModel = ephemeral.activeModel,
                 isOnDevice = ephemeral.streamingIsOnDevice,
@@ -275,18 +260,6 @@ class ChatViewModel @Inject constructor(
 
     fun stopSpeech() {
         voiceOutputManager.stop()
-    }
-
-    // --- Phase 3: S Pen ---
-
-    fun toggleSPenMode() {
-        if (!sPenManager.isAvailable) {
-            _ephemeral.value = _ephemeral.value.copy(
-                errorMessage = "S Pen SDK not available on this device",
-            )
-            return
-        }
-        _isSPenMode.value = !_isSPenMode.value
     }
 
     override fun onCleared() {

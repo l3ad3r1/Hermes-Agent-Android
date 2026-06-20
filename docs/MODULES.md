@@ -297,14 +297,6 @@ Tiny utilities shared across layers.
 | `VoiceInputManager.kt`  | `class` (Singleton) | Wraps `SpeechRecognizer`; exposes `Flow<VoiceInputEvent>`.         |
 | `VoiceOutputManager.kt` | `class` (Singleton) | Wraps `TextToSpeech`; exposes `Flow<VoiceOutputEvent>` per speak call. |
 
-## `data/spen/` *(Phase 3)*
-
-| File                                | Type                | Purpose                                                            |
-|-------------------------------------|---------------------|--------------------------------------------------------------------|
-| `Stroke.kt`                         | `data class` ×2     | `StrokePoint` (x, y, pressure, tilt, ts) + `Stroke` (list + bounds). |
-| `SPenManager.kt`                    | `class` (Singleton) | Samsung S Pen SDK probe via reflection; `isAvailable` returns false on non-Samsung. |
-| `HandwritingRecognitionService.kt`  | `class` (Singleton) | Converts strokes → text; Phase 3 returns deterministic placeholders per `RecognitionHint`. |
-
 ## `data/performance/` *(Phase 4)*
 
 | File                          | Type                | Purpose                                                            |

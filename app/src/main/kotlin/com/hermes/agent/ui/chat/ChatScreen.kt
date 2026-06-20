@@ -133,12 +133,9 @@ fun ChatScreen(
                     ChatInputBar(
                         isSending = uiState.isSending,
                         isListening = uiState.isListening,
-                        isSPenMode = uiState.isSPenMode,
-                        sPenAvailable = uiState.sPenAvailable,
                         onSend = viewModel::sendMessage,
                         onCancel = viewModel::cancel,
                         onMicToggle = viewModel::toggleVoiceInput,
-                        onSPenToggle = viewModel::toggleSPenMode,
                         prefillText = uiState.inputPrefill,
                     )
                     ChatStatusBar(

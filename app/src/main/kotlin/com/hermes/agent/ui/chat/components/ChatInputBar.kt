@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Stop
@@ -31,9 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.hermes.agent.R
 
 /**
- * Bottom input bar. Phase 3 adds:
- *   - Mic button (left of text field) for voice input.
- *   - S Pen toggle button (left of mic) for handwriting capture.
+ * Bottom input bar. Phase 3 adds a mic button (left of text field) for voice input.
  *
  * Calls [onSend] when the user taps the send button or presses the
  * Send IME action. Calls [onCancel] when the assistant is currently
@@ -43,12 +40,9 @@ import com.hermes.agent.R
 fun ChatInputBar(
     isSending: Boolean,
     isListening: Boolean,
-    isSPenMode: Boolean,
-    sPenAvailable: Boolean,
     onSend: (String) -> Unit,
     onCancel: () -> Unit,
     onMicToggle: () -> Unit,
-    onSPenToggle: () -> Unit,
     modifier: Modifier = Modifier,
     prefillText: String = "",
 ) {
@@ -61,24 +55,6 @@ fun ChatInputBar(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        // S Pen toggle — only shown when the S Pen SDK is available.
-        if (sPenAvailable) {
-            IconButton(
-                onClick = onSPenToggle,
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Edit,
-                    contentDescription = "Toggle S Pen input",
-                    tint = if (isSPenMode) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    },
-                )
-            }
-        }
-
         // Mic button.
         IconButton(
             onClick = onMicToggle,

@@ -195,8 +195,6 @@ Known limitations (deferred to Phase 3.x production backend swaps)
 • Embeddings are SHA-256 hashing (deterministic but semantically
   meaningless) — real all-MiniLM-L6-v2 swaps in behind EmbeddingService.
 • Vector store is in-memory — SQLite-VSS swaps in behind VectorStore.
-• S Pen stroke capture surface is toggle-only — real Samsung SDK
-  SpenSurfaceView wiring in Phase 3.x.
 • gRPC plugin sandbox is an interface stub — real gRPC IPC for
   third-party APK plugins in Phase 3.x.
 • Certificate hashes are placeholders — replace with real SHA-256
@@ -261,7 +259,6 @@ To add a new locale:
 | SQLite-VSS persistent index  | In-memory brute-force (unchanged since Phase 2) | SQLite-VSS virtual table on embedding BLOB column |
 | gRPC plugin sandbox          | Interface stub (unchanged since Phase 3)   | Real gRPC server + child-process plugin APK loading  |
 | Plugin marketplace           | Not started                                 | Discovery / install / update flow per Section 3.3    |
-| S Pen stroke capture surface | Toggle-only (unchanged since Phase 3)      | Real Samsung SDK SpenSurfaceView wiring             |
 | Real certificate hashes      | Placeholders                                | Capture from live TLS handshakes (see above)         |
 | Full localization            | Top 15 strings per locale                   | Full catalog translated by vendor                    |
 | Plugin permission review dialog | Not started                             | Modal before activating a plugin with confirmation-required capabilities |

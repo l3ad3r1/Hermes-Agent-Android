@@ -5,10 +5,9 @@ maps to Section 7.3 of the technical plan ("Phase 3: Platform Features,
 Weeks 15–20"), and what's staged for Phase 3.x point releases and Phase 4.
 
 > **Status:** Phase 3 complete. Plugin framework, real SSE streaming,
-> voice I/O, S Pen scaffolding, and three first-party plugins are all
-> wired end-to-end. The remaining Phase 3 items that depend on a real
-> Samsung device or third-party gRPC plugins (MLC-LLM NPU bindings,
-> Samsung S Pen SDK calls, gRPC plugin sandbox, on-device embeddings)
+> voice I/O, and three first-party plugins are all wired end-to-end.
+> The remaining Phase 3 items that depend on third-party gRPC plugins
+> (MLC-LLM NPU bindings, gRPC plugin sandbox, on-device embeddings)
 > are stubbed with documented Phase 3.x swap paths.
 
 ## What's new in Phase 3
@@ -90,25 +89,7 @@ generated, with proper backpressure and partial-chunk handling.
 Requires `android.permission.RECORD_AUDIO` (declared in manifest,
 granted at runtime when the user first taps the mic button).
 
-### 4. S Pen integration (plan §5.3)
-
-- **`data/spen/Stroke.kt`** — `StrokePoint` (x, y, pressure, tilt,
-  timestamp) and `Stroke` (list of points + bounds helper).
-- **`data/spen/SPenManager.kt`** — Samsung S Pen SDK wrapper. Probes
-  for the SDK at runtime via reflection so the app builds and runs on
-  non-Samsung devices without crashing. `isAvailable` returns true
-  only on S Pen-capable Samsung hardware.
-- **`data/spen/HandwritingRecognitionService.kt`** — converts strokes
-  to text. Phase 3 returns a deterministic placeholder per
-  `RecognitionHint` (PROSE / MATH / DIAGRAM). Phase 3.x will route to
-  the Samsung SDK's built-in recognizer when present, falling back to
-  a multimodal LLM call otherwise.
-- **`ui/chat/components/ChatInputBar.kt`** — Phase 3 update: adds an
-  S Pen toggle button (left of mic) shown only when
-  `SPenManager.isAvailable` is true. The toggle is wired through the
-  ViewModel; the actual stroke-capture Composable lands in Phase 3.x.
-
-### 5. UI updates
+### 4. UI updates
 
 - **`ui/plugins/PluginsScreen.kt`** + **`PluginsViewModel.kt`** — new
   screen: list / activate / suspend / uninstall plugins with a card
@@ -124,9 +105,8 @@ granted at runtime when the user first taps the mic button).
   plugins, registers them with `PluginRegistryImpl.registerFirstParty`,
   provides `PluginContext` binding.
 
-Voice and S Pen managers are already `@Singleton @Inject`-annotated on
-their constructors, so Hilt picks them up automatically — no separate
-modules needed.
+Voice managers are already `@Singleton @Inject`-annotated on their
+constructors, so Hilt picks them up automatically — no separate modules needed.
 
 ### 7. Tests
 
@@ -136,12 +116,6 @@ modules needed.
 - **`data/plugins/WeatherPluginTest.kt`** — manifest declaration,
   lifecycle Success, deterministic per-city tool output, error on
   missing parameter.
-- **`data/spen/HandwritingRecognitionServiceTest.kt`** — empty-stroke
-  handling, prose/math/diagram hint outputs, stroke bounds math.
-- **`data/spen/SPenManagerTest.kt`** — `isAvailable` returns false on
-  non-Samsung test env, `captureStroke` returns empty flow,
-  `stopCapture` doesn't throw.
-
 ## End-to-end flow
 
 A Phase 3 chat round with the Weather plugin active:
@@ -195,8 +169,6 @@ sequenceDiagram
 | gRPC plugin sandbox        | Interface stub; `isAvailable` returns false    | Real gRPC server + child-process plugin APK loading      |
 | Plugin marketplace         | Not started                                     | Discovery / install / update flow per Section 3.3        |
 | Plugin persistence         | In-memory only; lost on process restart         | Room table for install state                             |
-| S Pen stroke capture       | `captureStroke` returns empty flow              | Real Samsung SDK SpenSurfaceView wiring                 |
-| Handwriting recognition    | Deterministic placeholder per hint              | Samsung SDK recognizer or multimodal LLM call           |
 | On-device LLM (MLC-LLM)    | Mock canned replies (unchanged from Phase 2)    | MLC-LLM + Snapdragon NPU via Qualcomm AI Engine Direct  |
 | Real embeddings (MiniLM)   | SHA-256 hashing (unchanged from Phase 2)        | all-MiniLM-L6-v2 quantized via MLC-LLM / ONNX-RT         |
 | SQLite-VSS persistent idx  | In-memory brute-force (unchanged from Phase 2)  | SQLite-VSS virtual table on embedding BLOB column        |
@@ -222,10 +194,6 @@ sequenceDiagram
 5. **Try voice output**:
    - Send any prompt. After the orchestrator's `ReplyComplete`, the TTS
      engine speaks the reply aloud.
-6. **Try the S Pen toggle** (only visible on Samsung S Pen devices):
-   - On S Pen-capable devices, the S Pen toggle appears in the input bar.
-   - Tap to toggle handwriting mode (Phase 3 only flips the icon color;
-     the actual capture surface lands in Phase 3.x).
 7. **Plugins tab**:
    - Tap the Plugins tab in the bottom nav.
    - See Weather / File Manager / Contacts plugins in INSTALLED state.
@@ -264,10 +232,6 @@ data/
 │   └── WeatherPlugin.kt         (new)
 ├── remote/
 │   └── OpenAiApi.kt             (extended — streamCompletion / streamCompletionRaw)
-├── spen/
-│   ├── HandwritingRecognitionService.kt (new)
-│   ├── SPenManager.kt           (new)
-│   └── Stroke.kt                (new)
 └── voice/
     ├── VoiceInputManager.kt     (new)
     └── VoiceOutputManager.kt    (new)
@@ -277,10 +241,10 @@ di/
 
 ui/
 ├── chat/
-│   ├── ChatUiState.kt           (extended — voice / S Pen fields)
-│   ├── ChatViewModel.kt         (extended — voice input + output + S Pen)
+│   ├── ChatUiState.kt           (extended — voice fields)
+│   ├── ChatViewModel.kt         (extended — voice input + output)
 │   └── components/
-│       └── ChatInputBar.kt      (extended — mic + S Pen toggle)
+│       └── ChatInputBar.kt      (extended — mic button)
 ├── navigation/
 │   ├── HermesNavGraph.kt        (extended — plugins route)
 │   └── TopLevelDestination.kt   (extended — PLUGINS tab)
@@ -291,8 +255,6 @@ ui/
 test/
 ├── data/plugin/PluginRegistryImplTest.kt (new)
 ├── data/plugins/WeatherPluginTest.kt (new)
-├── data/spen/HandwritingRecognitionServiceTest.kt (new)
-└── data/spen/SPenManagerTest.kt (new)
 ```
 
 ## Phase 3 vs Phase 3.x
@@ -310,10 +272,7 @@ release) will add:
 3. **SQLite-VSS persistent index** — move the in-memory `VectorStore`
    to a `sqlite_vss` virtual table backed by the `embedding` BLOB
    columns in Room.
-4. **Samsung S Pen SDK wiring** — add the `com.samsung.android.sdk.pen`
-   gradle dependency and replace the `SPenManager` stubs with real
-   `SpenSurfaceView` / `SpenRecognition` calls.
-5. **gRPC plugin sandbox** — add `io.grpc:grpc-android` and implement
+4. **gRPC plugin sandbox** — add `io.grpc:grpc-android` and implement
    the `GrpcPluginSandbox` body. Third-party plugins then install from
    standalone APKs and run in their own process.
 6. **Plugin marketplace UI** — discovery / install / update flow per
