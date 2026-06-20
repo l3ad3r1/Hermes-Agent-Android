@@ -7,16 +7,23 @@
 - 6 truncated source files restored on main (ContactsPlugin, CertificatePinningConfig, SecurityAuditPanel, DispatcherProvider, MainActivity, libs.versions.toml)
 - CONTRIBUTING.md added; 12 issue labels created; 9 tracking issues filed (#2–#10)
 - This repo (`hermes-agent-repo/`) is the canonical local checkout — clone of l3ad3r1/Hermes-Agent-Android
+- Removed all Samsung S24 and S Pen references (device-agnostic)
+- feat: implement Connect, Delegate, and Experiment features (commit 3310cc1)
+  - Connect: Webhook/Telegram/Discord platform integrations with full CRUD UI
+  - Delegate: one-shot background tasks via WorkManager + @HiltWorker AgentTaskWorker
+  - Experiment: side-by-side LLM model A/B comparison screen
+  - DB v4 migration adding connectors + agent_tasks tables
+  - Bottom nav updated: Chats | Connect | Schedule | Delegate | Settings
+  - BUILD SUCCESSFUL (debug APK confirmed)
 
 ## In progress
-- Nothing active
+- Awaiting user approval to push to GitHub
 
 ## Next steps
-- Pick up any of the tracking issues (#2–#10) — highest leverage: #2 (on-device LLM), #7 (Desktop)
-- Android project lives at: `hermes agent android/` inside this repo
-- Build: `cd "hermes agent android" && gradlew.bat assembleDebug`
+1. `git push origin main` (needs user confirmation)
+2. Create GitHub release v0.3.0 with debug APK
+3. Update README feature table for Connect/Delegate/Experiment
 - Signing keys live permanently in the old folder (intentional — do not move):
   - `E:\claude-projects\Hermes Android App\hermes-agent-android\app\hermes-release.jks`
   - `E:\claude-projects\Hermes Android App\hermes-agent-android\KEYSTORE_CREDENTIALS.txt`
   - `E:\claude-projects\Hermes Android App\hermes-agent-android\hermes.local.properties`
-  For a release build from this repo, copy `hermes.local.properties` here or reference the `.jks` by its absolute path.
