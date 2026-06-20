@@ -20,17 +20,17 @@ import androidx.navigation.navArgument
 import com.hermes.agent.ui.chat.ChatScreen
 import com.hermes.agent.ui.connect.ConnectScreen
 import com.hermes.agent.ui.conversations.ConversationsScreen
-import com.hermes.agent.ui.skills.SkillsScreen
 import com.hermes.agent.ui.cron.CronScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
+import com.hermes.agent.ui.documents.DocumentsScreen
 import com.hermes.agent.ui.experiment.ExperimentScreen
 import com.hermes.agent.ui.memory.MemoryScreen
 import com.hermes.agent.ui.settings.SettingsScreen
+import com.hermes.agent.ui.skills.SkillsScreen
 
 private val bottomNavDestinations = listOf(
     TopLevelDestination.CONVERSATIONS,
-    TopLevelDestination.SKILLS,
-    TopLevelDestination.CONNECT,
+    TopLevelDestination.DOCUMENTS,
     TopLevelDestination.DELEGATE,
     TopLevelDestination.SETTINGS,
 )
@@ -87,13 +87,16 @@ fun HermesNavGraph() {
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(TopLevelDestination.MEMORY.route)     { MemoryScreen() }
-            composable(TopLevelDestination.SKILLS.route)    { SkillsScreen() }
-            composable(TopLevelDestination.CONNECT.route)   { ConnectScreen() }
-            composable(TopLevelDestination.SCHEDULE.route)  { CronScreen() }
-            composable(TopLevelDestination.DELEGATE.route)  { DelegateScreen() }
-            composable(TopLevelDestination.EXPERIMENT.route){ ExperimentScreen() }
-            composable(TopLevelDestination.SETTINGS.route)  { SettingsScreen() }
+            composable(TopLevelDestination.DOCUMENTS.route) { DocumentsScreen() }
+            composable(TopLevelDestination.MEMORY.route)    { MemoryScreen() }
+            composable(TopLevelDestination.SKILLS.route)   { SkillsScreen() }
+            composable(TopLevelDestination.CONNECT.route)  { ConnectScreen() }
+            composable(TopLevelDestination.SCHEDULE.route) { CronScreen() }
+            composable(TopLevelDestination.DELEGATE.route) { DelegateScreen() }
+            composable(TopLevelDestination.EXPERIMENT.route) { ExperimentScreen() }
+            composable(TopLevelDestination.SETTINGS.route) {
+                SettingsScreen(onNavigate = { route -> navController.navigate(route) })
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Stars
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -39,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -51,11 +58,13 @@ import com.hermes.agent.ui.theme.AppTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    onNavigate: (String) -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     Scaffold(
+        modifier = Modifier.imePadding(),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_settings)) },
@@ -74,17 +83,49 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // --- Appearance section ---
+            // --- Appearance ---
             SectionHeader(text = "Appearance")
-
             ThemePicker(
                 currentTheme = settings.appTheme,
                 onThemeSelected = viewModel::setAppTheme,
             )
 
-            // --- Cloud section ---
-            SectionHeader(text = stringResource(R.string.settings_section_cloud))
+            // --- Features (navigate to sub-screens) ---
+            SectionHeader(text = "Features")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    NavRow(
+                        icon = Icons.Outlined.Psychology,
+                        title = "Memory",
+                        subtitle = "View and manage agent memories",
+                        onClick = { onNavigate("memory") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.Stars,
+                        title = "Skills",
+                        subtitle = "Browse and manage agent skills library",
+                        onClick = { onNavigate("skills") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.Link,
+                        title = "Connections",
+                        subtitle = "Configure Telegram, Discord, Signal, WhatsApp",
+                        onClick = { onNavigate("connect") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.Schedule,
+                        title = "Scheduled Tasks",
+                        subtitle = "Manage cron jobs and recurring agent tasks",
+                        onClick = { onNavigate("schedule") },
+                    )
+                }
+            }
 
+            // --- Cloud ---
+            SectionHeader(text = stringResource(R.string.settings_section_cloud))
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ToggleRow(
@@ -134,13 +175,11 @@ fun SettingsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-
                 }
             }
 
-            // --- Security section ---
+            // --- Security ---
             SectionHeader(text = stringResource(R.string.settings_section_security))
-
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     InfoRow(
@@ -171,6 +210,44 @@ fun SettingsScreen(
     }
 }
 
+@Composable
+private fun NavRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
 private data class ThemeOption(
     val name: String,
     val label: String,
@@ -192,10 +269,7 @@ private fun ThemePicker(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = "App Theme",
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            Text(text = "App Theme", style = MaterialTheme.typography.bodyLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 themeOptions.forEach { option ->
                     ThemeSwatch(
@@ -241,25 +315,19 @@ private fun ThemeSwatch(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth(0.7f)
-                            .height(8.dp),
+                        modifier = Modifier.fillMaxWidth(0.7f).height(8.dp),
                         color = option.fg,
                         shape = RoundedCornerShape(4.dp),
                         content = {},
                     )
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth(0.5f)
-                            .height(6.dp),
+                        modifier = Modifier.fillMaxWidth(0.5f).height(6.dp),
                         color = option.fg.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(4.dp),
                         content = {},
                     )
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(20.dp),
+                        modifier = Modifier.fillMaxWidth().height(20.dp),
                         color = option.accent,
                         shape = RoundedCornerShape(4.dp),
                         content = {},
@@ -271,10 +339,7 @@ private fun ThemeSwatch(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
                     tint = option.fg,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(16.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(16.dp),
                 )
             }
         }

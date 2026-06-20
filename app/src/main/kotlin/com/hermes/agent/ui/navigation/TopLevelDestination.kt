@@ -3,6 +3,7 @@ package com.hermes.agent.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
@@ -17,8 +18,9 @@ enum class TopLevelDestination(
     val label: String,
     val icon: ImageVector,
 ) {
-    CONVERSATIONS(route = "conversations",        label = "Chats",      icon = Icons.Outlined.Forum),
+    CONVERSATIONS(route = "conversations",         label = "Chats",      icon = Icons.Outlined.Forum),
     CHAT(         route = "chat/{conversationId}", label = "Chat",       icon = Icons.Outlined.Chat),
+    DOCUMENTS(    route = "documents",             label = "Documents",  icon = Icons.Outlined.Description),
     SKILLS(       route = "skills",               label = "Skills",     icon = Icons.Outlined.Stars),
     CONNECT(      route = "connect",              label = "Connect",    icon = Icons.Outlined.Link),
     SCHEDULE(     route = "schedule",             label = "Schedule",   icon = Icons.Outlined.Schedule),
