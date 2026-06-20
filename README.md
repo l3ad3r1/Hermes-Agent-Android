@@ -2,31 +2,32 @@
 
 A privacy-first, on-device AI agent platform for Android, built per the [Technical Architecture Plan][plan] (June 2026).
 
-> **Status:** Phase 4 — Polish & Launch (v1.0.0). All four plan phases
-> are implemented: Foundation, Core Agent, Platform Features, and
-> Polish. The code compiles and runs end-to-end with multi-agent
-> orchestration, a 7-tool function-calling system, hybrid RAG,
-> dual-store memory, plugin framework with three first-party plugins,
-> real SSE streaming, voice I/O, encrypted settings,
-> certificate pinning, tiered memory-pressure shedding, onboarding,
-> accessibility, and 5-language localization.
-> `LlmProvider` contract in Phase 3.x. See **[docs/PHASE4.md](docs/PHASE4.md)**.
+> **Status:** v0.3.0 — Connect, Delegate & Experiment. All four plan phases
+> are implemented plus three new Hermes Agent features: **Connect** (Webhook /
+> Telegram / Discord platform integrations with an LLM-callable `notify` tool),
+> **Delegate** (one-shot background agent tasks via WorkManager), and
+> **Experiment** (side-by-side streaming model A/B comparison). Runs
+> end-to-end with multi-agent orchestration, a 8-tool function-calling
+> system, hybrid RAG, dual-store memory, plugin framework, real SSE
+> streaming, voice I/O, encrypted settings, certificate pinning,
+> tiered memory-pressure shedding, onboarding, accessibility, and
+> 5-language localization. See **[docs/PHASE4.md](docs/PHASE4.md)**.
 
 [plan]: ./Hermes_Agent_Android_App_Technical_Plan.pdf
 
-## What's in Phase 1 + 2 + 3 + 4
+## What's in Phase 1 + 2 + 3 + 4 + v0.3.0
 
 | Module                      | Status | Notes                                                                 |
 |-----------------------------|--------|-----------------------------------------------------------------------|
-| Jetpack Compose UI shell    | ✅      | Chat, Conversations, Memory, Documents, Plugins, Settings — Material 3 + dynamic color |
-| Hilt DI                     | ✅      | App / Database / Network / LLM / Tools / Agents / Memory / RAG / Plugins modules |
-| Room persistence            | ✅      | Conversations, messages, memories, documents, document_chunks — schema v2 with migration |
+| Jetpack Compose UI shell    | ✅      | Chat, Conversations, Connect, Schedule, Delegate, Experiment, Settings — Material 3 + dynamic color |
+| Hilt DI                     | ✅      | App / Database / Network / LLM / Tools / Agents / Memory / RAG / Plugins / Connect / Delegate modules |
+| Room persistence            | ✅      | Conversations, messages, memories, documents, connectors, agent_tasks — schema v4 with migrations |
 | LLM provider interface      | ✅      | `LlmProvider` + `LlmRouter` contracts (tool support since Phase 2)    |
 | On-device LLM provider      | ✅ mock | Canned replies + synthesized tool calls when trigger phrases match   |
 | Cloud LLM provider          | ✅      | OpenAI-compatible Retrofit; **real SSE streaming** (Phase 3) + `completeWithTools` |
 | Hybrid LLM router           | ✅      | Heuristic complexity classifier + per-user settings                   |
 | **Multi-agent orchestration** | ✅    | 5 agents, plan-then-execute, tool-call loop                           |
-| **Tool system**             | ✅      | 7 first-party tools + 3 plugin-contributed tools (Phase 3)            |
+| **Tool system**             | ✅      | 8 first-party tools (+ `notify` v0.3.0) + 3 plugin-contributed tools |
 | **Function-calling protocol** | ✅    | OpenAI-compatible `tools` array + `tool_calls` parsing                |
 | **Conversation memory (enhanced)** | ✅ | Short-term sliding window + long-term semantic store with hybrid vector + keyword search |
 | **Memory consolidation**    | ✅      | Regex-based fact extractor + daily WorkManager pass while charging    |
@@ -42,6 +43,9 @@ A privacy-first, on-device AI agent platform for Android, built per the [Technic
 | **Memory pressure shedding**| ✅      | Tiered NORMAL/ELEVATED/CRITICAL, on-device LLM auto-unloads < 2GB (Phase 4) |
 | **Idle unload**             | ✅      | On-device LLM unloads after configurable idle period (Phase 4)        |
 | **Beta packaging**          | ✅      | v1.0.0, release signing config, ProGuard verified (Phase 4)           |
+| **Connect** (v0.3.0)        | ✅      | Webhook / Telegram / Discord integrations; LLM `notify` tool; ConnectorRepository + CRUD UI |
+| **Delegate** (v0.3.0)       | ✅      | One-shot background agent tasks via WorkManager + `@HiltWorker`; task lifecycle (Queued→Running→Completed/Failed) |
+| **Experiment** (v0.3.0)     | ✅      | Side-by-side streaming LLM A/B comparison; pick any two model IDs; parallel SSE streams |
 | Plugin gRPC sandbox         | ⏳      | Interface stub; Phase 3.x will wire real gRPC IPC                      |
 | Plugin marketplace          | ⏳      | Phase 3.x                                                               |
 | On-device MLC-LLM           | ⏳      | Phase 3.x (JNI bindings + Snapdragon NPU)                              |
@@ -133,6 +137,7 @@ For per-module responsibilities and the public API of each package, see
 | Phase 2: Core Agent (weeks 7–14)    | ✅        | Orchestration, tool system, memory, RAG, function calling |
 | Phase 3: Platform (weeks 15–20)     | ✅        | Plugin framework + 3 plugins, real SSE streaming, voice I/O |
 | Phase 4: Polish & Launch (21–24)    | ✅        | Onboarding, accessibility, localization, encrypted settings, cert pinning, memory-pressure shedding, v1.0.0 packaging |
+| **v0.3.0: Connect / Delegate / Experiment** | ✅ | Platform integrations, background agent tasks, model A/B comparison |
 | Phase 3.x: Production backends      | staged    | MLC-LLM + NPU, real embeddings, SQLite-VSS, gRPC plugin sandbox, real cert hashes |
 
 ## License & attribution
