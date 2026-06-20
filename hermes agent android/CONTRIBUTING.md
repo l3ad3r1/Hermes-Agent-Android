@@ -1,6 +1,6 @@
 # Contributing to Hermes Agent
 
-Thanks for your interest in contributing. The goal is to grow Hermes Agent from a solid Android foundation into a fully-capable, cross-platform AI agent — including a native desktop build. All skill levels welcome; the issue tracker is broken into bite-sized bugs and larger features.
+Thanks for your interest in contributing. The goal is to grow Hermes Agent from a solid Android foundation into a fully-capable, cross-platform AI agent and work in tandem with the hermes Agent desktop app. All skill levels welcome; the issue tracker is broken into bite-sized bugs and larger features.
 
 ## Table of contents
 - [Quick start](#quick-start)
