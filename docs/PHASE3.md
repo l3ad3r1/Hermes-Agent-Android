@@ -223,7 +223,7 @@ sequenceDiagram
    - Send any prompt. After the orchestrator's `ReplyComplete`, the TTS
      engine speaks the reply aloud.
 6. **Try the S Pen toggle** (only visible on Samsung S Pen devices):
-   - On a Galaxy S24 Ultra, the S Pen toggle appears in the input bar.
+   - On S Pen-capable devices, the S Pen toggle appears in the input bar.
    - Tap to toggle handwriting mode (Phase 3 only flips the icon color;
      the actual capture surface lands in Phase 3.x).
 7. **Plugins tab**:

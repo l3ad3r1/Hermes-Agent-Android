@@ -42,9 +42,9 @@ class ChatRepositoryImpl @Inject constructor(
     companion object {
         const val CONTEXT_WINDOW_MESSAGES = 20
         const val SYSTEM_PROMPT =
-            "You are Hermes, an on-device AI agent for the Samsung Galaxy S24 Ultra. " +
+            "You are Hermes, a privacy-first on-device AI agent for Android. " +
                 "Be concise, helpful, and privacy-conscious. " +
-                "When asked about device features, assume S Pen, NPU, and Knox are available."
+                "When asked about device features, check what is available on this device."
     }
 
     override fun sendMessage(

@@ -18,7 +18,7 @@ import javax.inject.Singleton
  * this keystore-backed encryption). The wrapper itself is wired and tested
  * now so the migration path is mechanical.
  *
- * The hardware-backed keystore on the S24 Ultra (StrongBox / TEE) is the
+ * The hardware-backed keystore (StrongBox / TEE) is the
  * privacy foundation described in Section 4.2 and Section 8 of the plan.
  */
 @Singleton

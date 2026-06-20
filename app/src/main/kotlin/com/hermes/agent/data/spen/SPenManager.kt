@@ -17,7 +17,7 @@ import javax.inject.Singleton
  *   - Honors the [SPenManager] contract so the UI layer can be built
  *     and tested against any S Pen-capable device.
  *   - Probes for the Samsung S Pen SDK at runtime via reflection. On
- *     S24 Ultra (and other Samsung Note-series devices) the SDK class
+ *     S Pen-capable devices the SDK class
  *     `com.samsung.android.sdk.pen.Spen` is present and [isAvailable]
  *     returns true. On non-Samsung devices it returns false and the
  *     UI hides the S Pen affordances.

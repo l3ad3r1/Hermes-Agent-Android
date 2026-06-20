@@ -1,7 +1,6 @@
 # Hermes Agent — Android App
 
-A privacy-first, on-device AI agent platform targeting the Samsung Galaxy S24
-Ultra, built per the [Technical Architecture Plan][plan] (June 2026).
+A privacy-first, on-device AI agent platform for Android, built per the [Technical Architecture Plan][plan] (June 2026).
 
 > **Status:** Phase 4 — Polish & Launch (v1.0.0). All four plan phases
 > are implemented: Foundation, Core Agent, Platform Features, and

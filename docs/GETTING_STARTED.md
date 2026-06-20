@@ -111,7 +111,7 @@ Studio. The most common issues are:
 
 ## Step 4 — Set up an emulator (recommended for first run)
 
-If you have a physical Samsung Galaxy S24 Ultra, you can skip to Step 5.
+If you have a physical Android phone, you can skip to Step 5.
 Otherwise, create an emulator:
 
 1. In Android Studio, click the **Device Manager** icon in the top-right
@@ -133,7 +133,7 @@ showing the home screen with the Pixel wallpaper.
 
 ## Step 5 — (Optional) Set up your physical phone
 
-To run on a real Samsung Galaxy S24 Ultra or any Android 10+ phone:
+To run on any Android 10+ phone:
 
 1. On your phone, go to **Settings → About phone**.
 2. Scroll to **Build number** (sometimes under **Software information**).
@@ -147,7 +147,7 @@ To run on a real Samsung Galaxy S24 Ultra or any Android 10+ phone:
    dropdown** at the top of the window (next to the ▶ Run button).
 
 **Verify:** In Android Studio, the device dropdown at the top should
-show your phone's model name (e.g. "SM-S928B" for the S24 Ultra).
+show your phone's model name.
 
 ---
 
@@ -280,7 +280,7 @@ appears in the input bar while a reply is streaming.
 
 ### S Pen (Samsung devices only)
 
-On a Galaxy S24 Ultra (or other S Pen device), an **S Pen toggle**
+On an S Pen-capable device, an **S Pen toggle**
 appears in the input bar between the mic and the text field. Tap it to
 toggle handwriting mode.
 

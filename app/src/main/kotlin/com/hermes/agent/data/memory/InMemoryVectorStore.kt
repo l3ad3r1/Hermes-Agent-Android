@@ -11,7 +11,7 @@ import kotlin.math.sqrt
  * Similarity search is brute-force cosine similarity, which (because
  * [HashingEmbeddingService] L2-normalizes its outputs) reduces to a
  * dot product. For a 384-dim vector and a few thousand entries this
- * is sub-millisecond on the S24 Ultra.
+ * is sub-millisecond on modern Android devices.
  */
 @Singleton
 class InMemoryVectorStore @Inject constructor() : VectorStore {

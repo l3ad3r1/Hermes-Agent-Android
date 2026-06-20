@@ -10,8 +10,7 @@
 | Gradle                   | 8.9 (auto via wrapper) | Don't use a system Gradle; the wrapper pins the version. |
 | Kotlin                   | 2.0.21               | Bundled via the Kotlin Gradle plugin.              |
 
-Minimum runtime device: **Android 10 (API 29)**. The plan targets the
-Samsung Galaxy S24 Ultra (Android 14), but the app installs and runs on
+Minimum runtime device: **Android 10 (API 29)**. The app installs and runs on
 any Android 10+ device for development.
 
 ---

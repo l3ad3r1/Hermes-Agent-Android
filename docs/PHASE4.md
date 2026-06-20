@@ -39,7 +39,7 @@ Weeks 21–24"), and what's left before a beta release.
 - **`data/security/EncryptedSettingsRepository.kt`** — wraps the
   DataStore-backed `SettingsRepository` so the cloud API key is
   transparently encrypted at rest via `KeystoreManager` (AES-256-GCM,
-  hardware-backed on the S24 Ultra). Existing consumers of
+  hardware-backed where available). Existing consumers of
   `SettingsRepository` are unaware of the swap. Uses a `@PlainSettings`
   qualifier to break the Hilt binding cycle.
 - **`data/security/CertificatePinningConfig.kt`** — OkHttp
@@ -172,7 +172,7 @@ Highlights
 -----------
 • Onboarding flow for first-launch users (Welcome / Privacy / Permissions).
 • Cloud API key now encrypted at rest via Android Keystore (AES-256-GCM,
-  hardware-backed on the S24 Ultra).
+  hardware-backed where available).
 • Certificate pinning for known cloud LLM providers (OpenAI, Anthropic,
   Together AI). Self-hosted endpoints exempt.
 • Tiered memory pressure shedding: on-device LLM auto-unloads when system

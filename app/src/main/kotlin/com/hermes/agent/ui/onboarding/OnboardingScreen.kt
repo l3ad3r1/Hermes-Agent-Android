@@ -118,7 +118,7 @@ private fun WelcomeStep() {
         Text(
             text = "Your on-device intelligence partner.\n\n" +
                 "Hermes runs multi-agent orchestration, function calling, " +
-                "and RAG directly on your S24 Ultra — with optional cloud " +
+                "and RAG directly on your device — with optional cloud " +
                 "fallback for complex tasks.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
