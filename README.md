@@ -7,10 +7,9 @@ A privacy-first, on-device AI agent platform for Android, built per the [Technic
 > Polish. The code compiles and runs end-to-end with multi-agent
 > orchestration, a 7-tool function-calling system, hybrid RAG,
 > dual-store memory, plugin framework with three first-party plugins,
-> real SSE streaming, voice I/O, S Pen scaffolding, encrypted settings,
+> real SSE streaming, voice I/O, encrypted settings,
 > certificate pinning, tiered memory-pressure shedding, onboarding,
-> accessibility, and 5-language localization. The on-device LLM is
-> still a mock; MLC-LLM + Snapdragon NPU swap in behind the same
+> accessibility, and 5-language localization.
 > `LlmProvider` contract in Phase 3.x. See **[docs/PHASE4.md](docs/PHASE4.md)**.
 
 [plan]: ./Hermes_Agent_Android_App_Technical_Plan.pdf
