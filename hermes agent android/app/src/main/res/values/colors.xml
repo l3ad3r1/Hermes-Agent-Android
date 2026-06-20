@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Hermes brand palette — derived from the "Greek messenger" theme of the plan -->
+    <color name="hermes_primary">#1E3A8A</color>      <!-- deep Aegean blue -->
+    <color name="hermes_primary_dark">#172554</color>
+    <color name="hermes_accent">#F59E0B</color>        <!-- herald's gold -->
+    <color name="hermes_surface">#F8FAFC</color>
+    <color name="hermes_on_primary">#FFFFFF</color>
+    <color name="hermes_on_surface">#0F172A</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
