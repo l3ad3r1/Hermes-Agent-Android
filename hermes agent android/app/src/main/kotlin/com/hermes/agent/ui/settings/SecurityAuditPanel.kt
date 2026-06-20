@@ -83,4 +83,15 @@ private fun SecurityControlRow(control: SecurityControl) {
             Text(
                 text = control.title,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.col
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = control.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private typealias Warning = Color

@@ -185,4 +185,5 @@ class ContactsPlugin @Inject constructor(
     }
 
     private fun JsonElement.extractString(): String? =
-        
+        (this as? JsonPrimitive)?.contentOrNull
+}

@@ -61,4 +61,12 @@ class CertificatePinningConfig @Inject constructor() {
         /**
          * Hosts that are exempt from pinning because they're typically
          * self-hosted (vLLM, Ollama, llama.cpp server) and use self-signed
-         * o
+         * or local CA certificates.
+         */
+        val EXEMPT_HOSTS: Set<String> = setOf(
+            "localhost",
+            "10.0.2.2",  // Android emulator host loopback
+            "127.0.0.1",
+        )
+    }
+}
