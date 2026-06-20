@@ -30,7 +30,7 @@ class WebhookTool @Inject constructor(
 
     override val descriptor = ToolDescriptor(
         name = "notify",
-        description = "Send a message to connected platforms (Telegram, Discord, webhook). Use when you need to notify the user via an external channel.",
+        description = "Send a message to connected platforms (Telegram, Discord, Signal, WhatsApp, webhook). Use when you need to notify the user via an external channel.",
         parameters = listOf(
             ToolParameter("message", ToolParameterType.STRING, "The message to send."),
             ToolParameter("platform", ToolParameterType.STRING,
@@ -65,6 +65,17 @@ class WebhookTool @Inject constructor(
                         message,
                     )
                     ConnectorType.DISCORD -> postDiscord(connector.config["url"] ?: return@forEach, message)
+                    ConnectorType.SIGNAL -> postSignal(
+                        connector.config["url"] ?: return@forEach,
+                        connector.config["recipient"] ?: return@forEach,
+                        message,
+                    )
+                    ConnectorType.WHATSAPP -> postWhatsApp(
+                        connector.config["phoneNumberId"] ?: return@forEach,
+                        connector.config["accessToken"] ?: return@forEach,
+                        connector.config["recipient"] ?: return@forEach,
+                        message,
+                    )
                 }
                 connectorRepository.recordUsed(connector.id)
                 sent++
@@ -92,5 +103,27 @@ class WebhookTool @Inject constructor(
     private fun postDiscord(webhookUrl: String, message: String) {
         val body = """{"content":${JsonPrimitive(message)}}""".toRequestBody(json)
         okHttpClient.newCall(Request.Builder().url(webhookUrl).post(body).build()).execute().close()
+    }
+
+    /** Signal via signal-cli REST API (https://github.com/bbernhard/signal-cli-rest-api). */
+    private fun postSignal(apiUrl: String, recipient: String, message: String) {
+        val body = """{"message":${JsonPrimitive(message)},"recipients":[${JsonPrimitive(recipient)}]}"""
+            .toRequestBody(json)
+        okHttpClient.newCall(
+            Request.Builder().url("${apiUrl.trimEnd('/')}/v2/send").post(body).build()
+        ).execute().close()
+    }
+
+    /** WhatsApp Cloud API (Meta). phoneNumberId is the From number ID in the dashboard. */
+    private fun postWhatsApp(phoneNumberId: String, accessToken: String, recipient: String, message: String) {
+        val body = """{"messaging_product":"whatsapp","to":${JsonPrimitive(recipient)},"type":"text","text":{"body":${JsonPrimitive(message)}}}"""
+            .toRequestBody(json)
+        okHttpClient.newCall(
+            Request.Builder()
+                .url("https://graph.facebook.com/v18.0/$phoneNumberId/messages")
+                .addHeader("Authorization", "Bearer $accessToken")
+                .post(body)
+                .build()
+        ).execute().close()
     }
 }

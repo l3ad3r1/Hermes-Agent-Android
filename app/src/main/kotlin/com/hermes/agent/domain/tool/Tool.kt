@@ -51,12 +51,24 @@ data class ToolParameter(
  *   SMS, deleting a file). The orchestrator surfaces a confirmation
  *   dialog before running such tools.
  */
+/**
+ * Mirrors hermes-agent's ToolEntry fields for cross-platform parity.
+ *
+ * @property maxResultSizeChars Output is truncated to this many chars before
+ *   being injected into the LLM context. Prevents runaway tool output from
+ *   consuming the entire context window.
+ * @property requiresEnv Environment/config keys that must be non-blank for
+ *   this tool to function (e.g. API keys). Used by the settings UI to flag
+ *   unconfigured tools.
+ */
 data class ToolDescriptor(
     val name: String,
     val description: String,
     val parameters: List<ToolParameter>,
     val category: String = "general",
     val requiresConfirmation: Boolean = false,
+    val maxResultSizeChars: Int = 8192,
+    val requiresEnv: List<String> = emptyList(),
 )
 
 /**

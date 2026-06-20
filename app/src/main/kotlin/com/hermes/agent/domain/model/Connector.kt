@@ -4,6 +4,8 @@ enum class ConnectorType(val displayName: String) {
     WEBHOOK("Webhook"),
     TELEGRAM("Telegram"),
     DISCORD("Discord"),
+    SIGNAL("Signal"),
+    WHATSAPP("WhatsApp"),
 }
 
 data class Connector(

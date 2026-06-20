@@ -19,6 +19,9 @@ data class ChatCompletionRequest(
     val temperature: Double = 0.7,
     @SerialName("max_tokens") val maxTokens: Int? = null,
     val stream: Boolean = false,
+    /** Reasoning effort for o-series / extended-thinking models.
+     *  Mirrors hermes-agent VALID_REASONING_EFFORTS. Null = omit from request. */
+    @SerialName("reasoning_effort") val reasoningEffort: String? = null,
 )
 
 @Serializable

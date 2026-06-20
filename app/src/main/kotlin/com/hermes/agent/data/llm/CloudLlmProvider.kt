@@ -80,6 +80,7 @@ class CloudLlmProvider @Inject constructor(
             model = s.cloudModel.cleaned(),
             messages = messages.map { it.toDto() },
             stream = false,
+            reasoningEffort = s.reasoningEffort.takeIf { it != "medium" && it.isNotBlank() },
         )
         val auth = "Bearer ${s.cloudApiKey.cleaned()}"
         val resp = try {

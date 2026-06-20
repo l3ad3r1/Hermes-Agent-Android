@@ -175,6 +175,28 @@ private fun AddConnectorDialog(
                             label = { Text("Webhook URL") }, singleLine = true,
                             modifier = Modifier.fillMaxWidth())
                     }
+                    ConnectorType.SIGNAL -> {
+                        OutlinedTextField(value = url, onValueChange = { url = it },
+                            label = { Text("signal-cli REST API URL") },
+                            placeholder = { Text("http://localhost:8080") },
+                            singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = chatId, onValueChange = { chatId = it },
+                            label = { Text("Recipient (phone number)") },
+                            placeholder = { Text("+15551234567") },
+                            singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
+                    ConnectorType.WHATSAPP -> {
+                        OutlinedTextField(value = chatId, onValueChange = { chatId = it },
+                            label = { Text("Phone Number ID") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = botToken, onValueChange = { botToken = it },
+                            label = { Text("Access Token") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = url, onValueChange = { url = it },
+                            label = { Text("Recipient number") },
+                            placeholder = { Text("+15551234567") },
+                            singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
                 }
             }
         },
@@ -182,9 +204,11 @@ private fun AddConnectorDialog(
             TextButton(
                 onClick = {
                     val config = when (type) {
-                        ConnectorType.WEBHOOK -> mapOf("url" to url)
+                        ConnectorType.WEBHOOK  -> mapOf("url" to url)
                         ConnectorType.TELEGRAM -> mapOf("botToken" to botToken, "chatId" to chatId)
                         ConnectorType.DISCORD  -> mapOf("url" to url)
+                        ConnectorType.SIGNAL   -> mapOf("url" to url, "recipient" to chatId)
+                        ConnectorType.WHATSAPP -> mapOf("phoneNumberId" to chatId, "accessToken" to botToken, "recipient" to url)
                     }
                     onAdd(name.ifBlank { type.displayName }, type, config)
                 },
@@ -209,7 +233,7 @@ private fun EmptyConnectState(modifier: Modifier = Modifier) {
         Text("No integrations yet", style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(8.dp))
-        Text("Tap + to connect Telegram, Discord, or a custom webhook.",
+        Text("Tap + to connect Telegram, Discord, Signal, WhatsApp, or a custom webhook.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
