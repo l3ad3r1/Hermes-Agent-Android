@@ -6,8 +6,8 @@ import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.hermes.agent.domain.model.CronPresets
 import com.hermes.agent.domain.model.ScheduledTask
-import com.hermes.agent.domain.model.TaskSchedule
 import com.hermes.agent.domain.repository.CronRepository
 import com.hermes.agent.util.IdGenerator
 import com.hermes.agent.work.ScheduledTaskWorker
@@ -28,12 +28,12 @@ class CronViewModel @Inject constructor(
     val tasks: StateFlow<List<ScheduledTask>> = cronRepository.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun addTask(label: String, prompt: String, schedule: TaskSchedule) {
+    fun addTask(label: String, prompt: String, cronExpression: String) {
         val task = ScheduledTask(
             id = IdGenerator.newId(),
             label = label,
             prompt = prompt,
-            schedule = schedule,
+            cronExpression = cronExpression,
         )
         viewModelScope.launch {
             cronRepository.add(task)
@@ -64,9 +64,8 @@ class CronViewModel @Inject constructor(
             .putString(ScheduledTaskWorker.KEY_TASK_LABEL, task.label)
             .build()
 
-        val request = PeriodicWorkRequestBuilder<ScheduledTaskWorker>(
-            task.schedule.intervalMinutes, TimeUnit.MINUTES,
-        )
+        val intervalMinutes = intervalMinutesFor(task.cronExpression)
+        val request = PeriodicWorkRequestBuilder<ScheduledTaskWorker>(intervalMinutes, TimeUnit.MINUTES)
             .setInputData(data)
             .build()
 
@@ -79,5 +78,15 @@ class CronViewModel @Inject constructor(
 
     private fun cancelWork(taskId: String) {
         workManager.cancelUniqueWork("cron_$taskId")
+    }
+
+    /** Derive a WorkManager repeat interval from a cron expression.
+     *  Full cron parsing is out of scope for WorkManager; we map common
+     *  patterns and fall back to 24h for anything else. */
+    private fun intervalMinutesFor(cron: String): Long = when (cron.trim()) {
+        CronPresets.HOURLY        -> 60L
+        CronPresets.WEEKDAYS      -> 24 * 60L
+        CronPresets.WEEKLY        -> 7 * 24 * 60L
+        else                      -> 24 * 60L  // daily default
     }
 }

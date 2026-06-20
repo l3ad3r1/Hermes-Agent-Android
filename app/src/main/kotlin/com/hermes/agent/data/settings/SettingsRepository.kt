@@ -21,6 +21,8 @@ interface SettingsRepository {
     suspend fun setIdleUnloadMinutes(minutes: Int)
 
     suspend fun setAppTheme(themeName: String)
+    suspend fun setReasoningEffort(effort: String)
+    suspend fun setAuxModel(model: String)
 
     /** Phase 4: true once the user has completed onboarding. */
     suspend fun isOnboardingCompleted(): Boolean

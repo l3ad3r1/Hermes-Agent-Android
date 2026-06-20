@@ -11,6 +11,7 @@ import com.hermes.agent.data.local.dao.DocumentDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
+import com.hermes.agent.data.local.dao.SkillDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,7 +31,12 @@ object DatabaseModule {
             HermesDatabase::class.java,
             HermesDatabase.DATABASE_NAME,
         )
-            .addMigrations(HermesDatabase.MIGRATION_1_2, HermesDatabase.MIGRATION_2_3, HermesDatabase.MIGRATION_3_4)
+            .addMigrations(
+                HermesDatabase.MIGRATION_1_2,
+                HermesDatabase.MIGRATION_2_3,
+                HermesDatabase.MIGRATION_3_4,
+                HermesDatabase.MIGRATION_4_5,
+            )
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
@@ -43,4 +49,5 @@ object DatabaseModule {
     @Provides fun provideScheduledTaskDao(db: HermesDatabase): ScheduledTaskDao = db.scheduledTaskDao()
     @Provides fun provideConnectorDao(db: HermesDatabase): ConnectorDao = db.connectorDao()
     @Provides fun provideAgentTaskDao(db: HermesDatabase): AgentTaskDao = db.agentTaskDao()
+    @Provides fun provideSkillDao(db: HermesDatabase): SkillDao = db.skillDao()
 }

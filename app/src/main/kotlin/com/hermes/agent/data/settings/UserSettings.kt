@@ -26,4 +26,16 @@ data class UserSettings(
     val idleUnloadMinutes: Int = 5,
     /** Selected UI theme. One of: MIDNIGHT, PAPER, HERMES_BLUE. */
     val appTheme: String = "MIDNIGHT",
+    /**
+     * Reasoning effort passed to providers that support it (e.g. OpenAI o-series,
+     * Anthropic extended thinking). Mirrors hermes-agent's VALID_REASONING_EFFORTS.
+     * One of: minimal, low, medium, high, xhigh.
+     */
+    val reasoningEffort: String = "medium",
+    /**
+     * Name of the auxiliary (cheap) model used for summarization, memory
+     * consolidation, and other low-stakes background tasks.
+     * Mirrors hermes-agent's ProviderProfile.default_aux_model.
+     */
+    val auxModel: String = "gpt-4o-mini",
 )

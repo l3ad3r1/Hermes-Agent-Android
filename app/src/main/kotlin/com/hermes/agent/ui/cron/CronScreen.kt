@@ -44,8 +44,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hermes.agent.domain.model.CronPresets
 import com.hermes.agent.domain.model.ScheduledTask
-import com.hermes.agent.domain.model.TaskSchedule
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -94,8 +94,8 @@ fun CronScreen(viewModel: CronViewModel = hiltViewModel()) {
         if (showAddDialog) {
             AddTaskDialog(
                 onDismiss = { showAddDialog = false },
-                onConfirm = { label, prompt, schedule ->
-                    viewModel.addTask(label, prompt, schedule)
+                onConfirm = { label, prompt, cronExpr ->
+                    viewModel.addTask(label, prompt, cronExpr)
                     showAddDialog = false
                 },
             )
@@ -130,7 +130,7 @@ private fun TaskCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = task.schedule.label,
+                        text = CronPresets.labelFor(task.cronExpression),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -183,12 +183,14 @@ private fun TaskCard(
 @Composable
 private fun AddTaskDialog(
     onDismiss: () -> Unit,
-    onConfirm: (label: String, prompt: String, schedule: TaskSchedule) -> Unit,
+    onConfirm: (label: String, prompt: String, cronExpression: String) -> Unit,
 ) {
     var label by remember { mutableStateOf("") }
     var prompt by remember { mutableStateOf("") }
-    var selectedSchedule by remember { mutableStateOf(TaskSchedule.DAILY_MORNING) }
-    var scheduleExpanded by remember { mutableStateOf(false) }
+    var selectedCron by remember { mutableStateOf(CronPresets.DAILY_MORNING) }
+    var customCron by remember { mutableStateOf("") }
+    var useCustom by remember { mutableStateOf(false) }
+    var dropdownExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -212,38 +214,58 @@ private fun AddTaskDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ExposedDropdownMenuBox(
-                    expanded = scheduleExpanded,
-                    onExpandedChange = { scheduleExpanded = it },
+                    expanded = dropdownExpanded,
+                    onExpandedChange = { dropdownExpanded = it },
                 ) {
                     OutlinedTextField(
-                        value = selectedSchedule.label,
+                        value = CronPresets.labelFor(selectedCron),
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Frequency") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = scheduleExpanded) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth(),
                     )
                     ExposedDropdownMenu(
-                        expanded = scheduleExpanded,
-                        onDismissRequest = { scheduleExpanded = false },
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false },
                     ) {
-                        TaskSchedule.entries.forEach { schedule ->
+                        CronPresets.ALL.forEach { (lbl, expr) ->
                             DropdownMenuItem(
-                                text = { Text(schedule.label) },
+                                text = { Text(lbl) },
                                 onClick = {
-                                    selectedSchedule = schedule
-                                    scheduleExpanded = false
+                                    selectedCron = expr
+                                    useCustom = false
+                                    dropdownExpanded = false
                                 },
                             )
                         }
+                        DropdownMenuItem(
+                            text = { Text("Custom cron expression…") },
+                            onClick = {
+                                useCustom = true
+                                dropdownExpanded = false
+                            },
+                        )
                     }
+                }
+                if (useCustom) {
+                    OutlinedTextField(
+                        value = customCron,
+                        onValueChange = { customCron = it },
+                        label = { Text("Cron expression") },
+                        placeholder = { Text("0 9 * * 1-5") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = { Text("5-field cron: min hour dom month dow") },
+                    )
                 }
             }
         },
         confirmButton = {
+            val finalCron = if (useCustom) customCron.trim() else selectedCron
             TextButton(
-                onClick = { onConfirm(label.trim(), prompt.trim(), selectedSchedule) },
-                enabled = label.isNotBlank() && prompt.isNotBlank(),
+                onClick = { onConfirm(label.trim(), prompt.trim(), finalCron) },
+                enabled = label.isNotBlank() && prompt.isNotBlank() && finalCron.isNotBlank(),
             ) { Text("Schedule") }
         },
         dismissButton = {
@@ -272,7 +294,7 @@ private fun EmptyCronState(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Tap + to schedule a recurring prompt.\nHermes will run it automatically and notify you.",
+            text = "Tap + to schedule a recurring prompt.\nHermes will run it and notify you.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

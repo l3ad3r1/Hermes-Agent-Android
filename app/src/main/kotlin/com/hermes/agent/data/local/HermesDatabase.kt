@@ -12,6 +12,7 @@ import com.hermes.agent.data.local.dao.DocumentDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
+import com.hermes.agent.data.local.dao.SkillDao
 import com.hermes.agent.data.local.entity.AgentTaskEntity
 import com.hermes.agent.data.local.entity.ConnectorEntity
 import com.hermes.agent.data.local.entity.ConversationEntity
@@ -20,6 +21,7 @@ import com.hermes.agent.data.local.entity.DocumentEntity
 import com.hermes.agent.data.local.entity.MemoryEntity
 import com.hermes.agent.data.local.entity.MessageEntity
 import com.hermes.agent.data.local.entity.ScheduledTaskEntity
+import com.hermes.agent.data.local.entity.SkillEntity
 
 @Database(
     entities = [
@@ -31,8 +33,9 @@ import com.hermes.agent.data.local.entity.ScheduledTaskEntity
         ScheduledTaskEntity::class,
         ConnectorEntity::class,
         AgentTaskEntity::class,
+        SkillEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -44,6 +47,7 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun scheduledTaskDao(): ScheduledTaskDao
     abstract fun connectorDao(): ConnectorDao
     abstract fun agentTaskDao(): AgentTaskDao
+    abstract fun skillDao(): SkillDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
@@ -98,6 +102,29 @@ abstract class HermesDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS skills (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        version TEXT NOT NULL DEFAULT '1.0.0',
+                        content TEXT NOT NULL,
+                        category TEXT NOT NULL DEFAULT 'general',
+                        tagsJson TEXT NOT NULL DEFAULT '[]',
+                        isBuiltIn INTEGER NOT NULL DEFAULT 0,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_skills_name ON skills(name)")
+                db.execSQL("ALTER TABLE scheduled_tasks ADD COLUMN cronExpression TEXT NOT NULL DEFAULT ''")
             }
         }
 

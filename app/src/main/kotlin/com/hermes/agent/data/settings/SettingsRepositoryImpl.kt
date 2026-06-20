@@ -41,6 +41,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val IDLE_UNLOAD_MINUTES = intPreferencesKey("idle_unload_minutes")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed_v1")
         val APP_THEME = stringPreferencesKey("app_theme")
+        val REASONING_EFFORT = stringPreferencesKey("reasoning_effort")
+        val AUX_MODEL = stringPreferencesKey("aux_model")
     }
 
     override fun observe(): Flow<UserSettings> = context.hermesDataStore.data.map { prefs ->
@@ -81,6 +83,15 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.APP_THEME] = themeName }
     }
 
+    override suspend fun setReasoningEffort(effort: String) {
+        val valid = setOf("minimal", "low", "medium", "high", "xhigh")
+        if (effort in valid) context.hermesDataStore.edit { it[Keys.REASONING_EFFORT] = effort }
+    }
+
+    override suspend fun setAuxModel(model: String) {
+        if (model.isNotBlank()) context.hermesDataStore.edit { it[Keys.AUX_MODEL] = model }
+    }
+
     override suspend fun isOnboardingCompleted(): Boolean {
         return context.hermesDataStore.data.map { it[Keys.ONBOARDING_COMPLETED] ?: false }.first()
     }
@@ -100,6 +111,8 @@ class SettingsRepositoryImpl @Inject constructor(
             complexityThreshold = this[Keys.COMPLEXITY_THRESHOLD] ?: 0.6f,
             idleUnloadMinutes = this[Keys.IDLE_UNLOAD_MINUTES] ?: 5,
             appTheme = this[Keys.APP_THEME] ?: "MIDNIGHT",
+            reasoningEffort = this[Keys.REASONING_EFFORT] ?: "medium",
+            auxModel = this[Keys.AUX_MODEL] ?: "gpt-4o-mini",
         )
     }
 }

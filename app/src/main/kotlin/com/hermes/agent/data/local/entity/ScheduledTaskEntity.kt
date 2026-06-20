@@ -2,15 +2,18 @@ package com.hermes.agent.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.hermes.agent.domain.model.CronPresets
 import com.hermes.agent.domain.model.ScheduledTask
-import com.hermes.agent.domain.model.TaskSchedule
 
 @Entity(tableName = "scheduled_tasks")
 data class ScheduledTaskEntity(
     @PrimaryKey val id: String,
     val label: String,
     val prompt: String,
-    val scheduleName: String,
+    /** Legacy field kept for DB compatibility; empty string for new rows. */
+    val scheduleName: String = "",
+    /** Standard 5-field cron expression added in DB v5. */
+    val cronExpression: String = "",
     val isEnabled: Boolean,
     val lastRunAt: Long?,
     val lastResult: String?,
@@ -20,8 +23,15 @@ data class ScheduledTaskEntity(
         id = id,
         label = label,
         prompt = prompt,
-        schedule = runCatching { TaskSchedule.valueOf(scheduleName) }
-            .getOrDefault(TaskSchedule.DAILY_MORNING),
+        cronExpression = cronExpression.ifBlank {
+            when (scheduleName) {
+                "HOURLY"        -> CronPresets.HOURLY
+                "DAILY_EVENING" -> CronPresets.DAILY_EVENING
+                "WEEKDAYS"      -> CronPresets.WEEKDAYS
+                "WEEKLY"        -> CronPresets.WEEKLY
+                else            -> CronPresets.DAILY_MORNING
+            }
+        },
         isEnabled = isEnabled,
         lastRunAt = lastRunAt,
         lastResult = lastResult,
@@ -33,7 +43,8 @@ data class ScheduledTaskEntity(
             id = task.id,
             label = task.label,
             prompt = task.prompt,
-            scheduleName = task.schedule.name,
+            scheduleName = "",
+            cronExpression = task.cronExpression,
             isEnabled = task.isEnabled,
             lastRunAt = task.lastRunAt,
             lastResult = task.lastResult,

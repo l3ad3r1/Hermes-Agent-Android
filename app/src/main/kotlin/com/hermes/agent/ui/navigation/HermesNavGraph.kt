@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import com.hermes.agent.ui.chat.ChatScreen
 import com.hermes.agent.ui.connect.ConnectScreen
 import com.hermes.agent.ui.conversations.ConversationsScreen
+import com.hermes.agent.ui.skills.SkillsScreen
 import com.hermes.agent.ui.cron.CronScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
 import com.hermes.agent.ui.experiment.ExperimentScreen
@@ -28,8 +29,8 @@ import com.hermes.agent.ui.settings.SettingsScreen
 
 private val bottomNavDestinations = listOf(
     TopLevelDestination.CONVERSATIONS,
+    TopLevelDestination.SKILLS,
     TopLevelDestination.CONNECT,
-    TopLevelDestination.SCHEDULE,
     TopLevelDestination.DELEGATE,
     TopLevelDestination.SETTINGS,
 )
@@ -87,6 +88,7 @@ fun HermesNavGraph() {
                 )
             }
             composable(TopLevelDestination.MEMORY.route)     { MemoryScreen() }
+            composable(TopLevelDestination.SKILLS.route)    { SkillsScreen() }
             composable(TopLevelDestination.CONNECT.route)   { ConnectScreen() }
             composable(TopLevelDestination.SCHEDULE.route)  { CronScreen() }
             composable(TopLevelDestination.DELEGATE.route)  { DelegateScreen() }
