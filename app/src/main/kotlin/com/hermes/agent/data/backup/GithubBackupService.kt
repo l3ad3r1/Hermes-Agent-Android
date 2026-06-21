@@ -86,7 +86,8 @@ class GithubBackupService @Inject constructor(
 
             val request = Request.Builder()
                 .url("https://api.github.com/gists/$gistId")
-                .header("Authorization", "token $pat")
+                .header("Authorization", "Bearer $pat")
+            .header("X-GitHub-Api-Version", "2022-11-28")
                 .header("Accept", "application/vnd.github.v3+json")
                 .header("User-Agent", "Hermes-Agent-Android/${BuildConfig.VERSION_NAME}")
                 .get()
@@ -94,10 +95,12 @@ class GithubBackupService @Inject constructor(
 
             val responseBody = runCatching {
                 okHttpClient.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string() ?: ""
                     if (!response.isSuccessful) {
-                        return@withContext RestoreResult.Failure("GitHub API error: ${response.code}")
+                        val hint = githubErrorHint(response.code, bodyStr)
+                        return@withContext RestoreResult.Failure("GitHub ${response.code}: $hint")
                     }
-                    response.body?.string()
+                    bodyStr
                 }
             }.onFailure { Timber.tag("GithubBackup").w(it, "restore network error") }
                 .getOrNull() ?: return@withContext RestoreResult.Failure("Network error during restore.")
@@ -146,7 +149,8 @@ class GithubBackupService @Inject constructor(
     private fun createGist(pat: String, body: okhttp3.RequestBody, ts: Long): BackupResult {
         val request = Request.Builder()
             .url("https://api.github.com/gists")
-            .header("Authorization", "token $pat")
+            .header("Authorization", "Bearer $pat")
+            .header("X-GitHub-Api-Version", "2022-11-28")
             .header("Accept", "application/vnd.github.v3+json")
             .header("User-Agent", "Hermes-Agent-Android/${BuildConfig.VERSION_NAME}")
             .post(body)
@@ -154,11 +158,12 @@ class GithubBackupService @Inject constructor(
 
         return runCatching {
             okHttpClient.newCall(request).execute().use { response ->
+                val bodyStr = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
-                    return@runCatching BackupResult.Failure("GitHub API error: ${response.code}")
+                    val hint = githubErrorHint(response.code, bodyStr)
+                    return@runCatching BackupResult.Failure("GitHub ${response.code}: $hint")
                 }
-                val gistId = JSONObject(response.body?.string() ?: "")
-                    .optString("id", "")
+                val gistId = JSONObject(bodyStr).optString("id", "")
                 if (gistId.isBlank()) BackupResult.Failure("No gist ID in response")
                 else BackupResult.Success(gistId, ts)
             }
@@ -174,7 +179,8 @@ class GithubBackupService @Inject constructor(
     ): BackupResult {
         val request = Request.Builder()
             .url("https://api.github.com/gists/$gistId")
-            .header("Authorization", "token $pat")
+            .header("Authorization", "Bearer $pat")
+            .header("X-GitHub-Api-Version", "2022-11-28")
             .header("Accept", "application/vnd.github.v3+json")
             .header("User-Agent", "Hermes-Agent-Android/${BuildConfig.VERSION_NAME}")
             .patch(body)
@@ -182,13 +188,34 @@ class GithubBackupService @Inject constructor(
 
         return runCatching {
             okHttpClient.newCall(request).execute().use { response ->
+                val bodyStr = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
-                    return@runCatching BackupResult.Failure("GitHub API error: ${response.code}")
+                    val hint = githubErrorHint(response.code, bodyStr)
+                    return@runCatching BackupResult.Failure("GitHub ${response.code}: $hint")
                 }
                 BackupResult.Success(gistId, ts)
             }
         }.onFailure { Timber.tag("GithubBackup").w(it, "update gist") }
             .getOrElse { BackupResult.Failure(it.message ?: "Network error") }
+    }
+
+    private fun githubErrorHint(code: Int, body: String): String = when (code) {
+        401 -> "Invalid or expired token. Regenerate your PAT and paste it again."
+        403 -> {
+            val msg = runCatching { JSONObject(body).optString("message", "") }.getOrDefault("")
+            when {
+                msg.contains("scope", ignoreCase = true) ||
+                    msg.contains("permission", ignoreCase = true) ->
+                    "Token is missing the 'gist' scope. Create a new PAT with gist access."
+                msg.contains("fine-grained", ignoreCase = true) ->
+                    "Fine-grained tokens need explicit Gist read+write permission."
+                msg.isNotBlank() -> msg
+                else -> "Forbidden. Check your PAT has the 'gist' scope and hasn't expired."
+            }
+        }
+        404 -> "Gist not found. It may have been deleted — clear the Gist ID and back up again."
+        422 -> "Request rejected by GitHub. The backup data may be malformed."
+        else -> "Unexpected error (HTTP $code). Check your internet connection and try again."
     }
 
     private fun buildGistPayload(jsonContent: String): String = buildString {

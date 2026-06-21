@@ -217,6 +217,7 @@ fun SettingsScreen(
                 onBackup = viewModel::backupNow,
                 onRestore = viewModel::restoreBackup,
                 onDismiss = viewModel::dismissBackupState,
+                onClearGistId = viewModel::clearGistId,
             )
 
             // --- Security ---
@@ -533,6 +534,7 @@ private fun BackupSection(
     onBackup: () -> Unit,
     onRestore: () -> Unit,
     onDismiss: () -> Unit,
+    onClearGistId: () -> Unit,
 ) {
     val dateFmt = remember { SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()) }
 
@@ -548,8 +550,7 @@ private fun BackupSection(
                 Text("GitHub Gist Backup", style = MaterialTheme.typography.bodyLarge)
             }
             Text(
-                "Backs up memories and skills to a private GitHub Gist. " +
-                    "Requires a PAT with the 'gist' scope.",
+                "Backs up memories and skills to a private GitHub Gist.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -562,11 +563,37 @@ private fun BackupSection(
                     onPatChange(it)
                 },
                 label = { Text("GitHub Personal Access Token") },
-                supportingText = { Text("github.com → Settings → Developer settings → PAT → gist scope") },
+                supportingText = {
+                    Text(
+                        "Classic PAT: github.com → Settings → Developer settings → " +
+                            "Personal access tokens (classic) → gist scope.\n" +
+                            "Fine-grained PAT: enable Gists → Read and write."
+                    )
+                },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            if (gistId.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Gist: ${gistId.take(8)}…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Clear",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.clickable(onClick = onClearGistId).padding(4.dp),
+                    )
+                }
+            }
 
             if (lastBackupTimestamp > 0L) {
                 Text(

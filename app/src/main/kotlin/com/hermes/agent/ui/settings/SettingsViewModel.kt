@@ -148,6 +148,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun clearGistId() = viewModelScope.launch {
+        settingsRepository.setGistId("")
+        settingsRepository.setLastBackupTimestamp(0L)
+        _backupState.value = BackupUiState.Idle
+    }
+
     fun dismissBackupState() {
         _backupState.value = BackupUiState.Idle
     }
