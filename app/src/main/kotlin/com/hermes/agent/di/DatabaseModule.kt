@@ -37,7 +37,7 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_3_4,
                 HermesDatabase.MIGRATION_4_5,
             )
-            .fallbackToDestructiveMigrationOnDowngrade()
+            .fallbackToDestructiveMigration()
             .build()
     }
 
