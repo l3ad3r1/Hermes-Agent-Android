@@ -21,15 +21,27 @@
   - HermesApp: SkillImprovementWorker scheduled weekly (CONNECTED network constraint)
   - GitHub release: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.4.3
 
+- **v0.4.4 (commit ~): OTA update checker + GitHub Gist backup**
+  - OtaUpdateChecker: daily WorkManager job + manual button; GitHub releases API; semver compare
+  - GithubBackupService: backup/restore via Gist; Bearer auth + X-GitHub-Api-Version header
+  - SettingsScreen: Updates + Backup & Restore sections added
+  - Signing fixed: hermes.local.properties placed at repo root
+- **v0.4.5: Fixed GitHub API 403** — `Authorization: Bearer` required for fine-grained PATs
+- **Issue #9 closed (commit 1a6b650): CloudLlmProvider integration tests**
+  - 20 tests covering isAvailable, complete, completeWithTools, stream, HTTP errors
+  - Fixed 5 pre-existing test compilation errors (ChatViewModel, HybridLlmRouter,
+    MemoryConsolidator, OnboardingViewModel, ToolRegistryImpl constructors/types)
+  - Fixed scheduler mismatch in fake-stream test (shared TestCoroutineScheduler)
+
 ## In progress
-Nothing — v0.4.3 is complete and shipped.
+Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
 1. Real FTS5 Room virtual table to replace LIKE '%query%' scans
 2. Honcho external API integration (currently in-process only)
 3. Real on-device embedding model (SHA-256 mock currently in place)
-4. Sign the APK (signing keys in hermes-agent-android\; wire into build.gradle.kts)
-5. v0.4.4: UI panel to view/edit auto-created skills and memory entries
+4. Fix remaining pre-existing test failures: RagPipelineImplTest, ToolCallExecutorTest,
+   ChatViewModelTest (3), OnboardingViewModelTest (2) — runtime assertion/dispatcher issues
 
 ## Key file locations
 - Signing keys (DO NOT MOVE):
