@@ -8,4 +8,8 @@ data class UserSettings(
     val appTheme: String = "MIDNIGHT",
     val reasoningEffort: String = "medium",
     val auxModel: String = "gpt-4o-mini",
+    // Backup
+    val githubPat: String = "",
+    val gistId: String = "",
+    val lastBackupTimestamp: Long = 0L,
 )

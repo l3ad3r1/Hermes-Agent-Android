@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.hermes.agent.BuildConfig
@@ -30,6 +31,9 @@ class SettingsRepositoryImpl @Inject constructor(
         val APP_THEME = stringPreferencesKey("app_theme")
         val REASONING_EFFORT = stringPreferencesKey("reasoning_effort")
         val AUX_MODEL = stringPreferencesKey("aux_model")
+        val GITHUB_PAT = stringPreferencesKey("github_pat")
+        val GIST_ID = stringPreferencesKey("gist_id")
+        val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
     }
 
     override fun observe(): Flow<UserSettings> = context.hermesDataStore.data.map { prefs ->
@@ -75,6 +79,18 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.ONBOARDING_COMPLETED] = completed }
     }
 
+    override suspend fun setGithubPat(pat: String) {
+        context.hermesDataStore.edit { it[Keys.GITHUB_PAT] = pat }
+    }
+
+    override suspend fun setGistId(gistId: String) {
+        context.hermesDataStore.edit { it[Keys.GIST_ID] = gistId }
+    }
+
+    override suspend fun setLastBackupTimestamp(ts: Long) {
+        context.hermesDataStore.edit { it[Keys.LAST_BACKUP_TS] = ts }
+    }
+
     private fun Preferences.toUserSettings(): UserSettings {
         return UserSettings(
             cloudEnabled = this[Keys.CLOUD_ENABLED] ?: false,
@@ -84,6 +100,9 @@ class SettingsRepositoryImpl @Inject constructor(
             appTheme = this[Keys.APP_THEME] ?: "MIDNIGHT",
             reasoningEffort = this[Keys.REASONING_EFFORT] ?: "medium",
             auxModel = this[Keys.AUX_MODEL] ?: "gpt-4o-mini",
+            githubPat = this[Keys.GITHUB_PAT] ?: "",
+            gistId = this[Keys.GIST_ID] ?: "",
+            lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,
         )
     }
 }

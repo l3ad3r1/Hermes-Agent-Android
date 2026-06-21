@@ -17,4 +17,9 @@ interface SettingsRepository {
 
     suspend fun isOnboardingCompleted(): Boolean
     suspend fun setOnboardingCompleted(completed: Boolean)
+
+    // Backup
+    suspend fun setGithubPat(pat: String)
+    suspend fun setGistId(gistId: String)
+    suspend fun setLastBackupTimestamp(ts: Long)
 }

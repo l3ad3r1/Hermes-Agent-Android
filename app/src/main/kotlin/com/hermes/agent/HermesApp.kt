@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.hermes.agent.work.MemoryConsolidationWorker
+import com.hermes.agent.work.OtaUpdateWorker
 import com.hermes.agent.work.SkillImprovementWorker
 import com.hermes.agent.data.performance.MemoryPressureMonitor
 import dagger.hilt.android.HiltAndroidApp
@@ -48,6 +49,7 @@ class HermesApp : Application(), Configuration.Provider {
         memoryPressureMonitor.start()
         scheduleMemoryConsolidation()
         scheduleSkillImprovement()
+        scheduleOtaUpdateCheck()
     }
 
     override val workManagerConfiguration: Configuration
@@ -55,6 +57,23 @@ class HermesApp : Application(), Configuration.Provider {
             .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(android.util.Log.INFO)
             .build()
+
+    private fun scheduleOtaUpdateCheck() {
+        val request = PeriodicWorkRequestBuilder<OtaUpdateWorker>(
+            1, TimeUnit.DAYS,
+        )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            OtaUpdateWorker.UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request,
+        )
+    }
 
     private fun scheduleSkillImprovement() {
         val request = PeriodicWorkRequestBuilder<SkillImprovementWorker>(

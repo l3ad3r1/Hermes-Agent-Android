@@ -1,5 +1,7 @@
 package com.hermes.agent.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,16 +21,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Stars
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -46,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -54,6 +64,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.BuildConfig
 import com.hermes.agent.R
 import com.hermes.agent.ui.theme.AppTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +75,9 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val backupState by viewModel.backupState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         modifier = Modifier.imePadding(),
@@ -177,6 +193,31 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // --- OTA Update ---
+            SectionHeader(text = "Updates")
+            UpdateSection(
+                state = updateState,
+                onCheck = viewModel::checkForUpdate,
+                onOpenUrl = { url ->
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    viewModel.dismissUpdateState()
+                },
+                onDismiss = viewModel::dismissUpdateState,
+            )
+
+            // --- Backup & Restore ---
+            SectionHeader(text = "Backup & Restore")
+            BackupSection(
+                githubPat = settings.githubPat,
+                gistId = settings.gistId,
+                lastBackupTimestamp = settings.lastBackupTimestamp,
+                state = backupState,
+                onPatChange = viewModel::setGithubPat,
+                onBackup = viewModel::backupNow,
+                onRestore = viewModel::restoreBackup,
+                onDismiss = viewModel::dismissBackupState,
+            )
 
             // --- Security ---
             SectionHeader(text = stringResource(R.string.settings_section_security))
@@ -402,5 +443,187 @@ private fun InfoRow(title: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+@Composable
+private fun UpdateSection(
+    state: UpdateUiState,
+    onCheck: () -> Unit,
+    onOpenUrl: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.SystemUpdate,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text("Over-the-air Updates", style = MaterialTheme.typography.bodyLarge)
+            }
+            Text(
+                "Current version: ${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            when (state) {
+                is UpdateUiState.Idle, is UpdateUiState.Error -> {
+                    if (state is UpdateUiState.Error) {
+                        Text(
+                            state.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = onCheck,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Check for updates")
+                    }
+                }
+                is UpdateUiState.Checking -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text("Checking…", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                is UpdateUiState.UpToDate -> {
+                    Text(
+                        "You're on the latest version.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                        Text("Dismiss")
+                    }
+                }
+                is UpdateUiState.UpdateAvailable -> {
+                    Text(
+                        "Hermes ${state.version} is available!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Button(
+                        onClick = { onOpenUrl(state.url) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("View release & download")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackupSection(
+    githubPat: String,
+    gistId: String,
+    lastBackupTimestamp: Long,
+    state: BackupUiState,
+    onPatChange: (String) -> Unit,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val dateFmt = remember { SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.Backup,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text("GitHub Gist Backup", style = MaterialTheme.typography.bodyLarge)
+            }
+            Text(
+                "Backs up memories and skills to a private GitHub Gist. " +
+                    "Requires a PAT with the 'gist' scope.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            var pat by remember(githubPat) { mutableStateOf(githubPat) }
+            OutlinedTextField(
+                value = pat,
+                onValueChange = {
+                    pat = it
+                    onPatChange(it)
+                },
+                label = { Text("GitHub Personal Access Token") },
+                supportingText = { Text("github.com → Settings → Developer settings → PAT → gist scope") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            if (lastBackupTimestamp > 0L) {
+                Text(
+                    "Last backup: ${dateFmt.format(Date(lastBackupTimestamp))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            when (state) {
+                is BackupUiState.InProgress -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text("Working…", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                is BackupUiState.Success -> {
+                    Text(
+                        state.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                        Text("Dismiss")
+                    }
+                }
+                is BackupUiState.Error -> {
+                    Text(
+                        state.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                else -> Unit
+            }
+
+            if (state !is BackupUiState.InProgress && state !is BackupUiState.Success) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        onClick = onBackup,
+                        modifier = Modifier.weight(1f),
+                        enabled = githubPat.isNotBlank(),
+                    ) {
+                        Text("Backup now")
+                    }
+                    OutlinedButton(
+                        onClick = onRestore,
+                        modifier = Modifier.weight(1f),
+                        enabled = githubPat.isNotBlank() && gistId.isNotBlank(),
+                    ) {
+                        Text("Restore")
+                    }
+                }
+            }
+        }
     }
 }
