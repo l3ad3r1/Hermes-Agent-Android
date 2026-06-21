@@ -1,6 +1,7 @@
 package com.hermes.agent.di
 
 import com.hermes.agent.data.tools.CalculatorTool
+import com.hermes.agent.data.tools.ShellTool
 import com.hermes.agent.data.tools.CalendarTool
 import com.hermes.agent.data.tools.ConversationSearchTool
 import com.hermes.agent.data.tools.DateTimeTool
@@ -47,6 +48,7 @@ object ToolsModule {
         skillManagerTool: SkillManagerTool,
         memoryTool: MemoryTool,
         schedulerTool: SchedulerTool,
+        shellTool: ShellTool,
     ): ToolRegistry {
         val registry = com.hermes.agent.data.tool.ToolRegistryImpl()
         listOf<Tool>(
@@ -61,6 +63,7 @@ object ToolsModule {
             skillManagerTool,
             memoryTool,
             schedulerTool,
+            shellTool,
         ).forEach(registry::register)
         return registry
     }
