@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.hermes.agent.work.MemoryConsolidationWorker
+import com.hermes.agent.work.SkillImprovementWorker
 import com.hermes.agent.data.performance.MemoryPressureMonitor
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
@@ -46,6 +47,7 @@ class HermesApp : Application(), Configuration.Provider {
         // no-op; otherwise we start it now that Hilt is initialized.
         memoryPressureMonitor.start()
         scheduleMemoryConsolidation()
+        scheduleSkillImprovement()
     }
 
     override val workManagerConfiguration: Configuration
@@ -53,6 +55,23 @@ class HermesApp : Application(), Configuration.Provider {
             .setWorkerFactory(workerFactory)
             .setMinimumLoggingLevel(android.util.Log.INFO)
             .build()
+
+    private fun scheduleSkillImprovement() {
+        val request = PeriodicWorkRequestBuilder<SkillImprovementWorker>(
+            7, TimeUnit.DAYS,
+        )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            SkillImprovementWorker.UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request,
+        )
+    }
 
     private fun scheduleMemoryConsolidation() {
         val constraints = Constraints.Builder()

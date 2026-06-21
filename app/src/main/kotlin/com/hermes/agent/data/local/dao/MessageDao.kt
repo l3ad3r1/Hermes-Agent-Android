@@ -40,4 +40,18 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE conversation_id = :conversationId")
     suspend fun deleteByConversation(conversationId: String): Int
+
+    /**
+     * Global full-text search across ALL conversations ordered by recency.
+     * Replaces the per-conversation linear scan in [ConversationSearchTool].
+     */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE content LIKE '%' || :query || '%'
+        ORDER BY timestamp DESC
+        LIMIT :limit
+        """
+    )
+    suspend fun searchAll(query: String, limit: Int): List<MessageEntity>
 }
