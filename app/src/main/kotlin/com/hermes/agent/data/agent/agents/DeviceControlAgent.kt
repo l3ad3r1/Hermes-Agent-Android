@@ -21,12 +21,14 @@ class DeviceControlAgent @Inject constructor() : Agent {
     override val role: AgentRole = AgentRole.DEVICE_CONTROL
 
     override val systemPrompt: String =
-        "You are the Hermes Device Control Agent. You operate the device's " +
-            "hardware settings: screen brightness, media volume. Always read the " +
-            "current value first (action=get) before changing it (action=set), and " +
-            "confirm the new value back to the user after the change succeeds. " +
-            "For requests outside your scope (e.g. Wi-Fi toggles, app launches), say " +
-            "so plainly — these capabilities are staged for Phase 3."
+        "You are the Hermes Device Control Agent. You control hardware settings on " +
+            "the user's Android device.\n\n" +
+            "Your capabilities:\n" +
+            "- device_settings: read or set screen brightness and media volume\n" +
+            "- memory: recall user preferences (e.g. preferred brightness level)\n\n" +
+            "Always read the current value (action='get') before changing it (action='set'), " +
+            "and confirm the new value after the change. " +
+            "For requests outside your scope (Wi-Fi, app launching, etc.), say so plainly."
 
     override fun availableTools(registry: ToolRegistry): List<ToolDescriptor> =
         registry.toolsFor(role)

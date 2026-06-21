@@ -14,6 +14,7 @@ import com.hermes.agent.domain.agent.RoutingResult
 import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.domain.model.ExecutionPlan
 import com.hermes.agent.domain.model.ExecutionStep
+import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.util.DispatcherProvider
 import com.hermes.agent.util.IdGenerator
@@ -62,6 +63,7 @@ class OrchestratorImpl @Inject constructor(
     private val llmRouter: LlmRouter,
     private val toolCallExecutor: ToolCallExecutor,
     private val dispatchers: DispatcherProvider,
+    private val memoryRepository: MemoryRepository,
 ) : Orchestrator {
 
     override fun run(
@@ -83,6 +85,19 @@ class OrchestratorImpl @Inject constructor(
         val plan = buildPlan(conversationId, userMessage, routing)
         emit(OrchestratorEvent.PlanReady(plan))
 
+        // Load persisted memories once, inject into every agent's system prompt so
+        // the LLM always knows who the user is without needing a tool-call round-trip.
+        val memories = runCatching { memoryRepository.searchMemories("", limit = 30) }
+            .getOrDefault(emptyList())
+        val memoryBlock = if (memories.isNotEmpty()) {
+            buildString {
+                append("\n\n## What you know about the user\n")
+                memories.forEach { m -> append("- ${m.content}\n") }
+                append("\nUse this context naturally in conversation. " +
+                    "Save any new personal facts the user shares using the memory tool (action='add').")
+            }
+        } else ""
+
         // 3. Execute each step.
         val aggregator = StringBuilder()
         var lastProviderWasOnDevice = true
@@ -93,7 +108,7 @@ class OrchestratorImpl @Inject constructor(
             val tools = agent.availableTools(toolRegistry)
 
             val llmMessages = buildList {
-                add(LlmMessage(role = "system", content = agent.systemPrompt))
+                add(LlmMessage(role = "system", content = agent.systemPrompt + memoryBlock))
                 addAll(recentMessages)
                 // The current user message may already be in recentMessages
                 // (the chat repository persists it before invoking the

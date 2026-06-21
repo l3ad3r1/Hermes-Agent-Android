@@ -27,19 +27,22 @@ internal object AgentToolAccess {
 
     private val ACCESS: Map<com.hermes.agent.domain.model.AgentRole, Set<String>> = mapOf(
         com.hermes.agent.domain.model.AgentRole.CONVERSATIONAL to setOf(
-            "get_current_datetime", "notes", "search_conversations",
+            "get_current_datetime", "memory", "notes", "search_conversations",
+            "skill_manager", "scheduler", "web_search", "calculator",
         ),
         com.hermes.agent.domain.model.AgentRole.PRODUCTIVITY to setOf(
-            "get_current_datetime", "calendar_add_event", "notes", "search_conversations",
+            "get_current_datetime", "calendar_add_event", "memory", "notes",
+            "search_conversations", "skill_manager", "scheduler", "calculator",
         ),
         com.hermes.agent.domain.model.AgentRole.RESEARCH to setOf(
-            "web_search", "search_conversations", "notes",
+            "web_search", "search_conversations", "memory", "notes",
+            "skill_manager", "calculator",
         ),
         com.hermes.agent.domain.model.AgentRole.DEVICE_CONTROL to setOf(
-            "device_settings", "get_current_datetime",
+            "device_settings", "get_current_datetime", "memory",
         ),
         com.hermes.agent.domain.model.AgentRole.CREATIVE to setOf(
-            "notes", "search_conversations",
+            "memory", "notes", "search_conversations", "skill_manager",
         ),
     )
 

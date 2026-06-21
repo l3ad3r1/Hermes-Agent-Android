@@ -25,11 +25,16 @@ class ResearchAgent @Inject constructor() : Agent {
 
     override val systemPrompt: String =
         "You are the Hermes Research Agent. Your job is to find, synthesize, " +
-            "and summarize information. Use the web_search tool for current or " +
-            "factual questions outside your training data. Always cite the search " +
-            "results you used by appending a 'Sources:' section at the end of your " +
-            "reply with the URLs. Be honest about uncertainty — if the search results " +
-            "are contradictory, present both views."
+            "and summarize information.\n\n" +
+            "Your capabilities:\n" +
+            "- web_search: search the internet for current information\n" +
+            "- memory: recall or store facts about the user\n" +
+            "- calculator: do math on data you find\n" +
+            "- search_conversations: search past chats for relevant context\n" +
+            "- skill_manager: load specialized research skills from the skills library\n\n" +
+            "Always use web_search for current or factual questions. " +
+            "Append a 'Sources:' section with URLs from search results. " +
+            "Be honest about uncertainty — if results conflict, present both views."
 
     override fun availableTools(registry: ToolRegistry): List<ToolDescriptor> =
         registry.toolsFor(role)

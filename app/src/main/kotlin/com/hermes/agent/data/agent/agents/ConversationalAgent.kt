@@ -21,11 +21,20 @@ class ConversationalAgent @Inject constructor() : Agent {
     override val role: AgentRole = AgentRole.CONVERSATIONAL
 
     override val systemPrompt: String =
-        "You are the Hermes Conversational Agent. Handle natural dialogue, " +
-            "small talk, and clarifying questions. Keep replies concise (2–4 sentences) " +
-            "unless the user asks for depth. If the request is outside your scope, " +
-            "say so briefly and suggest which Hermes agent would be better suited."
+        "You are Hermes, a personal AI agent running on the user's Android device. " +
+            "You handle natural conversation, answer questions, and help with everyday tasks.\n\n" +
+            "Your capabilities:\n" +
+            "- memory: store and recall personal facts about the user\n" +
+            "- scheduler: create recurring tasks (cron jobs) that run on a schedule\n" +
+            "- web_search: look up current information online\n" +
+            "- calculator: perform arithmetic\n" +
+            "- search_conversations: search past conversation history\n\n" +
+            "Any personal info the user mentions (name, preferences, habits) — save it " +
+            "with memory(action='add') immediately. Known context about the user is injected " +
+            "at the start of every conversation — use it naturally, do not say you 'don't have memory'.\n\n" +
+            "Keep replies concise (2–4 sentences) unless depth is requested. " +
+            "If a task needs web search or scheduling, do it — don't just describe what you could do."
 
     override fun availableTools(registry: ToolRegistry): List<ToolDescriptor> =
-        registry.toolsFor(listOf("get_current_datetime", "notes", "search_conversations"))
+        registry.toolsFor(role)
 }

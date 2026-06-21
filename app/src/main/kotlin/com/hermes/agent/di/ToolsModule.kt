@@ -5,10 +5,11 @@ import com.hermes.agent.data.tools.CalendarTool
 import com.hermes.agent.data.tools.ConversationSearchTool
 import com.hermes.agent.data.tools.DateTimeTool
 import com.hermes.agent.data.tools.DeviceSettingsTool
-import com.hermes.agent.data.tools.NotesTool
-import com.hermes.agent.data.tools.WebSearchTool
 import com.hermes.agent.data.tools.MemoryTool
+import com.hermes.agent.data.tools.NotesTool
+import com.hermes.agent.data.tools.SchedulerTool
 import com.hermes.agent.data.tools.SkillManagerTool
+import com.hermes.agent.data.tools.WebSearchTool
 import com.hermes.agent.data.tools.WebhookTool
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolRegistry
@@ -45,6 +46,7 @@ object ToolsModule {
         calendarTool: CalendarTool,
         skillManagerTool: SkillManagerTool,
         memoryTool: MemoryTool,
+        schedulerTool: SchedulerTool,
     ): ToolRegistry {
         val registry = com.hermes.agent.data.tool.ToolRegistryImpl()
         listOf<Tool>(
@@ -58,6 +60,7 @@ object ToolsModule {
             calendarTool,
             skillManagerTool,
             memoryTool,
+            schedulerTool,
         ).forEach(registry::register)
         return registry
     }
