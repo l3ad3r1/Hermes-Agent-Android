@@ -142,7 +142,7 @@ android {
                 version = "3.22.1"
             }
         }
-        ndkVersion = "27.2.12479018"
+        ndkVersion = "30.0.14904198"
     }
 
     testOptions {
