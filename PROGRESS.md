@@ -17,12 +17,11 @@
   - BUILD SUCCESSFUL (debug APK confirmed)
 
 ## In progress
-- Awaiting user approval to push to GitHub
+- Nothing; all work committed and pushed.
 
 ## Next steps
-1. `git push origin main` (needs user confirmation)
-2. Create GitHub release v0.3.0 with debug APK
-3. Update README feature table for Connect/Delegate/Experiment
+1. Optionally create GitHub release v0.4.3 with debug APK
+2. ShellTool integration test: verify on-device via Conversational or Device Control agent
 - Signing keys live permanently in the old folder (intentional — do not move):
   - `E:\claude-projects\Hermes Android App\hermes-agent-android\app\hermes-release.jks`
   - `E:\claude-projects\Hermes Android App\hermes-agent-android\KEYSTORE_CREDENTIALS.txt`
