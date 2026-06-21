@@ -6,6 +6,7 @@ import com.hermes.agent.domain.model.MessageRole
 import com.hermes.agent.domain.repository.MemoryRepository
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -14,9 +15,10 @@ import org.junit.Test
 
 class MemoryConsolidatorTest {
 
-    private fun mockRepo(): MemoryRepository = mockk(relaxed = true).also {
+    private fun mockRepo(): MemoryRepository = mockk<MemoryRepository>(relaxed = true).also {
         coEvery { it.addMemory(any()) } returns "mem-id"
-        coEvery { it.observeMemories() } returns flowOf(emptyList<Memory>())
+        val emptyFlow: Flow<List<Memory>> = flowOf(emptyList())
+        coEvery { it.observeMemories() } returns emptyFlow
     }
 
     @Test

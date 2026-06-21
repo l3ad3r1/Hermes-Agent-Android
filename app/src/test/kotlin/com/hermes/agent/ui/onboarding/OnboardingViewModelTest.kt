@@ -16,9 +16,10 @@ import org.junit.Test
 
 class OnboardingViewModelTest {
 
-    private fun mockSettings(): SettingsRepository = mockk(relaxed = true).also {
+    private fun mockSettings(): SettingsRepository = mockk<SettingsRepository>(relaxed = true).also {
         coEvery { it.isOnboardingCompleted() } returns false
-        coEvery { it.observe() } returns flowOf(UserSettings())
+        val settingsFlow: Flow<UserSettings> = flowOf(UserSettings())
+        coEvery { it.observe() } returns settingsFlow
         coEvery { it.current() } returns UserSettings()
     }
 

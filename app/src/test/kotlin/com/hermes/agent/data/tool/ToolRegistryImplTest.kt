@@ -1,4 +1,6 @@
-package com.hermes.agent.data.tools
+package com.hermes.agent.data.tool
+
+import com.hermes.agent.data.tool.ToolRegistryImpl
 
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolParameter
