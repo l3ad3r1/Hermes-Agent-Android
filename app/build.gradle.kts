@@ -31,6 +31,12 @@ val localProps = Properties().apply {
     if (f.exists()) load(f.inputStream())
 }
 
+// On-device LLM: set these two in hermes.local.properties to enable the NDK build.
+//   hermes.ondevice.enabled=true
+//   hermes.ondevice.llamaCppPath=/absolute/path/to/llama.cpp
+val onDeviceBuildEnabled = localProps.getProperty("hermes.ondevice.enabled") == "true"
+val llamaCppPath: String = localProps.getProperty("hermes.ondevice.llamaCppPath") ?: ""
+
 android {
     namespace = "com.hermes.agent"
     compileSdk = 34
@@ -39,8 +45,8 @@ android {
         applicationId = "com.hermes.agent"
         minSdk = 29          // Android 10 — covers ~95% of active devices
         targetSdk = 34       // Android 14 — matches the plan's target
-        versionCode = 10
-        versionName = "0.4.5"
+        versionCode = 11
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -50,6 +56,26 @@ android {
         buildConfigField("String", "CLOUD_MODEL", "\"${project.findProperty("hermes.cloudModel") ?: "gpt-4o-mini"}\"")
         // API key is read from local properties only — never committed.
         buildConfigField("String", "CLOUD_API_KEY", "\"${localProps.getProperty("hermes.cloudApiKey") ?: ""}\"")
+
+        if (onDeviceBuildEnabled && llamaCppPath.isNotBlank()) {
+            ndk { abiFilters += listOf("arm64-v8a") }
+            externalNativeBuild {
+                cmake {
+                    arguments += listOf(
+                        "-DLLAMA_CPP_PATH=$llamaCppPath",
+                        "-DCMAKE_BUILD_TYPE=Release",
+                        "-DBUILD_SHARED_LIBS=ON",
+                        "-DLLAMA_BUILD_APP=OFF",
+                        "-DLLAMA_BUILD_COMMON=ON",
+                        "-DLLAMA_OPENSSL=OFF",
+                        "-DGGML_NATIVE=OFF",
+                        "-DGGML_BACKEND_DL=ON",
+                        "-DGGML_CPU_ALL_VARIANTS=ON",
+                        "-DGGML_LLAMAFILE=OFF",
+                    )
+                }
+            }
+        }
     }
 
     buildTypes {
@@ -109,6 +135,16 @@ android {
             excludes += "/META-INF/LICENSE*"
         }
     }
+    if (onDeviceBuildEnabled && llamaCppPath.isNotBlank()) {
+        externalNativeBuild {
+            cmake {
+                path("src/main/cpp/CMakeLists.txt")
+                version = "3.22.1"
+            }
+        }
+        ndkVersion = "27.2.12479018"
+    }
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true

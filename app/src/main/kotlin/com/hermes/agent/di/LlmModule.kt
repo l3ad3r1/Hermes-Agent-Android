@@ -4,6 +4,7 @@ import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.data.llm.LlmProvider
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.HybridLlmRouter
+import com.hermes.agent.data.llm.OnDeviceLlmProvider
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.data.repository.ChatRepositoryImpl
 import com.hermes.agent.domain.repository.ConversationRepository
@@ -14,6 +15,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -38,5 +40,11 @@ abstract class LlmModule {
 
     @Binds
     @Singleton
+    @Named("cloud")
     abstract fun bindCloudLlmProvider(impl: CloudLlmProvider): LlmProvider
+
+    @Binds
+    @Singleton
+    @Named("onDevice")
+    abstract fun bindOnDeviceLlmProvider(impl: OnDeviceLlmProvider): LlmProvider
 }

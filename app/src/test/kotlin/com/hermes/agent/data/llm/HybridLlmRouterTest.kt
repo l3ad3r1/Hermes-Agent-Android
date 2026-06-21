@@ -12,14 +12,20 @@ import org.junit.Test
 
 class HybridLlmRouterTest {
 
+    private lateinit var onDevice: OnDeviceLlmProvider
     private lateinit var cloud: CloudLlmProvider
     private lateinit var settings: SettingsRepository
 
     @Before
     fun setUp() {
+        onDevice = mockk(relaxed = true)
         cloud = mockk(relaxed = true)
         settings = mockk(relaxed = true)
+        // On-device disabled by default in tests
+        coEvery { onDevice.isAvailable() } returns false
     }
+
+    private fun router() = HybridLlmRouter(onDevice, cloud, settings)
 
     @Test
     fun `routes to cloud when enabled and key is set`() = runTest {
@@ -29,8 +35,7 @@ class HybridLlmRouterTest {
         )
         coEvery { cloud.isAvailable() } returns true
 
-        val router = HybridLlmRouter(cloud, settings)
-        val decision = router.route(listOf(LlmMessage("user", "hello")))
+        val decision = router().route(listOf(LlmMessage("user", "hello")))
 
         assertTrue("expected Cloud decision", decision is RoutingDecision.Cloud)
     }
@@ -43,8 +48,7 @@ class HybridLlmRouterTest {
         )
         coEvery { cloud.isAvailable() } returns false
 
-        val router = HybridLlmRouter(cloud, settings)
-        val decision = router.route(listOf(LlmMessage("user", "hello")))
+        val decision = router().route(listOf(LlmMessage("user", "hello")))
 
         assertTrue("expected Unavailable", decision is RoutingDecision.Unavailable)
     }
@@ -57,8 +61,7 @@ class HybridLlmRouterTest {
         )
         coEvery { cloud.isAvailable() } returns false
 
-        val router = HybridLlmRouter(cloud, settings)
-        val decision = router.route(listOf(LlmMessage("user", "anything")))
+        val decision = router().route(listOf(LlmMessage("user", "anything")))
 
         assertTrue(decision is RoutingDecision.Unavailable)
         val unavailable = decision as RoutingDecision.Unavailable
@@ -69,6 +72,35 @@ class HybridLlmRouterTest {
     }
 
     @Test
+    fun `routes to on-device when enabled and available`() = runTest {
+        coEvery { settings.current() } returns UserSettings(
+            onDeviceEnabled = true,
+            onDeviceModelPath = "/sdcard/models/test.gguf",
+        )
+        coEvery { onDevice.isAvailable() } returns true
+
+        val decision = router().route(listOf(LlmMessage("user", "hello")))
+
+        assertTrue("expected OnDevice decision", decision is RoutingDecision.OnDevice)
+    }
+
+    @Test
+    fun `falls back to cloud when on-device unavailable`() = runTest {
+        coEvery { settings.current() } returns UserSettings(
+            onDeviceEnabled = true,
+            onDeviceModelPath = "",   // blank path → not available
+            cloudEnabled = true,
+            cloudApiKey = "sk-test",
+        )
+        coEvery { onDevice.isAvailable() } returns false
+        coEvery { cloud.isAvailable() } returns true
+
+        val decision = router().route(listOf(LlmMessage("user", "hello")))
+
+        assertTrue("expected Cloud fallback", decision is RoutingDecision.Cloud)
+    }
+
+    @Test
     fun `returns deterministic decisions across calls`() = runTest {
         coEvery { settings.current() } returns UserSettings(
             cloudEnabled = true,
@@ -76,9 +108,9 @@ class HybridLlmRouterTest {
         )
         coEvery { cloud.isAvailable() } returns true
 
-        val router = HybridLlmRouter(cloud, settings)
-        val d1 = router.route(listOf(LlmMessage("user", "hi")))
-        val d2 = router.route(listOf(LlmMessage("user", "hi")))
+        val r = router()
+        val d1 = r.route(listOf(LlmMessage("user", "hi")))
+        val d2 = r.route(listOf(LlmMessage("user", "hi")))
         assertEquals(d1::class, d2::class)
     }
 

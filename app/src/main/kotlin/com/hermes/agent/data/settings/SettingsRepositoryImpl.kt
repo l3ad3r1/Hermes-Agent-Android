@@ -31,6 +31,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val APP_THEME = stringPreferencesKey("app_theme")
         val REASONING_EFFORT = stringPreferencesKey("reasoning_effort")
         val AUX_MODEL = stringPreferencesKey("aux_model")
+        val ON_DEVICE_ENABLED = booleanPreferencesKey("on_device_enabled")
+        val ON_DEVICE_MODEL_PATH = stringPreferencesKey("on_device_model_path")
         val GITHUB_PAT = stringPreferencesKey("github_pat")
         val GIST_ID = stringPreferencesKey("gist_id")
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
@@ -79,6 +81,14 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.ONBOARDING_COMPLETED] = completed }
     }
 
+    override suspend fun setOnDeviceEnabled(enabled: Boolean) {
+        context.hermesDataStore.edit { it[Keys.ON_DEVICE_ENABLED] = enabled }
+    }
+
+    override suspend fun setOnDeviceModelPath(path: String) {
+        context.hermesDataStore.edit { it[Keys.ON_DEVICE_MODEL_PATH] = path }
+    }
+
     override suspend fun setGithubPat(pat: String) {
         context.hermesDataStore.edit { it[Keys.GITHUB_PAT] = pat }
     }
@@ -100,6 +110,8 @@ class SettingsRepositoryImpl @Inject constructor(
             appTheme = this[Keys.APP_THEME] ?: "MIDNIGHT",
             reasoningEffort = this[Keys.REASONING_EFFORT] ?: "medium",
             auxModel = this[Keys.AUX_MODEL] ?: "gpt-4o-mini",
+            onDeviceEnabled = this[Keys.ON_DEVICE_ENABLED] ?: false,
+            onDeviceModelPath = this[Keys.ON_DEVICE_MODEL_PATH] ?: "",
             githubPat = this[Keys.GITHUB_PAT] ?: "",
             gistId = this[Keys.GIST_ID] ?: "",
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,

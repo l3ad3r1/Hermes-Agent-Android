@@ -107,6 +107,16 @@ class SettingsViewModel @Inject constructor(
         _updateState.value = UpdateUiState.Idle
     }
 
+    // --- On-device LLM ---
+
+    fun setOnDeviceEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setOnDeviceEnabled(enabled)
+    }
+
+    fun setOnDeviceModelPath(path: String) = viewModelScope.launch {
+        settingsRepository.setOnDeviceModelPath(path)
+    }
+
     // --- Backup ---
 
     fun setGithubPat(pat: String) = viewModelScope.launch {

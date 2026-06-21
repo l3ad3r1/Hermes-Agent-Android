@@ -18,6 +18,10 @@ interface SettingsRepository {
     suspend fun isOnboardingCompleted(): Boolean
     suspend fun setOnboardingCompleted(completed: Boolean)
 
+    // On-device LLM
+    suspend fun setOnDeviceEnabled(enabled: Boolean)
+    suspend fun setOnDeviceModelPath(path: String)
+
     // Backup
     suspend fun setGithubPat(pat: String)
     suspend fun setGistId(gistId: String)
