@@ -51,8 +51,7 @@ sealed class LlmStreamChunk {
 /**
  * Contract every LLM backend must satisfy.
  *
- * Two concrete implementations ship in Phase 2:
- *   - [OnDeviceLlmProvider]  — returns canned responses (mocks MLC-LLM / NPU).
+ * One concrete implementation ships:
  *   - [CloudLlmProvider]     — OpenAI-compatible HTTP via Retrofit.
  *
  * Phase 2 adds two new methods to the contract:
@@ -122,8 +121,7 @@ interface LlmProvider {
 
     /**
      * Cheap availability check. Called by [LlmRouter] before selecting this
-     * provider. For the on-device provider this reports whether the (mock)
-     * model is loaded; for the cloud provider it reports whether an API key
+     * provider. For the cloud provider it reports whether an API key
      * is configured.
      */
     suspend fun isAvailable(): Boolean
