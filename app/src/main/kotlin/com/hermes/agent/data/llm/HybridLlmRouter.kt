@@ -9,7 +9,6 @@ import javax.inject.Singleton
 sealed class RoutingDecision {
     abstract val provider: LlmProvider
 
-    data class OnDevice(override val provider: LlmProvider) : RoutingDecision()
     data class Cloud(override val provider: LlmProvider, val reason: String) : RoutingDecision()
     data class Unavailable(override val provider: LlmProvider, val reason: String) : RoutingDecision()
 }
