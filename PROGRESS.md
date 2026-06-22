@@ -33,6 +33,18 @@
     MemoryConsolidator, OnboardingViewModel, ToolRegistryImpl constructors/types)
   - Fixed scheduler mismatch in fake-stream test (shared TestCoroutineScheduler)
 
+- **v0.5.0 REVERTED (commit 62ab0d7): on-device LLM (llama.cpp JNI) removed**
+  - Local inference was a failure in practice; reverted commits 9b79520, 981c343, aa4d18c
+  - Restored cloud-only behavior; native cpp/ layer, LlamaInferenceEngine, OnDeviceLlmProvider gone
+  - Follow-up c982294: dropped stale OnDeviceLlmProvider doc references from LlmProvider
+- **v0.4.6: Dual cloud model (specialised-task routing)**
+  - CloudLlmProvider gained `CloudModelSource` (PRIMARY=cloudModel / AUX=auxModel); shared key+baseUrl
+  - LlmModule provides unqualified PRIMARY (all existing injectors) + `@Named("cloudAux")` AUX instance
+  - HybridLlmRouter routes via ComplexityClassifier: COMPLEX→primary, SIMPLE→specialised (falls back to primary)
+  - Settings: "Specialised model" field wired to the dormant auxModel setting
+  - Tests: HybridLlmRouterTest extended (complex/simple/fallback), CloudLlmProviderTest constructor updated
+  - Activated previously-dormant `auxModel` setting and `ComplexityClassifier`
+
 ## In progress
 Nothing — all tracked issues resolved.
 

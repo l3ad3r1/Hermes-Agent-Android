@@ -191,6 +191,19 @@ fun SettingsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    var specialisedModel by remember(settings.auxModel) { mutableStateOf(settings.auxModel) }
+                    OutlinedTextField(
+                        value = specialisedModel,
+                        onValueChange = {
+                            specialisedModel = it
+                            viewModel.setAuxModel(it)
+                        },
+                        label = { Text(stringResource(R.string.settings_specialised_model)) },
+                        supportingText = { Text(stringResource(R.string.settings_specialised_model_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
 

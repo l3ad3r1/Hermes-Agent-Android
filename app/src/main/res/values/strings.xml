@@ -35,6 +35,8 @@
     <string name="settings_cloud_api_key_subtitle">OpenAI-compatible Bearer token</string>
     <string name="settings_cloud_base_url">Cloud base URL</string>
     <string name="settings_cloud_model">Cloud model</string>
+    <string name="settings_specialised_model">Specialised model</string>
+    <string name="settings_specialised_model_hint">Second cloud model used for simpler tasks. Shares the same API key and base URL.</string>
     <string name="settings_complexity_threshold">Cloud routing threshold</string>
     <string name="settings_idle_unload">On-device idle unload (minutes)</string>
     <string name="settings_knox_status">Samsung Knox</string>

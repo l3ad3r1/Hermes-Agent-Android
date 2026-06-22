@@ -74,6 +74,11 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setCloudModel(model)
     }
 
+    /** Specialised (secondary) cloud model the router uses for simpler tasks. */
+    fun setAuxModel(model: String) = viewModelScope.launch {
+        settingsRepository.setAuxModel(model)
+    }
+
     fun setAppTheme(themeName: String) = viewModelScope.launch {
         settingsRepository.setAppTheme(themeName)
     }

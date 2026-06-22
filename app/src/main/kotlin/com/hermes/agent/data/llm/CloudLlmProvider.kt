@@ -7,6 +7,7 @@ import com.hermes.agent.data.remote.dto.ChatMessage
 import com.hermes.agent.data.remote.dto.ToolCallDto
 import com.hermes.agent.data.remote.dto.FunctionCallDto
 import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.data.settings.UserSettings
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.delay
@@ -45,19 +46,41 @@ import javax.inject.Singleton
  * SSE — used automatically when the SSE stream throws.
  *
  * See Section 5.1 ("Cloud LLM Fallback") and Section 4.2 of the plan.
+ *
+ * Two instances are wired (see [com.hermes.agent.di.LlmModule]): a default
+ * PRIMARY one (reads [UserSettings.cloudModel]) used everywhere a bare
+ * [CloudLlmProvider] is injected, and an AUX one (reads
+ * [UserSettings.auxModel]) qualified `@Named("cloudAux")`. The
+ * [HybridLlmRouter] picks between them per request so two cloud models can be
+ * used for specialised tasks. Both share the same API key and base URL.
  */
+/**
+ * Selects which configured model id a [CloudLlmProvider] instance targets.
+ * PRIMARY → [UserSettings.cloudModel]; AUX → [UserSettings.auxModel].
+ */
+enum class CloudModelSource { PRIMARY, AUX }
+
 @Singleton
 class CloudLlmProvider @Inject constructor(
     private val api: OpenAiApi,
     private val settings: SettingsRepository,
     private val dispatchers: DispatcherProvider,
     private val json: Json,
+    private val modelSource: CloudModelSource,
 ) : LlmProvider {
 
-    override val name: String = "Hermes-Cloud"
+    override val name: String =
+        if (modelSource == CloudModelSource.AUX) "Hermes-Cloud-Specialised" else "Hermes-Cloud"
     override val isOnDevice: Boolean = false
     override val model: String
-        get() = settings.currentBlocking().cloudModel.cleaned()
+        get() = settings.currentBlocking().selectedModel().cleaned()
+
+    /**
+     * Model id this instance targets: the primary [UserSettings.cloudModel]
+     * or the specialised [UserSettings.auxModel], depending on [modelSource].
+     */
+    private fun UserSettings.selectedModel(): String =
+        if (modelSource == CloudModelSource.AUX) auxModel else cloudModel
 
     override suspend fun isAvailable(): Boolean {
         val s = settings.current()
@@ -77,7 +100,7 @@ class CloudLlmProvider @Inject constructor(
             "Cloud LLM is enabled but no API key is set."
         }
         val request = ChatCompletionRequest(
-            model = s.cloudModel.cleaned(),
+            model = s.selectedModel().cleaned(),
             messages = messages.map { it.toDto() },
             stream = false,
             reasoningEffort = s.reasoningEffort.takeIf { it != "medium" && it.isNotBlank() },
@@ -108,7 +131,7 @@ class CloudLlmProvider @Inject constructor(
 
         val requestJson = buildString {
             append('{')
-            append("\"model\":\"").append(s.cloudModel.cleaned()).append("\",")
+            append("\"model\":\"").append(s.selectedModel().cleaned()).append("\",")
             append("\"stream\":false,")
             append("\"messages\":")
             append(json.encodeToString(kotlinx.serialization.builtins.ListSerializer(ChatMessage.serializer()), messages.map { it.toDto() }))
@@ -147,7 +170,7 @@ class CloudLlmProvider @Inject constructor(
         }
 
         val request = ChatCompletionRequest(
-            model = s.cloudModel.cleaned(),
+            model = s.selectedModel().cleaned(),
             messages = messages.map { it.toDto() },
             stream = true,
         )
@@ -176,7 +199,7 @@ class CloudLlmProvider @Inject constructor(
 
         val requestJson = buildString {
             append('{')
-            append("\"model\":\"").append(s.cloudModel.cleaned()).append("\",")
+            append("\"model\":\"").append(s.selectedModel().cleaned()).append("\",")
             append("\"stream\":true,")
             append("\"messages\":")
             append(json.encodeToString(kotlinx.serialization.builtins.ListSerializer(ChatMessage.serializer()), messages.map { it.toDto() }))

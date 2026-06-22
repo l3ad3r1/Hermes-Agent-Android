@@ -58,7 +58,7 @@ class CloudLlmProviderTest {
         io.mockk.every { dispatchers.default } returns testDispatcher
         io.mockk.every { dispatchers.main } returns testDispatcher
 
-        provider = CloudLlmProvider(api, settings, dispatchers, json)
+        provider = CloudLlmProvider(api, settings, dispatchers, json, CloudModelSource.PRIMARY)
     }
 
     // ── isAvailable ──────────────────────────────────────────────────────────
