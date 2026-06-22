@@ -194,38 +194,6 @@ fun SettingsScreen(
                 }
             }
 
-            // --- On-Device LLM ---
-            SectionHeader(text = "On-Device LLM")
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ToggleRow(
-                        title = "Enable on-device inference",
-                        subtitle = "Run a local GGUF model — no internet required",
-                        checked = settings.onDeviceEnabled,
-                        onCheckedChange = viewModel::setOnDeviceEnabled,
-                    )
-                    if (settings.onDeviceEnabled) {
-                        HorizontalDivider()
-                        var modelPath by remember(settings.onDeviceModelPath) {
-                            mutableStateOf(settings.onDeviceModelPath)
-                        }
-                        OutlinedTextField(
-                            value = modelPath,
-                            onValueChange = {
-                                modelPath = it
-                                viewModel.setOnDeviceModelPath(it)
-                            },
-                            label = { Text("Model path") },
-                            supportingText = {
-                                Text("Absolute path to a GGUF file on this device, e.g. /sdcard/models/llama-3-8b-q4.gguf")
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
-            }
-
             // --- OTA Update ---
             SectionHeader(text = "Updates")
             UpdateSection(

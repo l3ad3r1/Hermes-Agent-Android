@@ -29,16 +29,9 @@
 - **v0.4.5: Fixed GitHub API 403** — `Authorization: Bearer` required for fine-grained PATs
 - **Issue #9 closed (commit 1a6b650): CloudLlmProvider integration tests**
   - 20 tests covering isAvailable, complete, completeWithTools, stream, HTTP errors
-  - Fixed 5 pre-existing test compilation errors
+  - Fixed 5 pre-existing test compilation errors (ChatViewModel, HybridLlmRouter,
+    MemoryConsolidator, OnboardingViewModel, ToolRegistryImpl constructors/types)
   - Fixed scheduler mismatch in fake-stream test (shared TestCoroutineScheduler)
-- **v0.5.0 (commit aa4d18c): Real on-device LLM via llama.cpp JNI — Issue #2**
-  - `LlamaInferenceEngine`: JNI wrapper for libhermes-llama.so; graceful UnsatisfiedLinkError fallback
-  - `OnDeviceLlmProvider`: full LlmProvider implementation; Flow<LlmStreamChunk> token streaming
-  - `HybridLlmRouter`: prefers on-device → cloud → Unavailable routing
-  - Settings: onDeviceEnabled + onDeviceModelPath (DataStore + UI card)
-  - CMake build: app/src/main/cpp/ — activate with `hermes.ondevice.enabled=true`
-    and `hermes.ondevice.llamaCppPath=/path/to/llama.cpp` in hermes.local.properties
-  - To use: install NDK r27+, clone llama.cpp, set properties, then `./gradlew assembleDebug`
 
 ## In progress
 Nothing — all tracked issues resolved.
@@ -49,8 +42,6 @@ Nothing — all tracked issues resolved.
 3. Real on-device embedding model (SHA-256 mock currently in place)
 4. Fix remaining pre-existing test failures: RagPipelineImplTest, ToolCallExecutorTest,
    ChatViewModelTest (3), OnboardingViewModelTest (2) — runtime assertion/dispatcher issues
-5. Multi-turn on-device: proper replay of assistant history into KV cache (currently
-   full history is formatted as one user message — good enough for v0.5.0)
 
 ## Key file locations
 - Signing keys (DO NOT MOVE):
