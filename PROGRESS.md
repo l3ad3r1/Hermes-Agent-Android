@@ -57,6 +57,19 @@
     colorScheme.primary/surfaceVariant); only Settings swatches were hardcoded (updated)
   - Verified: assembleDebug OK, fonts confirmed packaged in APK
 
+- **v0.4.8: Nous design screens (onboarding, home, connections, chat tabs)**
+  - ui/components/HermesBrand.kt: reusable HermesDiamond, BlinkingCursor, PulsingDot
+  - Onboarding redesigned as a single hero (diamond, value prop, `$ hermes connect`
+    chip, two CTAs); primary CTA requests mic+notif perms then enters
+  - New Home "gateway" dashboard = start screen (greeting, gateway card w/ real
+    model, quick actions, real recent threads, live-subagents card); bottom nav
+    reshaped to Home / Chats / Tasks(Schedule) / Memory
+  - Connections list restyled (glyph tiles, Connected/Connect status); real data kept
+  - Chat gained Tools/Terminal/Subagents segmented control — Tools = real chat;
+    Terminal + Subagents are design-preview panels (no backend yet)
+  - Gateway credits/subagents/terminal are illustrative placeholders (Nous Portal
+    features not yet wired)
+
 ## In progress
 Nothing — all tracked issues resolved.
 

@@ -39,8 +39,8 @@ android {
         applicationId = "com.hermes.agent"
         minSdk = 29          // Android 10 — covers ~95% of active devices
         targetSdk = 34       // Android 14 — matches the plan's target
-        versionCode = 12
-        versionName = "0.4.7"
+        versionCode = 13
+        versionName = "0.4.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
