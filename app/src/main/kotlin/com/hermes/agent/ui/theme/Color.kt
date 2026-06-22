@@ -2,47 +2,66 @@ package com.hermes.agent.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ── Midnight theme (black background / white text) ───────────────────
-val MidnightBackground        = Color(0xFF000000)
-val MidnightSurface           = Color(0xFF111111)
-val MidnightSurfaceVariant    = Color(0xFF1A1A1A)
-val MidnightOnBackground      = Color(0xFFFFFFFF)
-val MidnightOnSurface         = Color(0xFFFFFFFF)
-val MidnightOnSurfaceVariant  = Color(0xFFAAAAAA)
-val MidnightPrimary           = Color(0xFFFFFFFF)
-val MidnightOnPrimary         = Color(0xFF000000)
-val MidnightPrimaryContainer  = Color(0xFF222222)
-val MidnightOnPrimaryContainer= Color(0xFFFFFFFF)
-val MidnightSecondary         = Color(0xFF888888)
-val MidnightOnSecondary       = Color(0xFF000000)
-val MidnightSecondaryContainer= Color(0xFF1A1A1A)
-val MidnightError             = Color(0xFFFF4444)
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  Hermes Agent design system (Nous design — Geist + periwinkle).   ║
+// ║  Signature accent #5b73ff on near-black; light mode uses #0000f2. ║
+// ╚══════════════════════════════════════════════════════════════════╝
 
-val MidnightUserBubble        = Color(0xFF1A1A1A)
+// Shared brand accents (theme-independent signature colors)
+val HermesAccentBlue   = Color(0xFF5B73FF)  // --accent (dark)
+val HermesAccentDeep   = Color(0xFF3A4BFF)  // --accent-deep
+val HermesAccentInk    = Color(0xFFC9D2FF)  // --accent-ink
+val HermesAccentPure   = Color(0xFF0000F2)  // --accent (light)
+val HermesGood         = Color(0xFF46D399)  // --good
+val HermesGoodLight    = Color(0xFF1F9D63)
+val HermesWarn         = Color(0xFFF0B13B)  // --warn
+val HermesWarnLight    = Color(0xFFA86D0A)
+val HermesTerminalBg   = Color(0xFF070710)  // --term
+val HermesTerminalText = Color(0xFFAAB6FF)  // --term-tx
+
+// ── Midnight theme — design "Dark" (near-black / periwinkle) ─────────
+val MidnightBackground        = Color(0xFF0A0A0F)  // --bg
+val MidnightSurface           = Color(0xFF15151D)  // --surface
+val MidnightSurfaceVariant    = Color(0xFF1D1D27)  // --surface-2
+val MidnightOnBackground      = Color(0xFFF3F3F6)  // --text
+val MidnightOnSurface         = Color(0xFFF3F3F6)
+val MidnightOnSurfaceVariant  = Color(0xFF9596A3)  // --dim
+val MidnightOutline           = Color(0xFF65667A)  // --faint
+val MidnightPrimary           = HermesAccentBlue
+val MidnightOnPrimary         = Color(0xFFFFFFFF)
+val MidnightPrimaryContainer  = Color(0xFF222B66)  // accent-soft, opaque
+val MidnightOnPrimaryContainer= HermesAccentInk
+val MidnightSecondary         = HermesGood
+val MidnightOnSecondary       = Color(0xFF06210F)
+val MidnightSecondaryContainer= Color(0xFF12331F)
+val MidnightError             = Color(0xFFFF6B6B)
+
+val MidnightUserBubble        = HermesAccentBlue
 val MidnightUserBubbleText    = Color(0xFFFFFFFF)
-val MidnightAssistantBubble   = Color(0xFF0D0D0D)
-val MidnightAssistantBubbleText = Color(0xFFE0E0E0)
+val MidnightAssistantBubble   = Color(0xFF15151D)
+val MidnightAssistantBubbleText = Color(0xFFF3F3F6)
 
-// ── Paper theme (white background / black text) ──────────────────────
-val PaperBackground           = Color(0xFFFFFFFF)
-val PaperSurface              = Color(0xFFF5F5F5)
-val PaperSurfaceVariant       = Color(0xFFEEEEEE)
-val PaperOnBackground         = Color(0xFF000000)
-val PaperOnSurface            = Color(0xFF000000)
-val PaperOnSurfaceVariant     = Color(0xFF666666)
-val PaperPrimary              = Color(0xFF000000)
+// ── Paper theme — design "Light" (warm white / electric blue) ────────
+val PaperBackground           = Color(0xFFF3F2EE)  // --bg
+val PaperSurface              = Color(0xFFFFFFFF)   // --surface
+val PaperSurfaceVariant       = Color(0xFFF0EFEA)   // --surface-2
+val PaperOnBackground         = Color(0xFF0D0D12)   // --text
+val PaperOnSurface            = Color(0xFF0D0D12)
+val PaperOnSurfaceVariant     = Color(0xFF5D5E6A)   // --dim
+val PaperOutline              = Color(0xFF9596A1)   // --faint
+val PaperPrimary              = HermesAccentPure
 val PaperOnPrimary            = Color(0xFFFFFFFF)
-val PaperPrimaryContainer     = Color(0xFFF0F0F0)
-val PaperOnPrimaryContainer   = Color(0xFF000000)
-val PaperSecondary            = Color(0xFF333333)
+val PaperPrimaryContainer     = Color(0xFFE2E2FE)   // accent-soft, opaque
+val PaperOnPrimaryContainer   = HermesAccentPure
+val PaperSecondary            = HermesGoodLight
 val PaperOnSecondary          = Color(0xFFFFFFFF)
-val PaperSecondaryContainer   = Color(0xFFEEEEEE)
+val PaperSecondaryContainer   = Color(0xFFD7F0E2)
 val PaperError                = Color(0xFFCC0000)
 
-val PaperUserBubble           = Color(0xFF000000)
+val PaperUserBubble           = HermesAccentPure
 val PaperUserBubbleText       = Color(0xFFFFFFFF)
-val PaperAssistantBubble      = Color(0xFFEEEEEE)
-val PaperAssistantBubbleText  = Color(0xFF000000)
+val PaperAssistantBubble      = Color(0xFFFFFFFF)
+val PaperAssistantBubbleText  = Color(0xFF0D0D12)
 
 // ── Hermes Blue theme (electric blue background / white text) ────────
 // Brand blue sourced from hermes-agent.nousresearch.com

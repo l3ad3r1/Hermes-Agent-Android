@@ -312,8 +312,8 @@ private data class ThemeOption(
 )
 
 private val themeOptions = listOf(
-    ThemeOption("MIDNIGHT",    "Midnight",     Color(0xFF000000), Color(0xFFFFFFFF), Color(0xFF444444)),
-    ThemeOption("PAPER",       "Paper",        Color(0xFFFFFFFF), Color(0xFF000000), Color(0xFFEEEEEE)),
+    ThemeOption("MIDNIGHT",    "Midnight",     Color(0xFF0A0A0F), Color(0xFFF3F3F6), Color(0xFF5B73FF)),
+    ThemeOption("PAPER",       "Paper",        Color(0xFFF3F2EE), Color(0xFF0D0D12), Color(0xFF0000F2)),
     ThemeOption("HERMES_BLUE", "Hermes Blue",  Color(0xFF3300FF), Color(0xFFFFFFFF), Color(0xFF2200CC)),
 )
 

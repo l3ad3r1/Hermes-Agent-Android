@@ -45,6 +45,18 @@
   - Tests: HybridLlmRouterTest extended (complex/simple/fallback), CloudLlmProviderTest constructor updated
   - Activated previously-dormant `auxModel` setting and `ComplexityClassifier`
 
+- **v0.4.7: Nous design system theme (Geist + periwinkle)**
+  - Bundled Geist + Geist Mono fonts (res/font/, 7 TTFs); Type.kt rebuilt on Geist
+    with tight letter-spacing; labelSmall uses Geist Mono
+  - Reskinned MIDNIGHT → design "Dark" (#0A0A0F bg, #15151D surface, #5B73FF accent)
+    and PAPER → design "Light" (#F3F2EE bg, #0000F2 accent); added shared brand
+    tokens (good #46D399, warn #F0B13B, terminal #070710/#AAB6FF)
+  - Theme.kt schemes gained tertiary(good)/outline(faint)/surfaceContainer tokens
+  - Shape.kt radii match design (chips 11dp, cards 14dp, hero 18dp)
+  - Re-themes whole app via Material3 — screens are token-driven (chat bubbles use
+    colorScheme.primary/surfaceVariant); only Settings swatches were hardcoded (updated)
+  - Verified: assembleDebug OK, fonts confirmed packaged in APK
+
 ## In progress
 Nothing — all tracked issues resolved.
 
