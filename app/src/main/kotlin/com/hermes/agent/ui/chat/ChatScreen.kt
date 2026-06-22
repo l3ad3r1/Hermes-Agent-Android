@@ -1,18 +1,25 @@
 package com.hermes.agent.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.AccountTree
@@ -37,15 +44,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.R
 import com.hermes.agent.ui.chat.components.ChatInputBar
 import com.hermes.agent.ui.chat.components.MessageBubble
 import com.hermes.agent.ui.chat.components.StreamingBubble
+import com.hermes.agent.ui.components.PulsingDot
+import com.hermes.agent.ui.theme.GeistMono
+import com.hermes.agent.ui.theme.HermesTerminalBg
+import com.hermes.agent.ui.theme.HermesTerminalText
 
 /**
  * Main chat screen. Renders the message list, the streaming bubble (when
@@ -69,6 +84,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var planDrawerOpen by remember { mutableStateOf(false) }
+    var chatTab by remember { mutableStateOf(0) } // 0=Tools, 1=Terminal, 2=Subagents
 
     // Auto-scroll to bottom when new items arrive.
     LaunchedEffect(uiState.visibleItems.size, uiState.streamingText) {
@@ -148,31 +164,38 @@ fun ChatScreen(
                 }
             },
         ) { innerPadding ->
-            Box(
+            androidx.compose.foundation.layout.Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
             ) {
-                if (uiState.messages.isEmpty() && uiState.streamingText == null) {
-                    EmptyChatState(
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            vertical = 12.dp,
-                        ),
-                    ) {
-                        items(uiState.visibleItems) { item ->
-                            when (item) {
-                                is ChatListItem.MessageItem -> MessageBubble(message = item.message)
-                                is ChatListItem.StreamingItem -> StreamingBubble(item = item)
+                ChatModeTabs(selected = chatTab, onSelect = { chatTab = it })
+                Box(modifier = Modifier.weight(1f).fillMaxSize()) {
+                    when (chatTab) {
+                        1 -> TerminalPanel()
+                        2 -> SubagentsPanel()
+                        else -> {
+                            if (uiState.messages.isEmpty() && uiState.streamingText == null) {
+                                EmptyChatState(modifier = Modifier.fillMaxSize())
+                            } else {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                        vertical = 12.dp,
+                                    ),
+                                ) {
+                                    items(uiState.visibleItems) { item ->
+                                        when (item) {
+                                            is ChatListItem.MessageItem -> MessageBubble(message = item.message)
+                                            is ChatListItem.StreamingItem -> StreamingBubble(item = item)
+                                        }
+                                    }
+                                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                                }
                             }
                         }
-                        item { Spacer(modifier = Modifier.height(8.dp)) }
                     }
                 }
             }
@@ -295,4 +318,196 @@ private fun rememberDrawerState(open: Boolean): androidx.compose.material3.Drawe
         if (open) state.open() else state.close()
     }
     return state
+}
+
+// ── Tools / Terminal / Subagents segmented control + panels ───────────
+
+private val chatModeLabels = listOf("Tools", "Terminal", "Subagents")
+
+@Composable
+private fun ChatModeTabs(selected: Int, onSelect: (Int) -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(MaterialTheme.shapes.small)
+            .background(scheme.surfaceVariant)
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        chatModeLabels.forEachIndexed { i, label ->
+            val active = i == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (active) scheme.primary else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 7.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label,
+                    fontFamily = GeistMono,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (active) scheme.onPrimary else scheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TerminalPanel() {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PulsingDot(color = MaterialTheme.colorScheme.tertiary, size = 6.dp)
+            Spacer(Modifier.size(8.dp))
+            Text(
+                "sandbox: docker · py3.12",
+                fontFamily = GeistMono,
+                fontSize = 12.sp,
+                color = scheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(HermesTerminalBg)
+                .border(1.dp, scheme.outline.copy(alpha = 0.25f), MaterialTheme.shapes.medium),
+        ) {
+            // window chrome
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TermDot(Color(0xFFFF5F57)); Spacer(Modifier.size(6.dp))
+                TermDot(Color(0xFFFEBC2E)); Spacer(Modifier.size(6.dp))
+                TermDot(Color(0xFF28C840))
+                Spacer(Modifier.weight(1f))
+                Text("bash", fontFamily = GeistMono, fontSize = 10.5.sp, color = Color(0xFF5A5B6E))
+            }
+            Column(modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp)) {
+                TermLine("$ pytest -k auth -x", Color(0xFF5A5B6E))
+                TermLine("collected 12 items", Color(0xFF8F93B5))
+                TermLine("FAILED test_refresh — TimeoutError", Color(0xFFFF8F87))
+                TermLine("$ git diff auth/session.py", Color(0xFF5A5B6E))
+                TermLine("+   token = await refresh(session)", Color(0xFF7DFFB0))
+                TermLine("-   token = refresh(session)", Color(0xFFFF8F87))
+                TermLine("12 passed in 3.41s ✓", Color(0xFF7DFFB0))
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(
+            "Terminal sandbox is a design preview — no execution backend is wired yet.",
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun TermDot(color: Color) {
+    Box(modifier = Modifier.size(9.dp).clip(RoundedCornerShape(percent = 50)).background(color))
+}
+
+@Composable
+private fun TermLine(text: String, color: Color) {
+    Text(text, fontFamily = GeistMono, fontSize = 11.5.sp, lineHeight = 20.sp, color = color)
+}
+
+private data class SubagentDemo(
+    val name: String,
+    val task: String,
+    val live: Boolean,
+    val pct: Float,
+    val meta: String,
+)
+
+private val demoSubagents = listOf(
+    SubagentDemo("researcher-01", "Compile competitor pricing into a table", true, 0.64f, "18.2k tok · 1m 04s"),
+    SubagentDemo("coder-02", "Patch flaky auth test in session.py", true, 0.30f, "9.7k tok · 22s"),
+    SubagentDemo("writer-03", "Draft the launch blog post", false, 1.0f, "31.0k tok · 2m 48s"),
+)
+
+@Composable
+private fun SubagentsPanel() {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp),
+    ) {
+        Text(
+            "Isolated workers with their own conversations, terminals and RPC — zero context cost.",
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+        )
+        demoSubagents.forEach { a ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(scheme.surface)
+                    .border(1.dp, scheme.outline.copy(alpha = 0.25f), MaterialTheme.shapes.medium)
+                    .padding(14.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (a.live) {
+                        PulsingDot(size = 7.dp)
+                    } else {
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(percent = 50)).background(scheme.outline))
+                    }
+                    Spacer(Modifier.size(8.dp))
+                    Text(a.name, fontFamily = GeistMono, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = scheme.onSurface)
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        if (a.live) "RUNNING" else "DONE",
+                        fontFamily = GeistMono,
+                        fontSize = 10.5.sp,
+                        color = if (a.live) scheme.tertiary else scheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(9.dp))
+                Text(a.task, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface)
+                Spacer(Modifier.height(9.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(scheme.surfaceVariant),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(a.pct)
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(if (a.live) scheme.tertiary else scheme.primary),
+                    )
+                }
+                Spacer(Modifier.height(9.dp))
+                Text(a.meta, fontFamily = GeistMono, fontSize = 11.sp, color = scheme.outline)
+            }
+        }
+        Text(
+            "Subagents are a design preview — parallel workers aren't wired to a backend yet.",
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+        )
+    }
 }
