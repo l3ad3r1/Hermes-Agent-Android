@@ -53,7 +53,7 @@ fun SkillsScreen(viewModel: SkillsViewModel = hiltViewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Skills") },
+                title = { Text("Skills & Tools") },
             )
         },
         floatingActionButton = {

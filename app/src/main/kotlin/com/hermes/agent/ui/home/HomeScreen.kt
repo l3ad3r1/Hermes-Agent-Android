@@ -133,7 +133,7 @@ fun HomeScreen(
                 onClick = { viewModel.createNewConversation(onNewChat) },
             )
             QuickAction(
-                title = "Connections",
+                title = "Messaging",
                 subtitle = "Link a platform",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenConnections,

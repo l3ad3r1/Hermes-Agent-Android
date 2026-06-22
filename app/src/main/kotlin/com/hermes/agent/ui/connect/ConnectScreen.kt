@@ -54,7 +54,7 @@ fun ConnectScreen(viewModel: ConnectViewModel = hiltViewModel()) {
         ) {
             item {
                 Text(
-                    "Connections",
+                    "Messaging",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,

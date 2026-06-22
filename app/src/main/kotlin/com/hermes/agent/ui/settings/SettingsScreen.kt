@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
@@ -118,22 +119,29 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
+                        icon = Icons.Outlined.Description,
+                        title = "Artifacts",
+                        subtitle = "Documents and files indexed for retrieval",
+                        onClick = { onNavigate("documents") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
                         icon = Icons.Outlined.Stars,
-                        title = "Skills",
-                        subtitle = "Browse and manage agent skills library",
+                        title = "Skills & Tools",
+                        subtitle = "Browse and manage the agent's skills and tools",
                         onClick = { onNavigate("skills") },
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
                         icon = Icons.Outlined.Link,
-                        title = "Connections",
+                        title = "Messaging",
                         subtitle = "Configure Telegram, Discord, Signal, WhatsApp",
                         onClick = { onNavigate("connect") },
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
                         icon = Icons.Outlined.Schedule,
-                        title = "Scheduled Tasks",
+                        title = "CRON",
                         subtitle = "Manage cron jobs and recurring agent tasks",
                         onClick = { onNavigate("schedule") },
                     )

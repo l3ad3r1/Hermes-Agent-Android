@@ -49,7 +49,7 @@ fun DocumentsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Documents (RAG)") },
+                title = { Text("Artifacts") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
