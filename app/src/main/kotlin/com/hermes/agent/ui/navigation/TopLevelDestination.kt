@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
@@ -18,6 +19,7 @@ enum class TopLevelDestination(
     val label: String,
     val icon: ImageVector,
 ) {
+    HOME(         route = "home",                 label = "Home",       icon = Icons.Outlined.Home),
     CONVERSATIONS(route = "conversations",         label = "Chats",      icon = Icons.Outlined.Forum),
     CHAT(         route = "chat/{conversationId}", label = "Chat",       icon = Icons.Outlined.Chat),
     DOCUMENTS(    route = "documents",             label = "Documents",  icon = Icons.Outlined.Description),

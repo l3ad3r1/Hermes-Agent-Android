@@ -21,6 +21,7 @@ import com.hermes.agent.ui.chat.ChatScreen
 import com.hermes.agent.ui.connect.ConnectScreen
 import com.hermes.agent.ui.conversations.ConversationsScreen
 import com.hermes.agent.ui.cron.CronScreen
+import com.hermes.agent.ui.home.HomeScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
 import com.hermes.agent.ui.documents.DocumentsScreen
 import com.hermes.agent.ui.experiment.ExperimentScreen
@@ -29,10 +30,10 @@ import com.hermes.agent.ui.settings.SettingsScreen
 import com.hermes.agent.ui.skills.SkillsScreen
 
 private val bottomNavDestinations = listOf(
+    TopLevelDestination.HOME,
     TopLevelDestination.CONVERSATIONS,
-    TopLevelDestination.DOCUMENTS,
-    TopLevelDestination.DELEGATE,
-    TopLevelDestination.SETTINGS,
+    TopLevelDestination.SCHEDULE,
+    TopLevelDestination.MEMORY,
 )
 
 @Composable
@@ -69,9 +70,18 @@ fun HermesNavGraph() {
     ) { innerPadding: PaddingValues ->
         NavHost(
             navController = navController,
-            startDestination = TopLevelDestination.CONVERSATIONS.route,
+            startDestination = TopLevelDestination.HOME.route,
             modifier = Modifier.padding(innerPadding),
         ) {
+            composable(TopLevelDestination.HOME.route) {
+                HomeScreen(
+                    onOpenConversations = { navController.navigate(TopLevelDestination.CONVERSATIONS.route) },
+                    onNewChat = { navController.navigate(TopLevelDestination.chatRoute(it)) },
+                    onOpenConnections = { navController.navigate(TopLevelDestination.CONNECT.route) },
+                    onOpenSubagents = { navController.navigate(TopLevelDestination.DELEGATE.route) },
+                    onOpenSettings = { navController.navigate(TopLevelDestination.SETTINGS.route) },
+                )
+            }
             composable(TopLevelDestination.CONVERSATIONS.route) {
                 ConversationsScreen(
                     onOpenConversation = { navController.navigate(TopLevelDestination.chatRoute(it)) },
