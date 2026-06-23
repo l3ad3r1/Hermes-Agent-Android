@@ -1,62 +1,89 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Hermes Agent — Termux installer (native, no proot / no glibc shim).
-# Installs NousResearch/Hermes-Agent into ~/hermes-agent on Android/Termux using
-# Termux's own python/node/rust, then links the `hermes` command onto PATH.
+# Hermes Agent on Android — proot-distro Ubuntu method.
+# (Method adapted from mithun50/openclaw-termux: run in a full glibc Ubuntu
+# rootfs via proot-distro, instead of native Termux. This avoids the musl/bionic
+# wheel-build failures of the native path.)
 #
-# Run inside Termux:   bash install-hermes-termux.sh
-# Idempotent: safe to re-run to update.
+# Run inside Termux:   bash install-hermes-termux.sh     (idempotent)
 # ─────────────────────────────────────────────────────────────────────────────
 set -eu
-
 say() { printf '\n\033[1;34m▶ %s\033[0m\n' "$*"; }
 
-say "Hermes Agent — Termux install (native)"
+say "Hermes Agent — Termux install via proot Ubuntu"
 termux-wake-lock 2>/dev/null || true
 
-say "Installing system packages…"
+say "Installing proot-distro…"
 yes | pkg update 2>/dev/null || pkg update -y || true
-pkg install -y git python clang rust make pkg-config libffi openssl nodejs ripgrep ffmpeg
+pkg install -y proot-distro
 
-HERMES_DIR="$HOME/hermes-agent"
-if [ -d "$HERMES_DIR/.git" ]; then
-  say "Updating existing checkout…"
-  git -C "$HERMES_DIR" pull --ff-only || true
+ROOTFS="$PREFIX/var/lib/proot-distro/installed-rootfs/ubuntu"
+if [ ! -d "$ROOTFS" ]; then
+  say "Installing Ubuntu rootfs (~500 MB, one time)…"
+  proot-distro install ubuntu
 else
-  say "Cloning Hermes-Agent…"
-  git clone https://github.com/NousResearch/hermes-agent.git "$HERMES_DIR"
+  say "Ubuntu rootfs already present."
 fi
-cd "$HERMES_DIR"
 
-say "Creating Python venv…"
-python -m venv venv
-# shellcheck disable=SC1091
-source venv/bin/activate
+say "Configuring + installing Hermes inside Ubuntu (several minutes)…"
+proot-distro login ubuntu --shared-tmp -- bash -lc '
+  set -eu
+  export DEBIAN_FRONTEND=noninteractive
 
-# Critical for Rust-backed wheels (e.g. jiter) on Android.
-export ANDROID_API_LEVEL="$(getprop ro.build.version.sdk)"
+  # proot-friendly apt/dpkg (prevents sandbox/fsync failures under proot).
+  mkdir -p /etc/apt/apt.conf.d /etc/dpkg/dpkg.cfg.d
+  printf "APT::Sandbox::User \"root\";\nDpkg::Use-Pty \"0\";\n" > /etc/apt/apt.conf.d/01-hermes-proot
+  printf "force-unsafe-io\nforce-overwrite\n" > /etc/dpkg/dpkg.cfg.d/01-hermes-proot
 
-say "Installing Python deps (.[termux]) — this can take several minutes…"
-python -m pip install --upgrade pip setuptools wheel
-# pip (NOT uv) on Android; constraints avoid Android-incompatible deps.
-python -m pip install -e '.[termux]' -c constraints-termux.txt
+  apt-get update -y
+  apt-get install -y --no-install-recommends \
+    ca-certificates curl git build-essential pkg-config \
+    python3 python3-venv python3-pip python3-dev libffi-dev libssl-dev \
+    ripgrep ffmpeg
 
-say "Linking the 'hermes' command onto PATH…"
-ln -sf "$PWD/venv/bin/hermes" "$PREFIX/bin/hermes"
+  # Node.js 22 (NodeSource) for browser/node-backed tools.
+  if ! command -v node >/dev/null 2>&1; then
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    apt-get install -y nodejs
+  fi
 
-say "Verifying…"
-hermes version || true
-hermes doctor || true
+  # Hermes Agent.
+  if [ -d "$HOME/hermes-agent/.git" ]; then
+    git -C "$HOME/hermes-agent" pull --ff-only || true
+  else
+    git clone https://github.com/NousResearch/hermes-agent.git "$HOME/hermes-agent"
+  fi
+  cd "$HOME/hermes-agent"
+  python3 -m venv venv
+  . venv/bin/activate
+  python -m pip install --upgrade pip setuptools wheel
+  python -m pip install -e ".[termux]" -c constraints-termux.txt
+
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$PWD/venv/bin/hermes" "$HOME/.local/bin/hermes"
+  grep -q ".local/bin" "$HOME/.bashrc" 2>/dev/null || \
+    echo "export PATH=\$HOME/.local/bin:\$PATH" >> "$HOME/.bashrc"
+
+  hermes version || true
+'
+
+say "Creating a Termux 'hermes' launcher (enters Ubuntu)…"
+cat > "$PREFIX/bin/hermes" <<'WRAP'
+#!/data/data/com.termux/files/usr/bin/bash
+exec proot-distro login ubuntu --shared-tmp -- bash -lc "hermes $*"
+WRAP
+chmod +x "$PREFIX/bin/hermes"
 
 cat <<'DONE'
 
-✅ Hermes Agent installed.
+✅ Hermes installed inside an Ubuntu (proot) environment.
 
-Next steps (in Termux):
-  hermes model     # configure your API key(s)  (or edit ~/.hermes/.env)
+From Termux:
+  hermes model     # configure API key(s)
   hermes           # start the agent
+  proot-distro login ubuntu     # drop into the Ubuntu shell directly
 
 Notes:
-  • Browser automation, faster-whisper voice, and Docker are not supported on Termux.
-  • Run `termux-wake-lock` to help keep a background gateway alive.
+  • First run downloaded ~500 MB (Ubuntu + Node). Re-running this script updates Hermes.
+  • Disable battery optimization for Termux to keep a background gateway alive.
 DONE

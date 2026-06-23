@@ -114,6 +114,13 @@
     trigger via the `termux` tool
   - .gitattributes forces LF on *.sh so the script runs in Termux
 
+- **v0.5.6: switch Termux install to proot-distro Ubuntu (was: native)**
+  - Native Termux install (v0.5.5) failed on device → rolled back. install-hermes-termux.sh
+    now uses the proot-distro Ubuntu method (adapted from mithun50/openclaw-termux):
+    full glibc Ubuntu rootfs, proot-hardened apt/dpkg, Node 22 (NodeSource),
+    pip install hermes .[termux]; writes a Termux `hermes` shim that enters Ubuntu.
+  - Launcher buttons + `termux` tool unchanged (they just run this script).
+
 ## In progress
 Nothing — all tracked issues resolved.
 
