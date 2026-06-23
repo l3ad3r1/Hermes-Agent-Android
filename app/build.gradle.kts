@@ -108,6 +108,11 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
             excludes += "/META-INF/LICENSE*"
         }
+        jniLibs {
+            // Extract native libs to nativeLibraryDir so the bundled BusyBox
+            // (libbusybox.so) lands on disk as an executable file we can exec.
+            useLegacyPackaging = true
+        }
     }
     testOptions {
         unitTests {

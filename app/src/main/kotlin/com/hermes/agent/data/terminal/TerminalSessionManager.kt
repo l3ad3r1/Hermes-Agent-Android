@@ -52,16 +52,45 @@ class TerminalSessionManager @Inject constructor(
         override fun logStackTrace(tag: String?, e: Exception?) { Timber.tag(tag ?: "Term").e(e) }
     }
 
+    @Volatile
+    private var busyboxBinDir: String? = null
+
+    /**
+     * Ensures BusyBox applet symlinks exist under filesDir/bin and returns that
+     * dir, or null if BusyBox isn't bundled for this ABI. The static binary
+     * ships as nativeLibraryDir/libbusybox.so (extracted via useLegacyPackaging).
+     */
+    @Synchronized
+    private fun ensureBusybox(): String? {
+        busyboxBinDir?.let { return it }
+        val bb = java.io.File(context.applicationInfo.nativeLibraryDir, "libbusybox.so")
+        if (!bb.exists()) return null
+        val binDir = java.io.File(context.filesDir, "bin")
+        val sentinel = java.io.File(binDir, "grep")
+        if (!sentinel.exists()) {
+            binDir.mkdirs()
+            runCatching {
+                ProcessBuilder(bb.absolutePath, "--install", "-s", binDir.absolutePath)
+                    .redirectErrorStream(true)
+                    .start()
+                    .waitFor()
+            }.onFailure { Timber.tag("Term").w(it, "busybox --install failed") }
+        }
+        return if (sentinel.exists()) binDir.absolutePath.also { busyboxBinDir = it } else null
+    }
+
     /** The shared session, creating (and headlessly initializing) it on first use. */
     @Synchronized
     fun getOrCreate(): TerminalSession {
         session?.let { if (it.isRunning) return it }
         val home = context.filesDir.absolutePath
+        val bin = ensureBusybox()
+        val path = if (bin != null) "$bin:/system/bin:/system/xbin" else "/system/bin:/system/xbin"
         val env = arrayOf(
             "HOME=$home",
             "TMPDIR=${context.cacheDir.absolutePath}",
             "TERM=xterm-256color",
-            "PATH=/system/bin:/system/xbin",
+            "PATH=$path",
             "LANG=en_US.UTF-8",
             "PS1=$ ",
         )

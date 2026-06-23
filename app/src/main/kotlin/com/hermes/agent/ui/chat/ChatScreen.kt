@@ -373,7 +373,7 @@ private fun TerminalPanel() {
             PulsingDot(color = scheme.tertiary, size = 6.dp)
             Spacer(Modifier.size(8.dp))
             Text(
-                "device shell · /system/bin/sh",
+                "device shell · sh + busybox",
                 fontFamily = GeistMono,
                 fontSize = 12.sp,
                 color = scheme.onSurfaceVariant,
