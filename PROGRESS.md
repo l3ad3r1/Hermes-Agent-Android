@@ -75,8 +75,17 @@
     (prebuilt AARs incl. native libtermux.so pty for all ABIs); JitPack repo added
   - ui/terminal/TermuxTerminal.kt: TerminalView in Compose running /system/bin/sh
     in a real pty (app sandbox); Chat Terminal tab now functional, not a preview
-  - Follow-ups: soft-keyboard/IME polish (verify on device); optional Termux
-    bootstrap for a full Linux env; v0.5.0 tag is the abandoned on-device build
+  - Follow-ups: soft-keyboard/IME polish (verify on device); v0.5.0 tag is the
+    abandoned on-device build
+- **v0.5.2: shared terminal session + agent `terminal` tool**
+  - TerminalSessionManager (@Singleton): one shared /system/bin/sh, headless
+    init (80x24), run(command) via sentinel-marker transcript scraping
+  - TerminalTool ("terminal") runs agent commands in the visible shared session
+    (state persists; live in Terminal tab); ShellTool kept for one-shot/isolated
+  - TermuxTerminal attaches the shared session via Hilt EntryPoint + output mirror
+  - NOTE: full Termux Linux bootstrap (apt/python) is NOT feasible under a
+    non-com.termux package id — bootstrap binaries hardcode /data/data/com.termux
+    paths; would require a custom-built bootstrap. Deferred/out of scope.
 
 ## In progress
 Nothing — all tracked issues resolved.
