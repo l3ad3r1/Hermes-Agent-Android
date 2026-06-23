@@ -18,6 +18,14 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Run commands in the separately-installed Termux app (RUN_COMMAND). -->
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
+
+    <!-- Android 11+ package visibility: allow resolving/launching Termux. -->
+    <queries>
+        <package android:name="com.termux" />
+    </queries>
+
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <application
