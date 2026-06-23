@@ -139,6 +139,12 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // --- Termux terminal engine (in-app shell for the Terminal tab) ---
+    // github.com/termux/termux-app, consumed as prebuilt AARs via JitPack.
+    // terminal-view pulls terminal-emulator (with its native pty) transitively.
+    implementation("com.github.termux.termux-app:terminal-view:v0.118.3")
+    implementation("com.github.termux.termux-app:terminal-emulator:v0.118.3")
+
     // --- Hilt ---
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

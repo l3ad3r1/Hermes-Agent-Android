@@ -28,6 +28,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Termux terminal engine (terminal-view / terminal-emulator) is
+        // published from github.com/termux/termux-app via JitPack.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

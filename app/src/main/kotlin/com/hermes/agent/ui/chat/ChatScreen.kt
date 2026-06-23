@@ -58,6 +58,7 @@ import com.hermes.agent.ui.chat.components.ChatInputBar
 import com.hermes.agent.ui.chat.components.MessageBubble
 import com.hermes.agent.ui.chat.components.StreamingBubble
 import com.hermes.agent.ui.components.PulsingDot
+import com.hermes.agent.ui.terminal.TermuxTerminal
 import com.hermes.agent.ui.theme.GeistMono
 import com.hermes.agent.ui.theme.HermesTerminalBg
 import com.hermes.agent.ui.theme.HermesTerminalText
@@ -365,67 +366,33 @@ private fun TerminalPanel() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp)
+            .padding(top = 16.dp, bottom = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PulsingDot(color = MaterialTheme.colorScheme.tertiary, size = 6.dp)
+            PulsingDot(color = scheme.tertiary, size = 6.dp)
             Spacer(Modifier.size(8.dp))
             Text(
-                "sandbox: docker · py3.12",
+                "device shell · /system/bin/sh",
                 fontFamily = GeistMono,
                 fontSize = 12.sp,
                 color = scheme.onSurfaceVariant,
             )
         }
         Spacer(Modifier.height(12.dp))
-        Column(
+        // Real terminal backed by the Termux engine.
+        Box(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
                 .background(HermesTerminalBg)
-                .border(1.dp, scheme.outline.copy(alpha = 0.25f), MaterialTheme.shapes.medium),
+                .border(1.dp, scheme.outline.copy(alpha = 0.25f), MaterialTheme.shapes.medium)
+                .padding(8.dp),
         ) {
-            // window chrome
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TermDot(Color(0xFFFF5F57)); Spacer(Modifier.size(6.dp))
-                TermDot(Color(0xFFFEBC2E)); Spacer(Modifier.size(6.dp))
-                TermDot(Color(0xFF28C840))
-                Spacer(Modifier.weight(1f))
-                Text("bash", fontFamily = GeistMono, fontSize = 10.5.sp, color = Color(0xFF5A5B6E))
-            }
-            Column(modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp)) {
-                TermLine("$ pytest -k auth -x", Color(0xFF5A5B6E))
-                TermLine("collected 12 items", Color(0xFF8F93B5))
-                TermLine("FAILED test_refresh — TimeoutError", Color(0xFFFF8F87))
-                TermLine("$ git diff auth/session.py", Color(0xFF5A5B6E))
-                TermLine("+   token = await refresh(session)", Color(0xFF7DFFB0))
-                TermLine("-   token = refresh(session)", Color(0xFFFF8F87))
-                TermLine("12 passed in 3.41s ✓", Color(0xFF7DFFB0))
-            }
+            TermuxTerminal(modifier = Modifier.fillMaxSize())
         }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Terminal sandbox is a design preview — no execution backend is wired yet.",
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-        )
     }
-}
-
-@Composable
-private fun TermDot(color: Color) {
-    Box(modifier = Modifier.size(9.dp).clip(RoundedCornerShape(percent = 50)).background(color))
-}
-
-@Composable
-private fun TermLine(text: String, color: Color) {
-    Text(text, fontFamily = GeistMono, fontSize = 11.5.sp, lineHeight = 20.sp, color = color)
 }
 
 private data class SubagentDemo(
