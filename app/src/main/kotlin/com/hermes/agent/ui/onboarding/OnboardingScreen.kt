@@ -193,6 +193,7 @@ private fun PermissionsStep() {
         PermissionRow("Contacts", "Look up and message people you name")
         PermissionRow("Calendar", "Read and schedule events")
         PermissionRow("Camera", "Capture and analyze images on request")
+        PermissionRow("Run commands in Termux", "Let Hermes run the full agent in Termux (if installed)")
         Spacer(Modifier.height(6.dp))
         Button(
             onClick = {
@@ -206,6 +207,7 @@ private fun PermissionsStep() {
                     add(Manifest.permission.READ_CONTACTS)
                     add(Manifest.permission.READ_CALENDAR)
                     add(Manifest.permission.CAMERA)
+                    add("com.termux.permission.RUN_COMMAND")
                 }.toTypedArray()
                 launcher.launch(perms)
             },

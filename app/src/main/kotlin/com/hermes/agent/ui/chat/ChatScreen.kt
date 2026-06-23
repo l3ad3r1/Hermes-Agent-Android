@@ -1,5 +1,6 @@
 package com.hermes.agent.ui.chat
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -371,9 +372,37 @@ private fun TerminalPanel() {
     }
     fun toast(msg: String) =
         android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+
+    fun doLaunch(command: String) {
+        runner.launchSession(command)?.let { toast(it) }
+    }
+
+    var pendingCommand by remember { mutableStateOf<String?>(null) }
+    val permLauncher = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val cmd = pendingCommand
+        pendingCommand = null
+        when {
+            cmd == null -> Unit
+            granted -> doLaunch(cmd)
+            else -> toast("Termux permission denied. Grant \"Run commands in Termux\" to continue.")
+        }
+    }
+
     fun launchInTermux(command: String) {
-        if (!runner.launchSession(command)) {
-            toast("Termux isn't installed (or unreachable). Install Termux from F-Droid first.")
+        if (!runner.isTermuxInstalled()) {
+            toast("Termux not found. Install Termux from F-Droid (not the Play Store build).")
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, runner.runCommandPermission,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            doLaunch(command)
+        } else {
+            pendingCommand = command
+            permLauncher.launch(runner.runCommandPermission)
         }
     }
 

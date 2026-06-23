@@ -35,13 +35,19 @@ class TermuxCommandRunner @Inject constructor(
         context.packageManager.getPackageInfo(TERMUX_PACKAGE, 0); true
     }.getOrDefault(false)
 
+    /** The runtime permission Termux requires callers to hold (it's `dangerous`). */
+    val runCommandPermission: String get() = PERMISSION_RUN_COMMAND
+
     /**
      * Launches [command] in a **foreground** Termux session (opens Termux and
      * shows it running) — fire-and-forget, for long/interactive flows like the
-     * Hermes installer or starting the agent. Returns false if Termux is absent.
+     * Hermes installer or starting the agent. Returns null on success, or a
+     * human-readable error explaining what to fix.
      */
-    fun launchSession(command: String): Boolean {
-        if (!isTermuxInstalled()) return false
+    fun launchSession(command: String): String? {
+        if (!isTermuxInstalled()) {
+            return "Termux is not installed. Install Termux from F-Droid (not the Play Store build)."
+        }
         val service = Intent().apply {
             setClassName(TERMUX_PACKAGE, RUN_COMMAND_SERVICE)
             action = ACTION_RUN_COMMAND
@@ -52,8 +58,15 @@ class TermuxCommandRunner @Inject constructor(
             putExtra(EXTRA_SESSION_ACTION, "0") // open Termux & switch to new session
             putExtra(EXTRA_COMMAND_LABEL, "Hermes")
         }
-        return runCatching { ContextCompat.startForegroundService(context, service); true }
-            .getOrElse { Timber.tag("Termux").w(it, "launchSession failed"); false }
+        return try {
+            ContextCompat.startForegroundService(context, service)
+            null
+        } catch (t: Throwable) {
+            Timber.tag("Termux").w(t, "launchSession failed")
+            "Couldn't reach Termux (${t.javaClass.simpleName}: ${t.message}). " +
+                "Grant the \"Run commands in Termux\" permission, and set " +
+                "allow-external-apps=true in ~/.termux/termux.properties."
+        }
     }
 
     /** Runs [command] in Termux bash and returns a human-readable result string. */
@@ -128,6 +141,7 @@ class TermuxCommandRunner @Inject constructor(
     }
 
     private companion object {
+        const val PERMISSION_RUN_COMMAND = "com.termux.permission.RUN_COMMAND"
         const val TERMUX_PACKAGE = "com.termux"
         const val TERMUX_FILES = "/data/data/com.termux/files"
         const val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
