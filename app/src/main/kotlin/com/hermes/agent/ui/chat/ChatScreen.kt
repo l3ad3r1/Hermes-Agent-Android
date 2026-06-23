@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.hermes.agent.R
 import com.hermes.agent.ui.chat.components.ChatInputBar
 import com.hermes.agent.ui.chat.components.MessageBubble
@@ -363,6 +365,22 @@ private fun ChatModeTabs(selected: Int, onSelect: (Int) -> Unit) {
 @Composable
 private fun TerminalPanel() {
     val scheme = MaterialTheme.colorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val runner = remember {
+        dagger.hilt.android.EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            com.hermes.agent.ui.terminal.TerminalEntryPoint::class.java,
+        ).termuxCommandRunner()
+    }
+    fun toast(msg: String) =
+        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+    fun launchInTermux(command: String) {
+        if (!runner.launchSession(command)) {
+            toast("Termux isn't installed (or unreachable). Install Termux from F-Droid first.")
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -378,6 +396,30 @@ private fun TerminalPanel() {
                 fontSize = 12.sp,
                 color = scheme.onSurfaceVariant,
             )
+        }
+        Spacer(Modifier.height(10.dp))
+        // Termux / Hermes-Agent launchers (open a foreground Termux session).
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.material3.FilledTonalButton(
+                onClick = {
+                    scope.launch {
+                        val script = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            runCatching {
+                                context.assets.open("install-hermes-termux.sh")
+                                    .bufferedReader().use { it.readText() }
+                            }.getOrNull()
+                        }
+                        if (script == null) toast("Couldn't read installer script.")
+                        else launchInTermux(script)
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp),
+            ) { Text("Install Hermes (Termux)", fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            androidx.compose.material3.OutlinedButton(
+                onClick = { launchInTermux("hermes || echo 'hermes not found — run Install first'; read -p 'enter to close…' _") },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            ) { Text("Run hermes", fontSize = 12.5.sp) }
         }
         Spacer(Modifier.height(12.dp))
         // Real terminal backed by the Termux engine.

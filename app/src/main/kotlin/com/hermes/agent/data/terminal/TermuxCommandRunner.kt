@@ -35,6 +35,27 @@ class TermuxCommandRunner @Inject constructor(
         context.packageManager.getPackageInfo(TERMUX_PACKAGE, 0); true
     }.getOrDefault(false)
 
+    /**
+     * Launches [command] in a **foreground** Termux session (opens Termux and
+     * shows it running) — fire-and-forget, for long/interactive flows like the
+     * Hermes installer or starting the agent. Returns false if Termux is absent.
+     */
+    fun launchSession(command: String): Boolean {
+        if (!isTermuxInstalled()) return false
+        val service = Intent().apply {
+            setClassName(TERMUX_PACKAGE, RUN_COMMAND_SERVICE)
+            action = ACTION_RUN_COMMAND
+            putExtra(EXTRA_COMMAND_PATH, "$TERMUX_PREFIX/bin/bash")
+            putExtra(EXTRA_ARGUMENTS, arrayOf("-c", command))
+            putExtra(EXTRA_WORKDIR, "$TERMUX_FILES/home")
+            putExtra(EXTRA_BACKGROUND, false) // foreground: visible Termux session
+            putExtra(EXTRA_SESSION_ACTION, "0") // open Termux & switch to new session
+            putExtra(EXTRA_COMMAND_LABEL, "Hermes")
+        }
+        return runCatching { ContextCompat.startForegroundService(context, service); true }
+            .getOrElse { Timber.tag("Termux").w(it, "launchSession failed"); false }
+    }
+
     /** Runs [command] in Termux bash and returns a human-readable result string. */
     suspend fun run(command: String, timeoutMs: Long = 60_000): String {
         if (!isTermuxInstalled()) {
@@ -118,6 +139,7 @@ class TermuxCommandRunner @Inject constructor(
         const val EXTRA_BACKGROUND = "com.termux.RUN_COMMAND_BACKGROUND"
         const val EXTRA_PENDING_INTENT = "com.termux.RUN_COMMAND_PENDING_INTENT"
         const val EXTRA_COMMAND_LABEL = "com.termux.RUN_COMMAND_COMMAND_LABEL"
+        const val EXTRA_SESSION_ACTION = "com.termux.RUN_COMMAND_SESSION_ACTION"
         const val EXTRA_RESULT_BUNDLE = "result"
         const val RESULT_STDOUT = "stdout"
         const val RESULT_STDERR = "stderr"

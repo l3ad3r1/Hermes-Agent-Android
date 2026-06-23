@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.hermes.agent.data.terminal.TerminalSessionManager
+import com.hermes.agent.data.terminal.TermuxCommandRunner
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
 import com.termux.view.TerminalView
@@ -25,6 +26,7 @@ import timber.log.Timber
 @InstallIn(SingletonComponent::class)
 internal interface TerminalEntryPoint {
     fun terminalSessionManager(): TerminalSessionManager
+    fun termuxCommandRunner(): TermuxCommandRunner
 }
 
 /**
