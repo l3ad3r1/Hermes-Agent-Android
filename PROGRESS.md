@@ -130,6 +130,14 @@
     `shell` (ProcessBuilder) and `termux` (real Termux). TermuxTerminal.kt /
     TerminalSessionManager left dormant (not rendered/registered).
 
+- **v0.5.8: remove dummy/non-functional components**
+  - Home: removed fake gateway stats (credits/subagents/tasks) and the fake
+    "Live subagents" card; gateway card → honest "Active model" card (real model)
+  - Chat: removed the "Subagents" demo tab (+ demoSubagents); tabs now Chat / Terminal
+  - Dropped unused helpers/params (GatewayStat, ProgressTrack, onOpenSubagents)
+  - Everything remaining is real: recent threads, model, quick actions, chat,
+    Termux bridge, settings
+
 ## In progress
 Nothing — all tracked issues resolved.
 

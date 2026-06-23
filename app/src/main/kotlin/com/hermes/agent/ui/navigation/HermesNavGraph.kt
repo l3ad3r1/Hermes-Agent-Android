@@ -78,7 +78,6 @@ fun HermesNavGraph() {
                     onOpenConversations = { navController.navigate(TopLevelDestination.CONVERSATIONS.route) },
                     onNewChat = { navController.navigate(TopLevelDestination.chatRoute(it)) },
                     onOpenConnections = { navController.navigate(TopLevelDestination.CONNECT.route) },
-                    onOpenSubagents = { navController.navigate(TopLevelDestination.DELEGATE.route) },
                     onOpenSettings = { navController.navigate(TopLevelDestination.SETTINGS.route) },
                 )
             }

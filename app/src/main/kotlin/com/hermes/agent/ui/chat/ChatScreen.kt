@@ -173,7 +173,6 @@ fun ChatScreen(
                 Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                     when (chatTab) {
                         1 -> TerminalPanel()
-                        2 -> SubagentsPanel()
                         else -> {
                             if (uiState.messages.isEmpty() && uiState.streamingText == null) {
                                 EmptyChatState(modifier = Modifier.fillMaxSize())
@@ -322,7 +321,7 @@ private fun rememberDrawerState(open: Boolean): androidx.compose.material3.Drawe
 
 // ── Tools / Terminal / Subagents segmented control + panels ───────────
 
-private val chatModeLabels = listOf("Tools", "Terminal", "Subagents")
+private val chatModeLabels = listOf("Chat", "Terminal")
 
 @Composable
 private fun ChatModeTabs(selected: Int, onSelect: (Int) -> Unit) {
@@ -440,86 +439,3 @@ private fun TerminalPanel() {
     }
 }
 
-private data class SubagentDemo(
-    val name: String,
-    val task: String,
-    val live: Boolean,
-    val pct: Float,
-    val meta: String,
-)
-
-private val demoSubagents = listOf(
-    SubagentDemo("researcher-01", "Compile competitor pricing into a table", true, 0.64f, "18.2k tok · 1m 04s"),
-    SubagentDemo("coder-02", "Patch flaky auth test in session.py", true, 0.30f, "9.7k tok · 22s"),
-    SubagentDemo("writer-03", "Draft the launch blog post", false, 1.0f, "31.0k tok · 2m 48s"),
-)
-
-@Composable
-private fun SubagentsPanel() {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(11.dp),
-    ) {
-        Text(
-            "Isolated workers with their own conversations, terminals and RPC — zero context cost.",
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-        )
-        demoSubagents.forEach { a ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(scheme.surface)
-                    .border(1.dp, scheme.outline.copy(alpha = 0.25f), MaterialTheme.shapes.medium)
-                    .padding(14.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (a.live) {
-                        PulsingDot(size = 7.dp)
-                    } else {
-                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(percent = 50)).background(scheme.outline))
-                    }
-                    Spacer(Modifier.size(8.dp))
-                    Text(a.name, fontFamily = GeistMono, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = scheme.onSurface)
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        if (a.live) "RUNNING" else "DONE",
-                        fontFamily = GeistMono,
-                        fontSize = 10.5.sp,
-                        color = if (a.live) scheme.tertiary else scheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(Modifier.height(9.dp))
-                Text(a.task, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface)
-                Spacer(Modifier.height(9.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(5.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(scheme.surfaceVariant),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(a.pct)
-                            .height(5.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(if (a.live) scheme.tertiary else scheme.primary),
-                    )
-                }
-                Spacer(Modifier.height(9.dp))
-                Text(a.meta, fontFamily = GeistMono, fontSize = 11.sp, color = scheme.outline)
-            }
-        }
-        Text(
-            "Subagents are a design preview — parallel workers aren't wired to a backend yet.",
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-        )
-    }
-}

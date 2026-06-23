@@ -32,23 +32,19 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.model.Conversation
 import com.hermes.agent.ui.components.HermesDiamond
-import com.hermes.agent.ui.components.PulsingDot
 import com.hermes.agent.ui.theme.GeistMono
 import com.hermes.agent.ui.theme.HermesAccentDeep
 import java.util.Calendar
 
 /**
- * Home "gateway" dashboard — the app's landing surface. Recent threads and the
- * model name are real; the gateway status / credits / live-subagents figures
- * are illustrative placeholders for the Nous Portal gateway (not yet wired to a
- * backend).
+ * Home dashboard — the app's landing surface: greeting, the active cloud model,
+ * quick actions (new chat, messaging), and the real recent-conversation list.
  */
 @Composable
 fun HomeScreen(
     onOpenConversations: () -> Unit,
     onNewChat: (conversationId: String) -> Unit,
     onOpenConnections: () -> Unit,
-    onOpenSubagents: () -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -92,7 +88,7 @@ fun HomeScreen(
             }
         }
 
-        // Gateway card
+        // Active-model card
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -100,26 +96,17 @@ fun HomeScreen(
                 .background(Brush.linearGradient(listOf(HermesAccentDeep, scheme.primary)))
                 .padding(18.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PulsingDot(color = Color(0xFF7DFFB0), size = 8.dp)
-                Spacer(Modifier.size(8.dp))
-                Text("Gateway online", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Spacer(Modifier.weight(1f))
-                Text(
-                    model,
-                    fontFamily = GeistMono,
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                GatewayStat("2,418", "credits left")
-                GatewayStat("2", "subagents live")
-                GatewayStat("4", "tasks queued")
-            }
+            Text("Active model", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                model.ifBlank { "not configured" },
+                fontFamily = GeistMono,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -152,47 +139,9 @@ fun HomeScreen(
                 threads.forEach { ThreadRow(it, onClick = onOpenConversations) }
             }
         }
-
-        Spacer(Modifier.height(22.dp))
-
-        // Live subagents
-        SectionHeader("Live subagents", action = "All", onAction = onOpenSubagents)
-        Spacer(Modifier.height(11.dp))
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(scheme.surface)
-                .border(1.dp, scheme.outline.copy(alpha = 0.25f), MaterialTheme.shapes.medium)
-                .clickable(onClick = onOpenSubagents)
-                .padding(14.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PulsingDot(size = 7.dp)
-                Spacer(Modifier.size(8.dp))
-                Text("researcher-01", fontFamily = GeistMono, fontSize = 12.5.sp, color = scheme.onSurface)
-                Spacer(Modifier.weight(1f))
-                Text("64%", fontFamily = GeistMono, fontSize = 12.5.sp, color = scheme.outline)
-            }
-            Spacer(Modifier.height(9.dp))
-            ProgressTrack(fraction = 0.64f)
-            Spacer(Modifier.height(9.dp))
-            Text(
-                "Compiling competitor pricing · 18.2k tok",
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.onSurfaceVariant,
-            )
-        }
     }
 }
 
-@Composable
-private fun GatewayStat(value: String, label: String) {
-    Column {
-        Text(value, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-        Text(label, color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
-    }
-}
 
 @Composable
 private fun QuickAction(
@@ -285,26 +234,6 @@ private fun ThreadRow(thread: Conversation, onClick: () -> Unit) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun ProgressTrack(fraction: Float) {
-    val scheme = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(5.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .background(scheme.surfaceVariant),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(fraction)
-                .height(5.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(scheme.tertiary),
-        )
     }
 }
 
