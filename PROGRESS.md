@@ -87,6 +87,14 @@
     non-com.termux package id — bootstrap binaries hardcode /data/data/com.termux
     paths; would require a custom-built bootstrap. Deferred/out of scope.
 
+- **v0.5.3: BusyBox bundled into the terminal**
+  - jniLibs/<abi>/libbusybox.so (meefik/busybox, static, all 4 ABIs, GPLv2 —
+    source: https://busybox.net / github.com/meefik/busybox)
+  - useLegacyPackaging=true so it extracts to nativeLibraryDir as an executable
+  - TerminalSessionManager: `busybox --install -s filesDir/bin` once, prepend to
+    PATH → ~300 coreutils (grep/sed/awk/tar/find/wget/vi…) in the shared shell
+  - Still no apt/python (proot+Alpine remains the future path for that)
+
 ## In progress
 Nothing — all tracked issues resolved.
 
