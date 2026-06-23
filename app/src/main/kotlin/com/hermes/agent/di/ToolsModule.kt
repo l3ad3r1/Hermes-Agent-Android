@@ -10,6 +10,7 @@ import com.hermes.agent.data.tools.MemoryTool
 import com.hermes.agent.data.tools.NotesTool
 import com.hermes.agent.data.tools.SchedulerTool
 import com.hermes.agent.data.tools.SkillManagerTool
+import com.hermes.agent.data.tools.TerminalTool
 import com.hermes.agent.data.tools.WebSearchTool
 import com.hermes.agent.data.tools.WebhookTool
 import com.hermes.agent.domain.tool.Tool
@@ -49,6 +50,7 @@ object ToolsModule {
         memoryTool: MemoryTool,
         schedulerTool: SchedulerTool,
         shellTool: ShellTool,
+        terminalTool: TerminalTool,
     ): ToolRegistry {
         val registry = com.hermes.agent.data.tool.ToolRegistryImpl()
         listOf<Tool>(
@@ -64,6 +66,7 @@ object ToolsModule {
             memoryTool,
             schedulerTool,
             shellTool,
+            terminalTool,
         ).forEach(registry::register)
         return registry
     }
