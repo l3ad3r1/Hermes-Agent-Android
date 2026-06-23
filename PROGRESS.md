@@ -138,6 +138,16 @@
   - Everything remaining is real: recent threads, model, quick actions, chat,
     Termux bridge, settings
 
+- **v0.6.0: setup journey (profile + permissions + device scan → memory)**
+  - Onboarding is now multi-step: Welcome → Profile → Permissions → Device.
+  - Profile: name/address/phone/email/wake+sleep schedule/notes.
+  - Permissions: batch request (mic, notifications, location, contacts, calendar,
+    camera); manifest updated.
+  - DeviceProfiler (data/device): manufacturer/model, Android, SoC, CPU cores+ABI,
+    RAM, storage, GPU via offscreen EGL/GLES, display, battery, sensors.
+  - On finish, OnboardingViewModel writes each profile fact + a [DEVICE PROFILE]
+    summary to MemoryRepository so the agent knows the user + hardware capability.
+
 ## In progress
 Nothing — all tracked issues resolved.
 
