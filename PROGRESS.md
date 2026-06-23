@@ -95,6 +95,15 @@
     PATH → ~300 coreutils (grep/sed/awk/tar/find/wget/vi…) in the shared shell
   - Still no apt/python (proot+Alpine remains the future path for that)
 
+- **v0.5.4: agent `termux` tool (real Termux via RUN_COMMAND)**
+  - TermuxCommandRunner: RUN_COMMAND intent → RunCommandService (bg bash -c),
+    result via PendingIntent + NOT_EXPORTED receiver; graceful errors
+  - TermuxTool ("termux") registered in ToolsModule → full Linux env (apt/python)
+  - Manifest: com.termux.permission.RUN_COMMAND + <queries> com.termux
+  - Needs Termux installed + allow-external-apps=true in ~/.termux/termux.properties
+  - Three shell tiers now: shell (one-shot sh) · terminal (shared sh+busybox, live)
+    · termux (full Linux in the Termux app)
+
 ## In progress
 Nothing — all tracked issues resolved.
 
