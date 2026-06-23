@@ -104,6 +104,16 @@
   - Three shell tiers now: shell (one-shot sh) · terminal (shared sh+busybox, live)
     · termux (full Linux in the Termux app)
 
+- **v0.5.5: one-tap Hermes-Agent install/run in Termux**
+  - install-hermes-termux.sh (repo root + app asset): native Termux installer for
+    NousResearch/hermes-agent (no proot; .[termux] extra). Studied
+    AidanPark/openclaw-android but Hermes runs native on Termux, lighter than his
+    glibc/no-proot trick (which only helps the excluded browser bits)
+  - TermuxCommandRunner.launchSession(): foreground (visible) Termux session
+  - Terminal tab buttons: "Install Hermes (Termux)" + "Run hermes"; agent can also
+    trigger via the `termux` tool
+  - .gitattributes forces LF on *.sh so the script runs in Termux
+
 ## In progress
 Nothing — all tracked issues resolved.
 
