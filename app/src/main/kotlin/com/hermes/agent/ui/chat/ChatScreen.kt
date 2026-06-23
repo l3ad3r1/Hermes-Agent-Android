@@ -60,10 +60,7 @@ import com.hermes.agent.ui.chat.components.ChatInputBar
 import com.hermes.agent.ui.chat.components.MessageBubble
 import com.hermes.agent.ui.chat.components.StreamingBubble
 import com.hermes.agent.ui.components.PulsingDot
-import com.hermes.agent.ui.terminal.TermuxTerminal
 import com.hermes.agent.ui.theme.GeistMono
-import com.hermes.agent.ui.theme.HermesTerminalBg
-import com.hermes.agent.ui.theme.HermesTerminalText
 
 /**
  * Main chat screen. Renders the message list, the streaming bubble (when
@@ -391,49 +388,55 @@ private fun TerminalPanel() {
             PulsingDot(color = scheme.tertiary, size = 6.dp)
             Spacer(Modifier.size(8.dp))
             Text(
-                "device shell · sh + busybox",
+                "Termux bridge",
                 fontFamily = GeistMono,
                 fontSize = 12.sp,
                 color = scheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.height(10.dp))
-        // Termux / Hermes-Agent launchers (open a foreground Termux session).
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            androidx.compose.material3.FilledTonalButton(
-                onClick = {
-                    scope.launch {
-                        val script = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            runCatching {
-                                context.assets.open("install-hermes-termux.sh")
-                                    .bufferedReader().use { it.readText() }
-                            }.getOrNull()
-                        }
-                        if (script == null) toast("Couldn't read installer script.")
-                        else launchInTermux(script)
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 10.dp),
-            ) { Text("Install Hermes (Termux)", fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            androidx.compose.material3.OutlinedButton(
-                onClick = { launchInTermux("hermes || echo 'hermes not found — run Install first'; read -p 'enter to close…' _") },
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-            ) { Text("Run hermes", fontSize = 12.5.sp) }
-        }
         Spacer(Modifier.height(12.dp))
-        // Real terminal backed by the Termux engine.
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(HermesTerminalBg)
-                .border(1.dp, scheme.outline.copy(alpha = 0.25f), MaterialTheme.shapes.medium)
-                .padding(8.dp),
-        ) {
-            TermuxTerminal(modifier = Modifier.fillMaxSize())
-        }
+        Text(
+            "Run the full Hermes Agent in a real Linux environment via the Termux app. " +
+                "Install once, then start it — each action opens a Termux session you can watch.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = scheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(16.dp))
+        androidx.compose.material3.Button(
+            onClick = {
+                scope.launch {
+                    val script = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching {
+                            context.assets.open("install-hermes-termux.sh")
+                                .bufferedReader().use { it.readText() }
+                        }.getOrNull()
+                    }
+                    if (script == null) toast("Couldn't read installer script.")
+                    else launchInTermux(script)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+        ) { Text("Install Hermes in Termux") }
+        Spacer(Modifier.height(10.dp))
+        androidx.compose.material3.OutlinedButton(
+            onClick = { launchInTermux("hermes; echo; read -p 'press enter to close…' _") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+        ) { Text("Run hermes") }
+        Spacer(Modifier.height(10.dp))
+        androidx.compose.material3.OutlinedButton(
+            onClick = { launchInTermux("echo 'Termux ready.'; bash") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+        ) { Text("Open Termux shell") }
+        Spacer(Modifier.weight(1f))
+        Text(
+            "Requires Termux (F-Droid) with allow-external-apps=true in ~/.termux/termux.properties.",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = GeistMono,
+            color = scheme.outline,
+        )
     }
 }
 

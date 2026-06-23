@@ -121,6 +121,15 @@
     pip install hermes .[termux]; writes a Termux `hermes` shim that enters Ubuntu.
   - Launcher buttons + `termux` tool unchanged (they just run this script).
 
+- **v0.5.7: fix Terminal-tab crash (remove embedded native terminal)**
+  - Opening the Terminal tab crashed the app — the embedded Termux TerminalView /
+    libtermux.so pty aborted natively (uncatchable). Replaced the tab with a safe
+    panel: Install Hermes / Run hermes / Open Termux buttons (drive the real Termux
+    app via RUN_COMMAND) + guidance.
+  - Unregistered the in-app `terminal` tool (same native engine); agent keeps
+    `shell` (ProcessBuilder) and `termux` (real Termux). TermuxTerminal.kt /
+    TerminalSessionManager left dormant (not rendered/registered).
+
 ## In progress
 Nothing — all tracked issues resolved.
 
