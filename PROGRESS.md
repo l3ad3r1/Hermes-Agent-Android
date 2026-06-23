@@ -70,6 +70,14 @@
   - Gateway credits/subagents/terminal are illustrative placeholders (Nous Portal
     features not yet wired)
 
+- **v0.5.1: real in-app Terminal via Termux engine**
+  - Consumes termux-app terminal-view + terminal-emulator v0.118.3 via JitPack
+    (prebuilt AARs incl. native libtermux.so pty for all ABIs); JitPack repo added
+  - ui/terminal/TermuxTerminal.kt: TerminalView in Compose running /system/bin/sh
+    in a real pty (app sandbox); Chat Terminal tab now functional, not a preview
+  - Follow-ups: soft-keyboard/IME polish (verify on device); optional Termux
+    bootstrap for a full Linux env; v0.5.0 tag is the abandoned on-device build
+
 ## In progress
 Nothing — all tracked issues resolved.
 
