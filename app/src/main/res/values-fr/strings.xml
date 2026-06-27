@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hermes Agent</string>
+    <string name="nav_conversations">Conversations</string>
+    <string name="nav_chat">Discussion</string>
+    <string name="nav_settings">Paramètres</string>
+    <string name="chat_placeholder">Demandez n\'importe quoi à Hermes…</string>
+    <string name="chat_send">Envoyer</string>
+    <string name="chat_typing">Hermes réfléchit…</string>
+    <string name="chat_new_conversation">Nouvelle conversation</string>
+    <string name="chat_empty_title">Commencer une nouvelle conversation</string>
+    <string name="chat_empty_body">Hermes fonctionne sur l\'appareil pour préserver la confidentialité, avec un repli optionnel sur le cloud pour les tâches complexes.</string>
+    <string name="conversations_empty">Aucune conversation. Appuyez sur + pour commencer.</string>
+    <string name="conversations_delete">Supprimer</string>
+    <string name="onboarding_get_started">Commencer</string>
+    <string name="onboarding_continue">Continuer</string>
+    <string name="onboarding_skip">Passer l\'intro</string>
+</resources>

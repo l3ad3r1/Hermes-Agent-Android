@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hermes Agent</string>
+    <string name="nav_conversations">会話</string>
+    <string name="nav_chat">チャット</string>
+    <string name="nav_settings">設定</string>
+    <string name="chat_placeholder">Hermesに何でも聞いてください…</string>
+    <string name="chat_send">送信</string>
+    <string name="chat_typing">Hermesが考えています…</string>
+    <string name="chat_new_conversation">新しい会話</string>
+    <string name="chat_empty_title">新しい会話を始める</string>
+    <string name="chat_empty_body">Hermesはプライバシー保護のためデバイス上で動作し、複雑なタスクにはオプションでクラウドフォールバックを使用します。</string>
+    <string name="conversations_empty">会話はまだありません。+ をタップして開始。</string>
+    <string name="conversations_delete">削除</string>
+    <string name="onboarding_get_started">始める</string>
+    <string name="onboarding_continue">次へ</string>
+    <string name="onboarding_skip">スキップ</string>
+</resources>

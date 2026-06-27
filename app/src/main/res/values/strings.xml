@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hermes Agent</string>
+    <string name="app_tagline">Your on-device intelligence partner</string>
+
+    <!-- Navigation -->
+    <string name="nav_conversations">Conversations</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Chat -->
+    <string name="chat_placeholder">Ask Hermes anything…</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_typing">Hermes is thinking…</string>
+    <string name="chat_new_conversation">New conversation</string>
+    <string name="chat_empty_title">Begin a new conversation</string>
+    <string name="chat_empty_body">Hermes runs on-device for privacy, with optional cloud fallback for complex tasks.</string>
+
+    <!-- Conversations list -->
+    <string name="conversations_empty">No conversations yet. Tap + to start.</string>
+    <string name="conversations_delete">Delete</string>
+    <string name="conversations_title_default">New conversation</string>
+
+    <!-- Settings -->
+    <string name="settings_section_inference">Inference</string>
+    <string name="settings_section_cloud">Cloud LLM</string>
+    <string name="settings_section_security">Security &amp; Privacy</string>
+    <string name="settings_section_about">About</string>
+
+    <string name="settings_on_device_enabled">On-device inference</string>
+    <string name="settings_on_device_enabled_subtitle">Run quantized LLM locally (privacy-first)</string>
+    <string name="settings_cloud_enabled">Cloud fallback</string>
+    <string name="settings_cloud_enabled_subtitle">Route complex tasks to a remote model</string>
+    <string name="settings_cloud_api_key">Cloud API key</string>
+    <string name="settings_cloud_api_key_subtitle">OpenAI-compatible Bearer token</string>
+    <string name="settings_cloud_base_url">Cloud base URL</string>
+    <string name="settings_cloud_model">Cloud model</string>
+    <string name="settings_specialised_model">Specialised model</string>
+    <string name="settings_specialised_model_hint">Second cloud model used for simpler tasks. Shares the same API key and base URL.</string>
+    <string name="settings_complexity_threshold">Cloud routing threshold</string>
+    <string name="settings_idle_unload">On-device idle unload (minutes)</string>
+    <string name="settings_knox_status">Samsung Knox</string>
+    <string name="settings_keystore_status">Android Keystore</string>
+    <string name="settings_app_version">Version</string>
+
+    <!-- Errors -->
+    <string name="error_no_provider">No LLM provider available. Enable on-device or cloud in Settings.</string>
+    <string name="error_cloud_unconfigured">Cloud LLM is enabled but no API key is set.</string>
+    <string name="error_generic">Something went wrong: %1$s</string>
+
+    <!-- Accessibility (Phase 4) -->
+    <string name="a11y_stop_generating">Stop generating reply</string>
+    <string name="a11y_voice_input">Voice input</string>
+<string name="a11y_send_button">Send message</string>
+    <string name="a11y_back">Back</string>
+    <string name="a11y_view_plan">View execution plan</string>
+    <string name="a11y_user_message">User message</string>
+    <string name="a11y_assistant_message">Assistant reply</string>
+    <string name="a11y_tool_call_running">Tool %1$s running</string>
+    <string name="a11y_tool_call_success">Tool %1$s succeeded</string>
+    <string name="a11y_tool_call_failed">Tool %1$s failed: %2$s</string>
+
+    <!-- Onboarding (Phase 4) -->
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_skip">Skip onboarding</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_welcome_title">Hermes Agent</string>
+    <string name="onboarding_privacy_title">Privacy-first by design</string>
+    <string name="onboarding_permissions_title">Permissions</string>
+    <string name="onboarding_perm_mic">Microphone</string>
+    <string name="onboarding_perm_mic_rationale">For voice input. You can decline and use the keyboard.</string>
+    <string name="onboarding_perm_notifications">Notifications</string>
+    <string name="onboarding_perm_notifications_rationale">For the notification agent (Phase 3.x). Optional.</string>
+    <string name="onboarding_perm_granted">Granted</string>
+    <string name="onboarding_perm_allow">Allow</string>
+</resources>

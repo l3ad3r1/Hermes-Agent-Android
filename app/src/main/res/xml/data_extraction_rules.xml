@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hermes Agent data extraction rules (Android 12+). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="hermes.db" />
+        <exclude domain="sharedpref" path="hermes_settings.preferences_pb" />
+        <exclude domain="file" path="models/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="hermes.db" />
+        <exclude domain="sharedpref" path="hermes_settings.preferences_pb" />
+        <exclude domain="file" path="models/" />
+    </device-transfer>
+</data-extraction-rules>

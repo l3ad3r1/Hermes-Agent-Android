@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hermes Agent</string>
+    <string name="nav_conversations">对话</string>
+    <string name="nav_chat">聊天</string>
+    <string name="nav_settings">设置</string>
+    <string name="chat_placeholder">向 Hermes 提问任何问题…</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_typing">Hermes 正在思考…</string>
+    <string name="chat_new_conversation">新对话</string>
+    <string name="chat_empty_title">开始新对话</string>
+    <string name="chat_empty_body">Hermes 在设备上运行以保护隐私，对复杂任务可选启用云端回退。</string>
+    <string name="conversations_empty">还没有对话。点击 + 开始。</string>
+    <string name="conversations_delete">删除</string>
+    <string name="onboarding_get_started">开始使用</string>
+    <string name="onboarding_continue">继续</string>
+    <string name="onboarding_skip">跳过引导</string>
+</resources>

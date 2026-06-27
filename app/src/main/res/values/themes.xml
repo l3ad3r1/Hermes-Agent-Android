@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme — Compose owns the actual Material3 theming; this just sets the window
+         background and a parent that disables the ActionBar. -->
+    <style name="Theme.HermesAgent" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/hermes_surface</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

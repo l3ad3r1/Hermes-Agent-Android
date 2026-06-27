@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hermes Agent backup rules. Conversation history and memories are excluded
+     from cloud backup to honor the privacy-first principle from the plan. -->
+<full-backup-content>
+    <exclude domain="database" path="hermes.db" />
+    <exclude domain="sharedpref" path="hermes_settings.preferences_pb" />
+    <exclude domain="file" path="models/" />
+</full-backup-content>

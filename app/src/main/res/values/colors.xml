@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Legacy Hermes brand palette -->
+    <color name="hermes_primary">#1E3A8A</color>
+    <color name="hermes_primary_dark">#172554</color>
+    <color name="hermes_accent">#F59E0B</color>
+    <color name="hermes_surface">#F8FAFC</color>
+    <color name="hermes_on_primary">#FFFFFF</color>
+    <color name="hermes_on_surface">#0F172A</color>
+
+    <!-- Midnight theme — black background / white text -->
+    <color name="midnight_background">#000000</color>
+    <color name="midnight_surface">#111111</color>
+    <color name="midnight_surface_variant">#1A1A1A</color>
+    <color name="midnight_on_background">#FFFFFF</color>
+    <color name="midnight_on_surface">#FFFFFF</color>
+    <color name="midnight_on_surface_variant">#AAAAAA</color>
+    <color name="midnight_primary">#FFFFFF</color>
+    <color name="midnight_on_primary">#000000</color>
+
+    <!-- Paper theme — white background / black text -->
+    <color name="paper_background">#FFFFFF</color>
+    <color name="paper_surface">#F5F5F5</color>
+    <color name="paper_surface_variant">#EEEEEE</color>
+    <color name="paper_on_background">#000000</color>
+    <color name="paper_on_surface">#000000</color>
+    <color name="paper_on_surface_variant">#666666</color>
+    <color name="paper_primary">#000000</color>
+    <color name="paper_on_primary">#FFFFFF</color>
+
+    <!-- Hermes Blue theme — electric blue (#3300FF) background / white text -->
+    <!-- Brand blue sourced from hermes-agent.nousresearch.com -->
+    <color name="blue_brand_background">#3300FF</color>
+    <color name="blue_brand_surface">#2200DD</color>
+    <color name="blue_brand_surface_variant">#1A00BB</color>
+    <color name="blue_brand_on_background">#FFFFFF</color>
+    <color name="blue_brand_on_surface">#FFFFFF</color>
+    <color name="blue_brand_on_surface_variant">#CCCCFF</color>
+    <color name="blue_brand_primary">#FFFFFF</color>
+    <color name="blue_brand_on_primary">#3300FF</color>
+
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
