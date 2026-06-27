@@ -240,6 +240,12 @@ private fun AddConnectorDialog(
                             placeholder = { Text("+15551234567") },
                             singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
+                    ConnectorType.SMS -> {
+                        OutlinedTextField(value = chatId, onValueChange = { chatId = it },
+                            label = { Text("Recipient Phone Number") },
+                            placeholder = { Text("+15551234567") },
+                            singleLine = true, modifier = Modifier.fillMaxWidth())
+                    }
                 }
             }
         },
@@ -252,6 +258,7 @@ private fun AddConnectorDialog(
                         ConnectorType.DISCORD  -> mapOf("url" to url)
                         ConnectorType.SIGNAL   -> mapOf("url" to url, "recipient" to chatId)
                         ConnectorType.WHATSAPP -> mapOf("phoneNumberId" to chatId, "accessToken" to botToken, "recipient" to url)
+                        ConnectorType.SMS -> mapOf("recipient" to chatId)
                     }
                     onAdd(name.ifBlank { type.displayName }, type, config)
                 },

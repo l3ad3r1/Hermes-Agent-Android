@@ -1,5 +1,10 @@
 # Hermes Agent — Progress
 
+## Completed (Merged App)
+- Merged Kanban (Room v6), foreground service, and SMS channel into hermes-agent base
+- Fixed `ConnectScreen.kt`: added `ConnectorType.SMS` branches to both exhaustive `when` expressions
+- `:app:assembleDebug` BUILD SUCCESSFUL — no errors, one deprecation warning (harmless)
+
 ## Completed
 - Phase 1–4 implemented (see README status table)
 - Release keystore generated (RSA-4096); signed release APK published as v0.0.1 beta on GitHub Releases
