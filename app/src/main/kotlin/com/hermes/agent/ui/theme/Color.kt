@@ -19,27 +19,27 @@ val HermesWarnLight    = Color(0xFFA86D0A)
 val HermesTerminalBg   = Color(0xFF070710)  // --term
 val HermesTerminalText = Color(0xFFAAB6FF)  // --term-tx
 
-// ── Midnight theme — design "Dark" (near-black / periwinkle) ─────────
-val MidnightBackground        = Color(0xFF0A0A0F)  // --bg
-val MidnightSurface           = Color(0xFF15151D)  // --surface
-val MidnightSurfaceVariant    = Color(0xFF1D1D27)  // --surface-2
-val MidnightOnBackground      = Color(0xFFF3F3F6)  // --text
-val MidnightOnSurface         = Color(0xFFF3F3F6)
-val MidnightOnSurfaceVariant  = Color(0xFF9596A3)  // --dim
-val MidnightOutline           = Color(0xFF65667A)  // --faint
-val MidnightPrimary           = HermesAccentBlue
-val MidnightOnPrimary         = Color(0xFFFFFFFF)
-val MidnightPrimaryContainer  = Color(0xFF222B66)  // accent-soft, opaque
-val MidnightOnPrimaryContainer= HermesAccentInk
-val MidnightSecondary         = HermesGood
-val MidnightOnSecondary       = Color(0xFF06210F)
-val MidnightSecondaryContainer= Color(0xFF12331F)
-val MidnightError             = Color(0xFFFF6B6B)
+// ── Midnight theme — monochrome (pure black / pure white, zero colour) ──
+val MidnightBackground        = Color(0xFF000000)  // pure black
+val MidnightSurface           = Color(0xFF111111)  // near-black card
+val MidnightSurfaceVariant    = Color(0xFF1C1C1C)  // subtle lift
+val MidnightOnBackground      = Color(0xFFFFFFFF)  // pure white text
+val MidnightOnSurface         = Color(0xFFFFFFFF)
+val MidnightOnSurfaceVariant  = Color(0xFF999999)  // muted text
+val MidnightOutline           = Color(0xFF333333)  // border
+val MidnightPrimary           = Color(0xFFFFFFFF)  // white primary (buttons, FAB)
+val MidnightOnPrimary         = Color(0xFF000000)  // black on white
+val MidnightPrimaryContainer  = Color(0xFF222222)
+val MidnightOnPrimaryContainer= Color(0xFFFFFFFF)
+val MidnightSecondary         = Color(0xFFCCCCCC)
+val MidnightOnSecondary       = Color(0xFF000000)
+val MidnightSecondaryContainer= Color(0xFF1A1A1A)
+val MidnightError             = Color(0xFFFF4444)
 
-val MidnightUserBubble        = HermesAccentBlue
-val MidnightUserBubbleText    = Color(0xFFFFFFFF)
-val MidnightAssistantBubble   = Color(0xFF15151D)
-val MidnightAssistantBubbleText = Color(0xFFF3F3F6)
+val MidnightUserBubble        = Color(0xFFFFFFFF)  // white user bubble
+val MidnightUserBubbleText    = Color(0xFF000000)
+val MidnightAssistantBubble   = Color(0xFF111111)
+val MidnightAssistantBubbleText = Color(0xFFFFFFFF)
 
 // ── Paper theme — design "Light" (warm white / electric blue) ────────
 val PaperBackground           = Color(0xFFF3F2EE)  // --bg

@@ -35,8 +35,8 @@ private val bottomNavDestinations = listOf(
     TopLevelDestination.HOME,
     TopLevelDestination.CONVERSATIONS,
     TopLevelDestination.KANBAN,
-    TopLevelDestination.SCHEDULE,
-    TopLevelDestination.MEMORY,
+    TopLevelDestination.CONNECT,
+    TopLevelDestination.SETTINGS,
 )
 
 @Composable

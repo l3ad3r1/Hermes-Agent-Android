@@ -29,7 +29,7 @@ enum class AppTheme {
     HERMES_BLUE,
 }
 
-// ── Midnight color scheme ─────────────────────────────────────────────
+// ── Midnight color scheme — monochrome ───────────────────────────────
 private val MidnightColorScheme = darkColorScheme(
     primary              = MidnightPrimary,
     onPrimary            = MidnightOnPrimary,
@@ -38,8 +38,8 @@ private val MidnightColorScheme = darkColorScheme(
     secondary            = MidnightSecondary,
     onSecondary          = MidnightOnSecondary,
     secondaryContainer   = MidnightSecondaryContainer,
-    tertiary             = HermesGood,
-    onTertiary           = MidnightOnSecondary,
+    tertiary             = Color(0xFFAAAAAA),   // neutral grey (was green)
+    onTertiary           = Color(0xFF000000),
     background           = MidnightBackground,
     onBackground         = MidnightOnBackground,
     surface              = MidnightSurface,
@@ -51,7 +51,7 @@ private val MidnightColorScheme = darkColorScheme(
     outline              = MidnightOutline,
     outlineVariant       = MidnightSurfaceVariant,
     error                = MidnightError,
-    onError              = Color.White,
+    onError              = Color.Black,
 )
 
 // ── Paper color scheme ────────────────────────────────────────────────
