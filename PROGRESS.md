@@ -1,9 +1,20 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **TtsTool consolidation** (committed, unreleased — rides next feature release):
-  speak tool now delegates to existing VoiceOutputManager instead of its own
-  TextToSpeech → one TTS engine app-wide. Dropped rate/pitch (shared engine).
+- **v0.7.6 RELEASED** (tag v0.7.6, --latest): ported upstream `delegate` tool
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.6
+  - `delegate` (delegate_tool.py parity): agent spawns isolated subagents for
+    focused/parallel subtasks. data/tools/DelegateTool.kt injects LlmRouter and
+    runs each subagent via LlmProvider.complete() — fresh context (no parent
+    history), focused system prompt, NO tools → recursion structurally
+    impossible. Single `prompt` or `prompts` array (fan out up to 4 parallel via
+    coroutineScope/async); parent blocks, sees only summarised results. No DB
+    persistence (ephemeral, doesn't pollute conversation list)
+  - Also folded in the TtsTool→VoiceOutputManager consolidation. versionCode
+    26→27, versionName 0.7.5→0.7.6; assembleRelease OK + signed
+  - LIMITATION: subagents are tool-less (first cut). Upstream gives children a
+    restricted toolset — that's the follow-up. Compile-verified only; subagent
+    runtime needs on-device smoke test
 - **v0.7.5 RELEASED** (tag v0.7.5, --latest): ported upstream `clarify` tool
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.5
   - `clarify` (clarify_tool.py parity): agent asks one question + waits for the
@@ -187,10 +198,9 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. On-device smoke test of `clarify` (card render + suspend/resume) + `speak`
-   (now via VoiceOutputManager). Next feature release should fold in the
-   TtsTool consolidation. Bigger upstream port still open: real `delegate`/
-   subagents (delegate_tool.py / async_delegation.py)
+0. On-device smoke test of v0.7.4–v0.7.6 tools (`clarify` card suspend/resume,
+   `speak`, `delegate` subagents). Then: give `delegate` subagents a restricted
+   toolset (upstream parity) — currently tool-less
 1. Real FTS5 Room virtual table to replace LIKE '%query%' scans
 2. Honcho external API integration (currently in-process only)
 3. Real on-device embedding model (SHA-256 mock currently in place)
