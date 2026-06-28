@@ -149,6 +149,12 @@ fun ChatScreen(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
                 androidx.compose.foundation.layout.Column {
+                    uiState.pendingClarification?.let { req ->
+                        ClarificationCard(
+                            request = req,
+                            onAnswer = viewModel::answerClarification,
+                        )
+                    }
                     ChatInputBar(
                         isSending = uiState.isSending,
                         isListening = uiState.isListening,
@@ -243,6 +249,76 @@ private fun PlanDrawer(
                     onClick = onClose,
                     modifier = Modifier.padding(vertical = 2.dp),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Surfaced above the input bar when the agent's `clarify` tool is waiting on
+ * the user. Predefined choices render as tappable buttons; a free-text field
+ * covers the open-ended case. Answering resumes the suspended tool — note we
+ * route through [ChatViewModel.answerClarification], not the normal input bar,
+ * so we don't start a second turn while one is mid-flight.
+ */
+@Composable
+private fun ClarificationCard(
+    request: ClarificationRequest,
+    onAnswer: (String) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    var freeText by remember(request.question) { mutableStateOf("") }
+    androidx.compose.material3.Surface(
+        color = scheme.primaryContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = "Hermes needs a quick answer",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = GeistMono,
+                color = scheme.onPrimaryContainer.copy(alpha = 0.7f),
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = request.question,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = scheme.onPrimaryContainer,
+            )
+            Spacer(Modifier.height(10.dp))
+            request.choices.forEach { choice ->
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { onAnswer(choice) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Text(choice, modifier = Modifier.fillMaxWidth())
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = freeText,
+                    onValueChange = { freeText = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = {
+                        Text(if (request.choices.isEmpty()) "Type your answer…" else "Or type another answer…")
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                )
+                Spacer(Modifier.size(8.dp))
+                androidx.compose.material3.Button(
+                    onClick = {
+                        if (freeText.isNotBlank()) {
+                            onAnswer(freeText)
+                            freeText = ""
+                        }
+                    },
+                    enabled = freeText.isNotBlank(),
+                    shape = MaterialTheme.shapes.medium,
+                ) { Text("Send") }
             }
         }
     }

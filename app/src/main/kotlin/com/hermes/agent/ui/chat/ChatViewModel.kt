@@ -3,6 +3,7 @@ package com.hermes.agent.ui.chat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hermes.agent.data.agent.ClarificationBus
 import com.hermes.agent.data.voice.VoiceInputEvent
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
@@ -34,6 +35,7 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val voiceInputManager: VoiceInputManager,
     private val voiceOutputManager: VoiceOutputManager,
+    private val clarificationBus: ClarificationBus,
 ) : ViewModel() {
 
     val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
@@ -48,6 +50,20 @@ class ChatViewModel @Inject constructor(
 
     private var sendJob: Job? = null
     private var listenJob: Job? = null
+
+    init {
+        // Mirror the agent's pending `clarify` question into UI state so the
+        // chat screen can render it and collect the user's answer.
+        viewModelScope.launch {
+            clarificationBus.pending.collect { req ->
+                _ephemeral.value = _ephemeral.value.copy(
+                    pendingClarification = req?.let {
+                        ClarificationRequest(it.question, it.choices)
+                    },
+                )
+            }
+        }
+    }
 
     val uiState: StateFlow<ChatUiState> =
         combine(
@@ -72,6 +88,7 @@ class ChatViewModel @Inject constructor(
                 estimatedTokens = messages.sumOf { it.content.length } / 4,
                 activeModel = ephemeral.activeModel,
                 isOnDevice = ephemeral.streamingIsOnDevice,
+                pendingClarification = ephemeral.pendingClarification,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -188,9 +205,17 @@ class ChatViewModel @Inject constructor(
     }
 
     fun cancel() {
+        clarificationBus.cancel()
         sendJob?.cancel()
         sendJob = null
         _ephemeral.value = ChatEphemeralState()
+    }
+
+    /** Answer the agent's pending `clarify` question, resuming the tool. */
+    fun answerClarification(answer: String) {
+        val trimmed = answer.trim()
+        if (trimmed.isEmpty()) return
+        clarificationBus.answer(trimmed)
     }
 
     fun dismissError() {
@@ -277,4 +302,5 @@ private data class ChatEphemeralState(
     val plan: PlanSummary? = null,
     val toolCalls: List<ToolCallSummary> = emptyList(),
     val activeModel: String = "",
+    val pendingClarification: ClarificationRequest? = null,
 )

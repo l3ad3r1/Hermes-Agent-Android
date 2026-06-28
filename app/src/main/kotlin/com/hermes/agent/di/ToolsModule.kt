@@ -3,6 +3,7 @@ package com.hermes.agent.di
 import com.hermes.agent.data.tools.CalculatorTool
 import com.hermes.agent.data.tools.ShellTool
 import com.hermes.agent.data.tools.CalendarTool
+import com.hermes.agent.data.tools.ClarifyTool
 import com.hermes.agent.data.tools.ConversationSearchTool
 import com.hermes.agent.data.tools.DateTimeTool
 import com.hermes.agent.data.tools.DeviceSettingsTool
@@ -57,6 +58,7 @@ object ToolsModule {
         termuxTool: TermuxTool,
         todoTool: TodoTool,
         ttsTool: TtsTool,
+        clarifyTool: ClarifyTool,
     ): ToolRegistry {
         val registry = com.hermes.agent.data.tool.ToolRegistryImpl()
         listOf<Tool>(
@@ -76,6 +78,7 @@ object ToolsModule {
             termuxTool,
             todoTool,
             ttsTool,
+            clarifyTool,
         ).forEach(registry::register)
         return registry
     }

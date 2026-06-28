@@ -35,6 +35,10 @@ data class ChatUiState(
     val activeModel: String = "",
     /** True when the LLM is running on-device. */
     val isOnDevice: Boolean = true,
+    /** Set when the agent's `clarify` tool is awaiting an answer from the
+     *  user. The UI renders the question (+ optional choices) above the input
+     *  bar; answering resumes the suspended tool. */
+    val pendingClarification: ClarificationRequest? = null,
 ) {
     /** Messages plus the in-flight streaming bubble, if any. */
     val visibleItems: List<ChatListItem>
@@ -52,6 +56,12 @@ data class ChatUiState(
             }
         }
 }
+
+/** A clarifying question the agent is waiting on the user to answer. */
+data class ClarificationRequest(
+    val question: String,
+    val choices: List<String>,
+)
 
 /** Slimmed-down view of an [com.hermes.agent.domain.model.ExecutionPlan]. */
 data class PlanSummary(
