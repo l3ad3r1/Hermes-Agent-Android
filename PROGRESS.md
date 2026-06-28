@@ -1,6 +1,14 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **Ported 2 upstream tools from NousResearch/hermes-agent** (compileDebugKotlin OK):
+  - `TodoTool` ("todo") — in-memory session task list (todo_tool.py parity):
+    write when `todos` array supplied / read otherwise, replace+merge modes,
+    status markers ([x]/[>]/[ ]/[-]), bounds 256 items × 4000 chars
+  - `TtsTool` ("speak") — native android.speech.tts.TextToSpeech provider
+    (tts_tool.py parity): on-device/offline/no-key, action speak|stop, optional
+    rate/pitch; engine lazily init'd once, awaits utterance completion
+  - Both registered in `di/ToolsModule.kt`
 - Merged Kanban (Room v6), foreground service, and SMS channel into hermes-agent base
 - Fixed `ConnectScreen.kt`: added `ConnectorType.SMS` branches to both exhaustive `when` expressions
 - `:app:assembleDebug` BUILD SUCCESSFUL — no errors, one deprecation warning (harmless)
