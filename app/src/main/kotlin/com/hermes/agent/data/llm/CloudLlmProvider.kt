@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -301,7 +305,7 @@ class CloudLlmProvider @Inject constructor(
         val tokensUsed = element["usage"]?.jsonObject?.get("total_tokens")?.jsonPrimitive?.contentOrNull?.toIntOrNull()
             ?: (content.length / 4)
 
-        val toolCalls = message?.get("tool_calls")?.jsonArray?.mapNotNull { tc ->
+        val structuredToolCalls = message?.get("tool_calls")?.jsonArray?.mapNotNull { tc ->
             val obj = tc.jsonObject
             val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
             val fn = obj["function"]?.jsonObject ?: return@mapNotNull null
@@ -313,17 +317,76 @@ class CloudLlmProvider @Inject constructor(
             ToolCall(id = id, name = name, arguments = args)
         } ?: emptyList()
 
+        // Fallback: Hermes/Nous-style models emit tool calls as text tags in
+        // `content` (e.g. <tool_call>{...}</tool_call>) rather than the OpenAI
+        // structured `tool_calls` field. When the structured field is empty,
+        // try to recover them from the text so the tool loop still fires.
+        val (finalContent, finalToolCalls) = if (structuredToolCalls.isEmpty()) {
+            extractTextToolCalls(content)
+        } else {
+            content to structuredToolCalls
+        }
+
         return LlmToolResponse(
-            content = content,
-            toolCalls = toolCalls,
+            content = finalContent,
+            toolCalls = finalToolCalls,
             tokensUsed = tokensUsed,
             model = model,
             finishReason = finishReason,
         )
     }
 
+    /**
+     * Recover tool calls a model emitted as text tags inside its reply content,
+     * e.g. `<tool_call>{"name":"x","arguments":{...}}</tool_call>` or
+     * `<TOOLCALL>[{...},{...}]</TOOLCALL>`. Returns the content with those tags
+     * stripped, plus the parsed calls. Tag name and case are both flexible;
+     * the inner payload may be a single object or an array, and `arguments`
+     * may be an object or a JSON-encoded string.
+     */
+    private fun extractTextToolCalls(content: String): Pair<String, List<ToolCall>> {
+        if (content.isBlank() || !content.contains("<tool", ignoreCase = true)) {
+            return content to emptyList()
+        }
+        val calls = mutableListOf<ToolCall>()
+        var idx = 0
+        TOOL_CALL_TAG.findAll(content).forEach { match ->
+            val inner = match.groupValues[1].trim()
+            val element = runCatching { json.parseToJsonElement(inner) }.getOrNull() ?: return@forEach
+            val objects = when (element) {
+                is JsonArray -> element.mapNotNull { it as? JsonObject }
+                is JsonObject -> listOf(element)
+                else -> emptyList()
+            }
+            objects.forEach { obj ->
+                val name = obj["name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+                    ?: return@forEach
+                val args: Map<String, JsonElement> = when (val a = obj["arguments"]) {
+                    is JsonObject -> a
+                    is JsonPrimitive -> runCatching {
+                        json.parseToJsonElement(a.content).jsonObject
+                    }.getOrNull() ?: emptyMap()
+                    else -> emptyMap()
+                }
+                calls += ToolCall(id = "call_${idx++}", name = name, arguments = args)
+            }
+        }
+        if (calls.isEmpty()) return content to emptyList()
+        val cleaned = TOOL_CALL_TAG.replace(content, "").trim()
+        return cleaned to calls
+    }
+
     private fun SettingsRepository.currentBlocking(): com.hermes.agent.data.settings.UserSettings =
         kotlinx.coroutines.runBlocking { current() }
+
+    private companion object {
+        /** Matches `<tool_call>…</tool_call>` / `<toolcall>…</toolcall>` /
+         *  `<TOOLCALL>…</TOOLCALL>` (any case), capturing the inner payload. */
+        val TOOL_CALL_TAG = Regex(
+            "<(?:tool_call|toolcall)>(.*?)</(?:tool_call|toolcall)>",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+        )
+    }
 }
 
 /**
