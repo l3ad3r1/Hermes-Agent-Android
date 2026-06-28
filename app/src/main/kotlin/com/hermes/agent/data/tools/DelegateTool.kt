@@ -3,10 +3,12 @@ package com.hermes.agent.data.tools
 import com.hermes.agent.data.llm.LlmMessage
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.RoutingDecision
+import com.hermes.agent.data.llm.ToolCall
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolParameter
 import com.hermes.agent.domain.tool.ToolParameterType
+import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.domain.tool.ToolResult
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -23,19 +25,24 @@ import javax.inject.Singleton
  *
  * Each subagent runs with a **fresh context** (none of the parent's
  * conversation history), a focused system prompt built from the delegated
- * goal, and **no tools** — which both isolates it and makes recursive
- * delegation structurally impossible (upstream strips `delegate`, `clarify`,
- * `memory`, etc. from children for the same reasons). The parent blocks until
- * every subagent finishes and only sees the summarised results, never their
- * intermediate reasoning.
+ * goal, and a **restricted toolset** — read/research/compute tools only. The
+ * blocklist ([CHILD_BLOCKED_TOOLS]) strips recursion (`delegate`), user
+ * interaction (`clarify`), shared-state writes (`memory`, `notes`, `todo`),
+ * scheduling, and device/network/code side effects, mirroring upstream's
+ * `DELEGATE_BLOCKED_TOOLS`. Stripping `delegate` makes recursive delegation
+ * impossible. The parent blocks until every subagent finishes and only sees
+ * the summarised results, never their intermediate reasoning or tool calls.
  *
- * Supply a single `prompt`, or a `prompts` array to fan out in parallel. The
- * tool-less child is a deliberate first cut; giving children a restricted
- * *toolset* (as upstream does) is follow-up work.
+ * Supply a single `prompt`, or a `prompts` array to fan out in parallel.
+ *
+ * [ToolRegistry] is injected lazily because the registry is built *from* this
+ * tool (see ToolsModule) — a direct dependency would be a Hilt construction
+ * cycle; [dagger.Lazy] defers resolution until the first delegation.
  */
 @Singleton
 class DelegateTool @Inject constructor(
     private val router: LlmRouter,
+    private val toolRegistry: dagger.Lazy<ToolRegistry>,
 ) : Tool {
 
     override val descriptor = ToolDescriptor(
@@ -44,9 +51,10 @@ class DelegateTool @Inject constructor(
             "their results back. Use this to parallelise independent workstreams (e.g. draft three " +
             "variants, analyse several items at once) or to keep a focused subtask out of the main " +
             "context. Provide a single `prompt`, or a `prompts` array to run up to $MAX_SUBAGENTS in " +
-            "parallel. Each subagent starts fresh with no memory of this conversation and has no " +
-            "tools, so make every prompt fully self-contained. The call blocks until all subagents " +
-            "finish.",
+            "parallel. Each subagent starts fresh with no memory of this conversation and has only " +
+            "read/research tools (web search/fetch, calculator, date, conversation search) — it " +
+            "cannot delegate, ask you questions, or write memory/files — so make every prompt fully " +
+            "self-contained. The call blocks until all subagents finish.",
         parameters = listOf(
             ToolParameter(
                 name = "prompt",
@@ -95,9 +103,13 @@ class DelegateTool @Inject constructor(
         return ToolResult.ok(output, System.currentTimeMillis() - start)
     }
 
-    /** Run one isolated, tool-less subagent and return its reply text. */
+    /**
+     * Run one isolated subagent — fresh context, restricted toolset — and
+     * return its reply text. Mirrors the orchestrator's LLM↔tool loop but with
+     * the child toolset and no user-confirmation gate.
+     */
     private suspend fun runSubagent(goal: String): String {
-        val messages = listOf(
+        var messages = listOf(
             LlmMessage(role = "system", content = SUBAGENT_SYSTEM_PROMPT),
             LlmMessage(role = "user", content = goal),
         )
@@ -105,18 +117,83 @@ class DelegateTool @Inject constructor(
         if (decision is RoutingDecision.Unavailable) {
             return "[subagent unavailable: ${decision.reason}]"
         }
-        return runCatching { decision.provider.complete(messages).content.trim() }
-            .map { it.ifBlank { "[subagent returned no output]" }.take(MAX_RESULT_CHARS) }
-            .getOrElse { t -> "[subagent failed: ${t.message ?: "unknown error"}]" }
+        val provider = decision.provider
+        val childTools = toolRegistry.get().all()
+            .map { it.descriptor }
+            .filter { it.name !in CHILD_BLOCKED_TOOLS }
+
+        return runCatching {
+            repeat(MAX_TOOL_ROUNDS) {
+                val response = provider.completeWithTools(messages, childTools)
+                if (response.toolCalls.isEmpty()) {
+                    return response.content.trim()
+                        .ifBlank { "[subagent returned no output]" }.take(MAX_RESULT_CHARS)
+                }
+                messages = messages + LlmMessage(
+                    role = "assistant",
+                    content = response.content,
+                    toolCalls = response.toolCalls,
+                )
+                for (call in response.toolCalls) {
+                    messages = messages + LlmMessage(
+                        role = "tool",
+                        content = executeChildTool(call),
+                        toolCallId = call.id,
+                    )
+                }
+            }
+            // Rounds exhausted while still tool-calling: force a final answer.
+            provider.complete(messages).content.trim()
+                .ifBlank { "[subagent did not finish]" }.take(MAX_RESULT_CHARS)
+        }.getOrElse { t -> "[subagent failed: ${t.message ?: "unknown error"}]" }
+    }
+
+    /** Execute a subagent's tool call, enforcing the child blocklist. */
+    private suspend fun executeChildTool(call: ToolCall): String {
+        if (call.name in CHILD_BLOCKED_TOOLS) {
+            return "[tool '${call.name}' is not available to subagents]"
+        }
+        val tool = toolRegistry.get().byName(call.name)
+            ?: return "[unknown tool '${call.name}']"
+        val result = runCatching { tool.execute(call.arguments) }
+            .getOrElse { return "[tool '${call.name}' error: ${it.message ?: "unknown"}]" }
+        return (if (result.success) result.output else result.errorMessage ?: "(tool error)")
+            .ifBlank { "(no output)" }
+            .take(CHILD_TOOL_OUTPUT_CAP)
     }
 
     private companion object {
         const val MAX_SUBAGENTS = 4
+        const val MAX_TOOL_ROUNDS = 4
         const val MAX_RESULT_CHARS = 4000
+        const val CHILD_TOOL_OUTPUT_CAP = 2000
+
+        /**
+         * Tools a subagent must never have, mirroring upstream's
+         * DELEGATE_BLOCKED_TOOLS: no recursion, no user interaction, no
+         * shared-state writes, no scheduling, no device/network/code side
+         * effects. What's left is the read/research/compute set.
+         */
+        val CHILD_BLOCKED_TOOLS = setOf(
+            "delegate",            // no recursive delegation
+            "clarify",             // children can't interact with the user
+            "memory", "notes",     // no writes to shared long-term memory
+            "todo",                // no mutating the parent's shared todo list
+            "scheduler",           // no scheduling work in the parent's name
+            "skill_manager",       // no skill writes
+            "speak",               // no audio side effects from a background child
+            "shell", "terminal", "termux", // no code execution
+            "device_settings",     // no mutating the device
+            "calendar_add_event",  // no calendar writes
+            "notify",              // no outbound webhooks / cross-platform sends
+        )
+
         const val SUBAGENT_SYSTEM_PROMPT =
             "You are a focused Hermes subagent. You have been given a single, self-contained task " +
-                "by a parent agent. You have no tools and cannot ask follow-up questions, so make " +
-                "reasonable assumptions where needed. Complete the task and return only the result — " +
-                "concise, directly usable by the parent, with no preamble or meta-commentary."
+                "by a parent agent. You have a limited set of read/research tools (web search and " +
+                "fetch, calculator, current date/time, conversation search) and cannot ask follow-up " +
+                "questions, so make reasonable assumptions where needed. Use tools only when they " +
+                "materially help. Return only the result — concise, directly usable by the parent, " +
+                "with no preamble or meta-commentary."
     }
 }
