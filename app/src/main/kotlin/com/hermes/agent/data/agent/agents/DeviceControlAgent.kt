@@ -28,7 +28,10 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "- shell: execute a shell command (runs as app user, not root; 10 s timeout; " +
             "stdout+stderr returned combined). Use for inspecting files, processes, or " +
             "device state via adb-shell-compatible commands.\n" +
-            "- memory: recall user preferences (e.g. preferred brightness level)\n\n" +
+            "- memory: recall user preferences (e.g. preferred brightness level)\n" +
+            "- speak: read text aloud through the device speaker (use when asked to say/announce " +
+            "something out loud)\n" +
+            "- clarify: ask the user a short question when a request is ambiguous\n\n" +
             "Guidelines:\n" +
             "- For device_settings, always read the current value (action='get') before " +
             "changing it (action='set'), and confirm the new value after the change.\n" +
