@@ -1,6 +1,16 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.8 RELEASED** (tag v0.7.8, --latest): ported upstream image generation
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.8
+  - `generate_image` (image_generation_tool.py parity): POSTs to OpenAI-compatible
+    {cloudBaseUrl}/images/generations with the app's existing cloud key (Settings
+    → Cloud); returns image URL(s). Optional size/model (default dall-e-3,
+    1024x1024). Self-contained: injects OkHttpClient + SettingsRepository + Json,
+    no new Retrofit/DI. Added to delegate child blocklist (no paid gen from kids)
+  - versionCode 28→29, versionName 0.7.7→0.7.8; signed OK. Compile-verified;
+    runtime needs a provider that supports /images/generations + returns a URL
+    (base64-only not inlined). Needs on-device smoke test with a real key
 - **v0.7.7 RELEASED** (tag v0.7.7, --latest): `delegate` subagents now get a
   restricted toolset (real upstream parity, was tool-less in v0.7.6)
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.7
