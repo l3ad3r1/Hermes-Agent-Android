@@ -42,7 +42,7 @@ class ChatRepositoryImpl @Inject constructor(
     companion object {
         const val CONTEXT_WINDOW_MESSAGES = 20
         const val SYSTEM_PROMPT =
-            "You are Hermes, a privacy-first on-device AI agent for Android. " +
+            "You are Hermes, a privacy-first AI agent for Android. " +
                 "Be concise, helpful, and privacy-conscious. " +
                 "When asked about device features, check what is available on this device."
     }

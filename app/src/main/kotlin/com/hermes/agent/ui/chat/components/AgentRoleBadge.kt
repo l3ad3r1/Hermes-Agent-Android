@@ -7,12 +7,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,30 +51,6 @@ fun AgentRoleBadge(
             text = role.displayName,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-    }
-}
-
-@Composable
-fun ProviderTag(
-    isOnDevice: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(
-            imageVector = if (isOnDevice) Icons.Outlined.Smartphone else Icons.Outlined.Cloud,
-            contentDescription = null,
-            modifier = Modifier.padding(end = 2.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-        )
-        Text(
-            text = if (isOnDevice) "on-device" else "cloud",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
         )
     }
 }

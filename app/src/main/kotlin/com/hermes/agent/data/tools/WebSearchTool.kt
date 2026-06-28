@@ -12,6 +12,7 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import timber.log.Timber
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,8 +26,16 @@ import javax.inject.Singleton
  */
 @Singleton
 class WebSearchTool @Inject constructor(
-    private val okHttpClient: OkHttpClient,
+    okHttpClient: OkHttpClient,
 ) : Tool {
+
+    // Dedicated fast-failing client. The shared client uses a 60s read timeout
+    // (needed for long LLM streams); search must fail fast instead of hanging.
+    private val client: OkHttpClient = okHttpClient.newBuilder()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
+        .callTimeout(15, TimeUnit.SECONDS)
+        .build()
 
     override val descriptor = ToolDescriptor(
         name = "web_search",
@@ -70,7 +79,7 @@ class WebSearchTool @Inject constructor(
                 .header("Accept-Language", "en-US,en;q=0.5")
                 .build()
 
-            val html = okHttpClient.newCall(request).execute().use { response ->
+            val html = client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     return ToolResult.error("Search request failed: HTTP ${response.code}")
                 }

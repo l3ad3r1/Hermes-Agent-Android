@@ -1,6 +1,7 @@
 package com.hermes.agent.ui.chat.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,9 +25,8 @@ import com.hermes.agent.ui.chat.ChatListItem
 /**
  * A single chat bubble. User messages are right-aligned with the brand
  * primary color; assistant messages are left-aligned with a neutral surface
- * and include a small "on-device" / "cloud" tag plus the agent-role badge
- * so the user can tell which agent produced the reply and whether it
- * stayed local — privacy affordances from Sections 5.1 and 6.1 of the plan.
+ * and include the agent-role badge so the user can tell which agent produced
+ * the reply.
  */
 @Composable
 fun MessageBubble(
@@ -72,17 +72,13 @@ fun MessageBubble(
                 .background(bubbleColor)
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            Text(
-                text = message.content,
-                color = textColor,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-        if (!isUser) {
-            ProviderTag(
-                isOnDevice = message.isOnDevice,
-                modifier = Modifier.padding(top = 4.dp, start = 4.dp),
-            )
+            SelectionContainer {
+                Text(
+                    text = message.content,
+                    color = textColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }
@@ -131,18 +127,16 @@ fun StreamingBubble(
                 TypingIndicator()
             } else {
                 Column {
-                    Text(
-                        text = item.text,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    SelectionContainer {
+                        Text(
+                            text = item.text,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     TypingIndicator(modifier = Modifier.padding(top = 4.dp))
                 }
             }
         }
-        ProviderTag(
-            isOnDevice = item.isOnDevice,
-            modifier = Modifier.padding(top = 4.dp, start = 4.dp),
-        )
     }
 }

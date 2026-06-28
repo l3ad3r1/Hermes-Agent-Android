@@ -228,7 +228,7 @@ private fun DeviceStep(viewModel: OnboardingViewModel) {
     val device by viewModel.device.collectAsStateWithLifecycle()
     val scanning by viewModel.scanning.collectAsStateWithLifecycle()
 
-    StepHeader("Your device", "Hermes checks your phone's capabilities so it knows what it can run on-device.")
+    StepHeader("Your device", "Hermes checks your phone's capabilities so it can tailor its features to your device.")
     Column(
         modifier = Modifier
             .fillMaxSize()

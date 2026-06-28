@@ -160,7 +160,6 @@ fun ChatScreen(
                     ChatStatusBar(
                         estimatedTokens = uiState.estimatedTokens,
                         activeModel = uiState.activeModel,
-                        isOnDevice = uiState.isOnDevice,
                     )
                 }
             },
@@ -276,7 +275,6 @@ private fun EmptyChatState(modifier: Modifier = Modifier) {
 private fun ChatStatusBar(
     estimatedTokens: Int,
     activeModel: String,
-    isOnDevice: Boolean,
 ) {
     androidx.compose.foundation.layout.Row(
         modifier = androidx.compose.ui.Modifier
@@ -286,11 +284,6 @@ private fun ChatStatusBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
-        Text(
-            text = if (isOnDevice) "on-device" else "cloud",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         if (activeModel.isNotBlank()) {
             Text(
                 text = activeModel,
