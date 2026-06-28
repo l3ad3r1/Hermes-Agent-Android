@@ -1,6 +1,22 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.10 RELEASED** (tag v0.7.10, --latest): CRITICAL FIX #2 — new tools were
+  never advertised to the model
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.10
+  - After v0.7.9 tools STILL didn't fire. Two gates, both failed for new tools:
+    (1) AgentToolAccess per-agent allowlist didn't include todo/clarify/delegate/
+    speak/generate_image/web_fetch → never sent to model; (2) each agent's
+    system-prompt capability list didn't mention them → Hermes model follows the
+    prompt closely. (This is why web_search 'worked' — already allowlisted — and
+    why model used shell to beep instead of speak)
+  - FIX: AgentToolAccess COMMON set (todo, clarify) for all agents; delegate/
+    web_fetch→conv/prod/research; generate_image→conv/creative; speak→conv/
+    device/creative. Updated all 5 agents' system prompts to match. New
+    AgentToolAccessTest verifies grants (passing). versionCode 30→31, 0.7.9→0.7.10
+  - LESSON: adding a Tool requires THREE steps — register in ToolsModule, grant
+    in AgentToolAccess, AND list in the agent system prompt(s). Registration alone
+    does nothing.
 - **v0.7.9 RELEASED** (tag v0.7.9, --latest): CRITICAL FIX — text-format tool calls
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.9
   - ROOT CAUSE of on-device smoke-test failures (todo/clarify/delegate/
@@ -235,8 +251,8 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. RE-SMOKE-TEST on v0.7.9: todo/clarify/delegate/generate_image should now fire
-   (v0.7.4–0.7.8 were broken by the tool-call parsing bug, fixed in 0.7.9).
+0. RE-SMOKE-TEST on v0.7.10: todo/clarify/delegate/generate_image/speak should
+   now fire (needed BOTH v0.7.9 parser fix AND v0.7.10 agent-grant fix).
    If a tool still fails, capture logcat (CloudLlm, Orchestrator tags)
 1. Pre-existing test debt remaining: ChatViewModelTest (3 runtime failures,
    Main-dispatcher), RagPipelineImplTest, ToolCallExecutorTest — not yet fixed
