@@ -186,6 +186,7 @@ class DelegateTool @Inject constructor(
             "device_settings",     // no mutating the device
             "calendar_add_event",  // no calendar writes
             "notify",              // no outbound webhooks / cross-platform sends
+            "generate_image",      // no paid image generation from a child
         )
 
         const val SUBAGENT_SYSTEM_PROMPT =
