@@ -1,6 +1,18 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.7 RELEASED** (tag v0.7.7, --latest): `delegate` subagents now get a
+  restricted toolset (real upstream parity, was tool-less in v0.7.6)
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.7
+  - Subagents run a real LLM↔tool loop (capped 4 rounds). CHILD_BLOCKED_TOOLS
+    mirrors upstream DELEGATE_BLOCKED_TOOLS: strips delegate/clarify/memory/
+    notes/todo/scheduler/skill_manager/speak/shell/terminal/termux/
+    device_settings/calendar_add_event/notify. Allowed: web_search/web_fetch/
+    calculator/get_current_datetime/search_conversations. Enforced in advertised
+    descriptors AND at execution
+  - ToolRegistry injected via dagger.Lazy to break Hilt cycle (registry built
+    from this tool). versionCode 27→28, versionName 0.7.6→0.7.7; signed OK
+  - Compile-verified; subagent tool-loop needs on-device smoke test
 - **v0.7.6 RELEASED** (tag v0.7.6, --latest): ported upstream `delegate` tool
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.6
   - `delegate` (delegate_tool.py parity): agent spawns isolated subagents for
@@ -198,9 +210,8 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. On-device smoke test of v0.7.4–v0.7.6 tools (`clarify` card suspend/resume,
-   `speak`, `delegate` subagents). Then: give `delegate` subagents a restricted
-   toolset (upstream parity) — currently tool-less
+0. On-device smoke test of v0.7.4–v0.7.7 tools (`clarify` card suspend/resume,
+   `speak`, `delegate` subagents w/ restricted toolset + tool loop)
 1. Real FTS5 Room virtual table to replace LIKE '%query%' scans
 2. Honcho external API integration (currently in-process only)
 3. Real on-device embedding model (SHA-256 mock currently in place)
