@@ -1,6 +1,21 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.9 RELEASED** (tag v0.7.9, --latest): CRITICAL FIX — text-format tool calls
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.9
+  - ROOT CAUSE of on-device smoke-test failures (todo/clarify/delegate/
+    generate_image not firing): CloudLlmProvider.parseCompletionResponse only
+    read OpenAI structured `tool_calls`. Hermes/Nous models emit tool calls as
+    TEXT in content (e.g. `<TOOLCALL>[{...}]</TOOLCALL>`), so tool_calls was
+    empty, tags leaked into the reply, nothing executed
+  - FIX: extractTextToolCalls fallback — when structured field empty, scan
+    content for <tool_call>/<TOOLCALL> tags (any case), parse object-or-array
+    JSON (arguments as object or string), strip tags, return calls. Structured
+    parsing stays primary. Fixes main agent AND delegate subagents (same path)
+  - VERIFIED by 2 new passing unit tests (array + single-object forms). Also
+    repaired pre-existing broken tests: OnboardingViewModelTest (3-arg ctor +
+    PROFILE/DEVICE steps + finish() + Main test dispatcher) and ChatViewModelTest
+    (new ClarificationBus arg). versionCode 29→30, versionName 0.7.8→0.7.9
 - **v0.7.8 RELEASED** (tag v0.7.8, --latest): ported upstream image generation
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.8
   - `generate_image` (image_generation_tool.py parity): POSTs to OpenAI-compatible
@@ -220,8 +235,14 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. On-device smoke test of v0.7.4–v0.7.7 tools (`clarify` card suspend/resume,
-   `speak`, `delegate` subagents w/ restricted toolset + tool loop)
+0. RE-SMOKE-TEST on v0.7.9: todo/clarify/delegate/generate_image should now fire
+   (v0.7.4–0.7.8 were broken by the tool-call parsing bug, fixed in 0.7.9).
+   If a tool still fails, capture logcat (CloudLlm, Orchestrator tags)
+1. Pre-existing test debt remaining: ChatViewModelTest (3 runtime failures,
+   Main-dispatcher), RagPipelineImplTest, ToolCallExecutorTest — not yet fixed
+2. streamWithTools has no text-tool-call parsing (only completeWithTools/the
+   tool loop does) — fine today since the orchestrator loop is non-streaming,
+   but note if streaming tool calls are ever needed
 1. Real FTS5 Room virtual table to replace LIKE '%query%' scans
 2. Honcho external API integration (currently in-process only)
 3. Real on-device embedding model (SHA-256 mock currently in place)
