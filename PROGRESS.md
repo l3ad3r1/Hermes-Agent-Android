@@ -1,6 +1,19 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.5 RELEASED** (tag v0.7.5, --latest): ported upstream `clarify` tool
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.5
+  - `clarify` (clarify_tool.py parity): agent asks one question + waits for the
+    answer instead of guessing; up to 4 choices or open-ended
+  - Wiring: confirmationGate only does approve/deny, so added `data/agent/
+    ClarificationBus.kt` (@Singleton) the ClarifyTool suspends on; ChatViewModel
+    mirrors pending question → ChatUiState; ChatScreen renders a card (choice
+    buttons + free-text field) above the input bar. Answer resumes the tool;
+    cancel abandons it. versionCode 25→26, versionName 0.7.4→0.7.5
+  - compileDebugKotlin + assembleRelease OK; signed. NOTE: interactive
+    suspend/resume flow is compile-verified only — needs an on-device smoke test
+  - KNOWN OVERLAP: TtsTool (v0.7.4) duplicates the existing VoiceOutputManager
+    TTS engine — candidate to refactor TtsTool to delegate to it (single engine)
 - **v0.7.4 RELEASED** (tag v0.7.4, --latest): signed release APK built + published
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.4
   - Bumped versionCode 24→25, versionName 0.6.1→0.7.4 (first time gradle version
@@ -171,11 +184,8 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. Port upstream `clarify` tool (clarify_tool.py): needs real UI plumbing —
-   a string-returning question channel through the Chat screen (the existing
-   confirmationGate only returns approve/deny boolean). Add a @Singleton
-   ClarificationBus the ClarifyTool suspends on; ChatViewModel/Screen observes
-   pending question, renders choice chips, completes with the user's answer.
+0. On-device smoke test of `clarify` (card render + suspend/resume) and
+   refactor TtsTool to reuse VoiceOutputManager (avoid two TTS engines)
 1. Real FTS5 Room virtual table to replace LIKE '%query%' scans
 2. Honcho external API integration (currently in-process only)
 3. Real on-device embedding model (SHA-256 mock currently in place)
