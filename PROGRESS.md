@@ -1,6 +1,12 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.4 RELEASED** (tag v0.7.4, --latest): signed release APK built + published
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.4
+  - Bumped versionCode 24→25, versionName 0.6.1→0.7.4 (first time gradle version
+    matches the release tag — they were decoupled before)
+  - assembleRelease BUILD SUCCESSFUL (R8 + resource shrink + lintVitalRelease pass);
+    APK signed with Hermes Agent release cert (CN=Hermes Agent, O=l3ad3r1)
 - **Ported 2 upstream tools from NousResearch/hermes-agent** (compileDebugKotlin OK):
   - `TodoTool` ("todo") — in-memory session task list (todo_tool.py parity):
     write when `todos` array supplied / read otherwise, replace+merge modes,
@@ -165,6 +171,11 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
+0. Port upstream `clarify` tool (clarify_tool.py): needs real UI plumbing —
+   a string-returning question channel through the Chat screen (the existing
+   confirmationGate only returns approve/deny boolean). Add a @Singleton
+   ClarificationBus the ClarifyTool suspends on; ChatViewModel/Screen observes
+   pending question, renders choice chips, completes with the user's answer.
 1. Real FTS5 Room virtual table to replace LIKE '%query%' scans
 2. Honcho external API integration (currently in-process only)
 3. Real on-device embedding model (SHA-256 mock currently in place)
