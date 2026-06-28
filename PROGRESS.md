@@ -1,6 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **TtsTool consolidation** (committed, unreleased — rides next feature release):
+  speak tool now delegates to existing VoiceOutputManager instead of its own
+  TextToSpeech → one TTS engine app-wide. Dropped rate/pitch (shared engine).
 - **v0.7.5 RELEASED** (tag v0.7.5, --latest): ported upstream `clarify` tool
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.5
   - `clarify` (clarify_tool.py parity): agent asks one question + waits for the
@@ -184,8 +187,10 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. On-device smoke test of `clarify` (card render + suspend/resume) and
-   refactor TtsTool to reuse VoiceOutputManager (avoid two TTS engines)
+0. On-device smoke test of `clarify` (card render + suspend/resume) + `speak`
+   (now via VoiceOutputManager). Next feature release should fold in the
+   TtsTool consolidation. Bigger upstream port still open: real `delegate`/
+   subagents (delegate_tool.py / async_delegation.py)
 1. Real FTS5 Room virtual table to replace LIKE '%query%' scans
 2. Honcho external API integration (currently in-process only)
 3. Real on-device embedding model (SHA-256 mock currently in place)
