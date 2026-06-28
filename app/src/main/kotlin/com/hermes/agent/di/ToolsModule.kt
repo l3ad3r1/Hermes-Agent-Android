@@ -11,6 +11,7 @@ import com.hermes.agent.data.tools.NotesTool
 import com.hermes.agent.data.tools.SchedulerTool
 import com.hermes.agent.data.tools.SkillManagerTool
 import com.hermes.agent.data.tools.TermuxTool
+import com.hermes.agent.data.tools.WebFetchTool
 import com.hermes.agent.data.tools.WebSearchTool
 import com.hermes.agent.data.tools.WebhookTool
 import com.hermes.agent.domain.tool.Tool
@@ -41,6 +42,7 @@ object ToolsModule {
         dateTimeTool: DateTimeTool,
         calculatorTool: CalculatorTool,
         webSearchTool: WebSearchTool,
+        webFetchTool: WebFetchTool,
         webhookTool: WebhookTool,
         deviceSettingsTool: DeviceSettingsTool,
         notesTool: NotesTool,
@@ -57,6 +59,7 @@ object ToolsModule {
             dateTimeTool,
             calculatorTool,
             webSearchTool,
+            webFetchTool,
             webhookTool,
             deviceSettingsTool,
             notesTool,

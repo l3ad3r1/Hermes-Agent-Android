@@ -13,6 +13,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.hermes.agent.MainActivity
 import com.hermes.agent.R
+import com.hermes.agent.domain.agent.Orchestrator
+import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.KanbanStatus
 import com.hermes.agent.domain.repository.KanbanRepository
 import com.hermes.agent.data.tools.WebhookTool
@@ -23,6 +25,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
@@ -44,6 +47,7 @@ import javax.inject.Inject
 class AgentForegroundService : Service() {
 
     @Inject lateinit var kanbanRepository: KanbanRepository
+    @Inject lateinit var orchestrator: Orchestrator
     @Inject lateinit var webhookTool: WebhookTool
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -105,12 +109,27 @@ class AgentForegroundService : Service() {
         updateNotification("Working: ${ticket.title.take(28)}", "Ticket ${ticket.id} in progress")
         kanbanRepository.moveTo(ticket.id, KanbanStatus.IN_PROGRESS)
 
-        // Placeholder execution. A full implementation would dispatch the ticket
-        // body to the agent orchestrator + tool registry; here we simulate work so
-        // the end-to-end claim → execute → complete → notify path is exercised.
-        delay(2_000L)
+        val prompt = buildString {
+            append(ticket.title)
+            if (ticket.body.isNotBlank()) append("\n\n${ticket.body}")
+        }
 
-        val result = "Auto-processed by the Hermes background agent."
+        val result = runCatching {
+            val events = orchestrator.run(
+                conversationId = "kanban-${ticket.id}",
+                userMessage = prompt,
+                recentMessages = emptyList(),
+            ).toList()
+
+            events.filterIsInstance<OrchestratorEvent.ReplyComplete>()
+                .firstOrNull()?.finalText
+                ?: events.filterIsInstance<OrchestratorEvent.ReplyToken>()
+                    .joinToString("") { it.text }
+                    .ifBlank { "Completed (no reply)." }
+        }.getOrElse { e ->
+            Timber.e(e, "Orchestrator failed for ticket ${ticket.id}")
+            "Agent error: ${e.message}"
+        }
         kanbanRepository.complete(ticket.id, result)
 
         runCatching {
