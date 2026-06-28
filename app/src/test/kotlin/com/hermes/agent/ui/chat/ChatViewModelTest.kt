@@ -5,6 +5,7 @@ import com.hermes.agent.domain.model.ChatStreamEvent
 import com.hermes.agent.domain.model.Conversation
 import com.hermes.agent.domain.model.Message
 import com.hermes.agent.domain.model.MessageRole
+import com.hermes.agent.data.agent.ClarificationBus
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputManager
 import com.hermes.agent.domain.repository.ChatRepository
@@ -67,7 +68,7 @@ class ChatViewModelTest {
         val chatRepo = mockk<ChatRepository>()
         every { chatRepo.sendMessage(conversationId, any()) } returns streamFlow
 
-        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true))
+        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true), ClarificationBus())
         advanceUntilIdle()
 
         // Trigger send
@@ -113,7 +114,7 @@ class ChatViewModelTest {
         val chatRepo = mockk<ChatRepository>()
         every { chatRepo.sendMessage(conversationId, any()) } returns streamFlow
 
-        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true))
+        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true), ClarificationBus())
         advanceUntilIdle()
 
         vm.sendMessage("oops")
@@ -137,7 +138,7 @@ class ChatViewModelTest {
         every { conversationRepo.observeConversation(any()) } returns flowOf(null)
         val chatRepo = mockk<ChatRepository>(relaxed = true)
 
-        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true))
+        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true), ClarificationBus())
         advanceUntilIdle()
 
         vm.sendMessage("   ")
@@ -158,7 +159,7 @@ class ChatViewModelTest {
         val chatRepo = mockk<ChatRepository>()
         every { chatRepo.sendMessage(conversationId, any()) } returns streamFlow
 
-        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true))
+        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true), ClarificationBus())
         advanceUntilIdle()
 
         vm.sendMessage("hello")
@@ -179,7 +180,7 @@ class ChatViewModelTest {
         every { conversationRepo.observeConversation(any()) } returns flowOf(null)
         val chatRepo = mockk<ChatRepository>(relaxed = true)
 
-        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true))
+        val vm = ChatViewModel(savedState, conversationRepo, chatRepo, mockk(relaxed = true), mockk(relaxed = true), ClarificationBus())
         assertEquals("abc-123", vm.conversationId)
     }
 }

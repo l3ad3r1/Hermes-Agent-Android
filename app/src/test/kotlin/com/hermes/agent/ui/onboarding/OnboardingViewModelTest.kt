@@ -5,16 +5,29 @@ import com.hermes.agent.data.settings.UserSettings
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class OnboardingViewModelTest {
+
+    // viewModelScope dispatches on Main; install a test dispatcher for it.
+    @Before fun setUpMain() = Dispatchers.setMain(UnconfinedTestDispatcher())
+
+    @After fun tearDownMain() = Dispatchers.resetMain()
 
     private fun mockSettings(): SettingsRepository = mockk<SettingsRepository>(relaxed = true).also {
         coEvery { it.isOnboardingCompleted() } returns false
@@ -23,62 +36,65 @@ class OnboardingViewModelTest {
         coEvery { it.current() } returns UserSettings()
     }
 
+    /** Build a VM with the current 3-arg constructor; memory + profiler relaxed. */
+    private fun vm(settings: SettingsRepository = mockSettings()) =
+        OnboardingViewModel(settings, mockk(relaxed = true), mockk(relaxed = true))
+
     @Test
     fun `initial step is WELCOME`() = runTest {
-        val vm = OnboardingViewModel(mockSettings())
-        assertEquals(OnboardingViewModel.WELCOME, vm.step.value)
+        assertEquals(OnboardingViewModel.WELCOME, vm().step.value)
     }
 
     @Test
     fun `next advances step`() = runTest {
-        val vm = OnboardingViewModel(mockSettings())
-        vm.next()
-        assertEquals(OnboardingViewModel.PRIVACY, vm.step.value)
-        vm.next()
-        assertEquals(OnboardingViewModel.PERMISSIONS, vm.step.value)
+        val viewModel = vm()
+        viewModel.next()
+        assertEquals(OnboardingViewModel.PROFILE, viewModel.step.value)
+        viewModel.next()
+        assertEquals(OnboardingViewModel.PERMISSIONS, viewModel.step.value)
     }
 
     @Test
-    fun `next caps at LAST_STEP`() = runTest {
-        val vm = OnboardingViewModel(mockSettings())
-        repeat(5) { vm.next() }
-        assertEquals(OnboardingViewModel.LAST_STEP, vm.step.value)
+    fun `next caps at DEVICE`() = runTest {
+        val viewModel = vm()
+        repeat(5) { viewModel.next() }
+        assertEquals(OnboardingViewModel.DEVICE, viewModel.step.value)
     }
 
     @Test
     fun `back decreases step but not below zero`() = runTest {
-        val vm = OnboardingViewModel(mockSettings())
-        vm.next()
-        vm.next()
-        vm.back()
-        assertEquals(OnboardingViewModel.PRIVACY, vm.step.value)
-        vm.back()
-        vm.back()
-        assertEquals(OnboardingViewModel.WELCOME, vm.step.value)
+        val viewModel = vm()
+        viewModel.next()
+        viewModel.next()
+        viewModel.back()
+        assertEquals(OnboardingViewModel.PROFILE, viewModel.step.value)
+        viewModel.back()
+        viewModel.back()
+        assertEquals(OnboardingViewModel.WELCOME, viewModel.step.value)
     }
 
     @Test
-    fun `complete persists onboarding_completed and sets completed flow`() = runTest {
+    fun `finish persists onboarding_completed and sets completed flow`() = runTest {
         val settings = mockSettings()
-        val vm = OnboardingViewModel(settings)
-        assertFalse(vm.completed.value)
+        val viewModel = vm(settings)
+        assertFalse(viewModel.completed.value)
 
-        vm.complete()
+        viewModel.finish()
         advanceUntilIdle()
 
-        assertTrue(vm.completed.value)
+        assertTrue(viewModel.completed.value)
         coVerify { settings.setOnboardingCompleted(true) }
     }
 
     @Test
     fun `skip also completes onboarding`() = runTest {
         val settings = mockSettings()
-        val vm = OnboardingViewModel(settings)
+        val viewModel = vm(settings)
 
-        vm.skip()
+        viewModel.skip()
         advanceUntilIdle()
 
-        assertTrue(vm.completed.value)
+        assertTrue(viewModel.completed.value)
         coVerify { settings.setOnboardingCompleted(true) }
     }
 }

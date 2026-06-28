@@ -244,6 +244,56 @@ class CloudLlmProviderTest {
         assertEquals("stop", result.finishReason)
     }
 
+    @Test
+    fun `completeWithTools recovers text-format TOOLCALL tags from content`() = runTest {
+        coEvery { settings.current() } returns defaultSettings
+        // Hermes/Nous models emit tool calls as text in content (array form).
+        val rawJson = """
+            {
+              "model": "Hermes-4",
+              "choices": [{"finish_reason":"stop","message":{"role":"assistant",
+                "content":"Sure.<TOOLCALL>[{\"name\":\"todo\",\"arguments\":{\"merge\":true}}]</TOOLCALL>"}}],
+              "usage": {"total_tokens": 20}
+            }
+        """.trimIndent()
+        coEvery { api.completionRaw(any(), any(), any()) } returns rawJson.toResponseBody("application/json".toMediaType())
+
+        val result = provider.completeWithTools(listOf(LlmMessage("user", "plan my day")), emptyList())
+
+        assertEquals(1, result.toolCalls.size)
+        assertEquals("todo", result.toolCalls[0].name)
+        assertEquals(
+            true,
+            (result.toolCalls[0].arguments["merge"] as kotlinx.serialization.json.JsonPrimitive).content.toBoolean(),
+        )
+        // The tags are stripped from the surfaced content.
+        assertFalse(result.content.contains("TOOLCALL", ignoreCase = true))
+        assertEquals("Sure.", result.content)
+    }
+
+    @Test
+    fun `completeWithTools recovers single tool_call tag with object payload`() = runTest {
+        coEvery { settings.current() } returns defaultSettings
+        val rawJson = """
+            {
+              "model": "Hermes-4",
+              "choices": [{"finish_reason":"stop","message":{"role":"assistant",
+                "content":"<tool_call>{\"name\":\"generate_image\",\"arguments\":{\"prompt\":\"a cat\"}}</tool_call>"}}],
+              "usage": {"total_tokens": 12}
+            }
+        """.trimIndent()
+        coEvery { api.completionRaw(any(), any(), any()) } returns rawJson.toResponseBody("application/json".toMediaType())
+
+        val result = provider.completeWithTools(listOf(LlmMessage("user", "draw a cat")), emptyList())
+
+        assertEquals(1, result.toolCalls.size)
+        assertEquals("generate_image", result.toolCalls[0].name)
+        assertEquals(
+            "a cat",
+            (result.toolCalls[0].arguments["prompt"] as kotlinx.serialization.json.JsonPrimitive).content,
+        )
+    }
+
     // ── stream ────────────────────────────────────────────────────────────────
 
     @Test
