@@ -110,7 +110,10 @@ class DelegateTool @Inject constructor(
      */
     private suspend fun runSubagent(goal: String): String {
         var messages = listOf(
-            LlmMessage(role = "system", content = SUBAGENT_SYSTEM_PROMPT),
+            LlmMessage(
+                role = "system",
+                content = SUBAGENT_SYSTEM_PROMPT + com.hermes.agent.data.agent.ToolCallPrompt.INSTRUCTION,
+            ),
             LlmMessage(role = "user", content = goal),
         )
         val decision = router.route(messages)

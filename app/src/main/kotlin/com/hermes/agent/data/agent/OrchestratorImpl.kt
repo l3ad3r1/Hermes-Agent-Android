@@ -113,8 +113,12 @@ class OrchestratorImpl @Inject constructor(
             val agent = agentRegistry.get(step.agentRole)
             val tools = agent.availableTools(toolRegistry)
 
+            // Pin a single text tool-call format so models that don't use
+            // structured tool_calls (Gemma's ```tool_code```, Nemotron's
+            // <TOOLCALL>) emit the <tool_call> JSON the parser recovers.
+            val toolInstruction = if (tools.isNotEmpty()) ToolCallPrompt.INSTRUCTION else ""
             val llmMessages = buildList {
-                add(LlmMessage(role = "system", content = agent.systemPrompt + memoryBlock))
+                add(LlmMessage(role = "system", content = agent.systemPrompt + memoryBlock + toolInstruction))
                 addAll(recentMessages)
                 if (recentMessages.none { it.role == "user" && it.content == userMessage }) {
                     add(LlmMessage(role = "user", content = userMessage))

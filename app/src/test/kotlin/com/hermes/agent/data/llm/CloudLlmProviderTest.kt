@@ -294,6 +294,31 @@ class CloudLlmProviderTest {
         )
     }
 
+    @Test
+    fun `completeWithTools recovers a tool_call wrapped in a markdown fence`() = runTest {
+        coEvery { settings.current() } returns defaultSettings
+        // Gemma-style models like to wrap output in code fences; the tag must
+        // still be recovered regardless of surrounding ``` fences.
+        val rawJson = """
+            {
+              "model": "gemma-3-27b-it",
+              "choices": [{"finish_reason":"stop","message":{"role":"assistant",
+                "content":"Looking that up:\n```\n<tool_call>{\"name\":\"web_search\",\"arguments\":{\"query\":\"kotlin\"}}</tool_call>\n```"}}],
+              "usage": {"total_tokens": 18}
+            }
+        """.trimIndent()
+        coEvery { api.completionRaw(any(), any(), any()) } returns rawJson.toResponseBody("application/json".toMediaType())
+
+        val result = provider.completeWithTools(listOf(LlmMessage("user", "search kotlin")), emptyList())
+
+        assertEquals(1, result.toolCalls.size)
+        assertEquals("web_search", result.toolCalls[0].name)
+        assertEquals(
+            "kotlin",
+            (result.toolCalls[0].arguments["query"] as kotlinx.serialization.json.JsonPrimitive).content,
+        )
+    }
+
     // ── stream ────────────────────────────────────────────────────────────────
 
     @Test
