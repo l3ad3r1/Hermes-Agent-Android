@@ -58,8 +58,12 @@ object NetworkModule {
             .addInterceptor(logging)
             .certificatePinner(pinningConfig.pinner)
             .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            // Reasoning models (e.g. Nemotron-super-49b) emit long thinking
+            // traces and routinely take >60s for a non-streamed completion, so a
+            // 60s read timeout caused SocketTimeoutExceptions on the tool loop
+            // and the learning loop. 3 minutes covers slow reasoning models.
+            .readTimeout(180, TimeUnit.SECONDS)
+            .writeTimeout(180, TimeUnit.SECONDS)
             .build()
     }
 

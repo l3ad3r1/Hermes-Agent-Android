@@ -7,7 +7,6 @@ import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -18,11 +17,12 @@ import javax.inject.Singleton
  * personal facts into [MemoryRepository].
  *
  * Design choices:
- * - Runs on the SPECIALIST (`cloudAux`) provider: fact extraction is a cheap,
- *   high-frequency "simple task", so it's offloaded from the primary model on
- *   every turn. (Aux falls back to the primary endpoint/key when not separately
- *   configured.) If the cloud is unavailable the call is silently skipped —
- *   learning is best-effort.
+ * - Runs on the PRIMARY cloud provider. (An earlier version routed this to the
+ *   specialist/aux model assuming it was lighter, but users may configure the
+ *   specialist as a heavier reasoning model — e.g. Nemotron-49b — on which the
+ *   per-turn extraction timed out. The primary model is the safer default.) If
+ *   the cloud is unavailable the call is silently skipped — learning is
+ *   best-effort.
  * - Duplicate guard: a new fact is skipped if any existing memory
  *   contains 80 %+ of its words (simple set-intersection check).
  * - Fire-and-forget: callers launch this in a supervisor scope; errors
@@ -30,7 +30,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class ConversationLearner @Inject constructor(
-    @Named("cloudAux") private val llmProvider: CloudLlmProvider,
+    private val llmProvider: CloudLlmProvider,
     private val memoryRepository: MemoryRepository,
     private val dispatchers: DispatcherProvider,
 ) {

@@ -31,8 +31,10 @@ class KnoxSecurityManager @Inject constructor() {
      * runtime via reflection (`Class.forName("com.samsung.android.knox.EnterpriseDeviceManager")`)
      * and gate the result on a KPE entitlement check.
      */
-    val isKnoxAvailable: Boolean
-        get() = runCatching {
+    // Computed once (and logged once) per process — this getter is polled by the
+    // UI, and re-probing + logging on every access spammed the log buffer.
+    val isKnoxAvailable: Boolean by lazy {
+        runCatching {
             Class.forName("com.samsung.android.knox.EnterpriseDeviceManager")
             Timber.tag("Knox").d("Knox SDK class detected.")
             // A real check would query the SDK here. For Phase 1, treat detection as availability.
@@ -41,6 +43,7 @@ class KnoxSecurityManager @Inject constructor() {
             Timber.tag("Knox").d("Knox SDK not present; running in compatibility mode.")
             false
         }
+    }
 
     /**
      * Whether the agent process is currently running inside a hardened
