@@ -12,9 +12,11 @@
     to PRIMARY (v0.7.15 aux-routing assumed specialist=lighter; this user's is
     heavier→timed out every turn). KnoxSecurityManager.isKnoxAvailable now by-lazy
     (was logging "Knox SDK class detected" on every UI poll → log spam). vc 37→38
-  - OPEN (needs user): ComplexityClassifier routes simple→specialist, so the
-    user's everyday chat hits the slow 49b Nemotron not the lighter Gemma primary.
-    Offer to flip routing (simple→primary) or make it configurable
+- **v0.7.18 RELEASED** (tag v0.7.18, --latest): FLIPPED model routing (user chose)
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.18
+  - HybridLlmRouter now: SIMPLE→primary (fast Gemma), COMPLEX→specialist (Nemotron
+    reasoning, fallback to primary if unavailable). Was inverted. HybridLlmRouterTest
+    updated. vc 38→39
 - **v0.7.16 RELEASED** (tag v0.7.16, --latest): 16 KB device compat + APK shrink
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.16
   - Android Studio warned APK not 16 KB-aligned (Android 15+ devices). Cause: dead
