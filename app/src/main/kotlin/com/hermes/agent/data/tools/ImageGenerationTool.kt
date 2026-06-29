@@ -109,10 +109,17 @@ class ImageGenerationTool @Inject constructor(
                 okHttpClient.newCall(request).execute().use { response ->
                     val raw = response.body?.string().orEmpty()
                     if (!response.isSuccessful) {
-                        return@use ToolResult.error(
-                            "Image API HTTP ${response.code}: ${raw.take(300)}",
-                            System.currentTimeMillis() - start,
-                        )
+                        val reason = when (response.code) {
+                            404 -> "This provider has no image-generation endpoint at $endpoint. " +
+                                "The configured cloud provider/model does not support image generation. " +
+                                "Tell the user plainly that their provider can't generate images and they'd " +
+                                "need an image-capable endpoint (e.g. OpenAI). Do NOT invent app settings or " +
+                                "menus — this app has no image-generation settings screen."
+                            401, 403 -> "Authentication failed (HTTP ${response.code}). The cloud API key " +
+                                "may be invalid or lack image permissions."
+                            else -> "Image API HTTP ${response.code}: ${raw.take(200)}"
+                        }
+                        return@use ToolResult.error(reason, System.currentTimeMillis() - start)
                     }
                     parseUrls(raw)?.let { urls ->
                         ToolResult.ok(

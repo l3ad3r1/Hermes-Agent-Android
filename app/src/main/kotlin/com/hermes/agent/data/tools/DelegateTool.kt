@@ -10,8 +10,6 @@ import com.hermes.agent.domain.tool.ToolParameter
 import com.hermes.agent.domain.tool.ToolParameterType
 import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.domain.tool.ToolResult
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -50,8 +48,8 @@ class DelegateTool @Inject constructor(
         description = "Delegate one or more self-contained subtasks to isolated subagents and get " +
             "their results back. Use this to parallelise independent workstreams (e.g. draft three " +
             "variants, analyse several items at once) or to keep a focused subtask out of the main " +
-            "context. Provide a single `prompt`, or a `prompts` array to run up to $MAX_SUBAGENTS in " +
-            "parallel. Each subagent starts fresh with no memory of this conversation and has only " +
+            "context. Provide a single `prompt`, or a `prompts` array of up to $MAX_SUBAGENTS subtasks " +
+            "(run one after another). Each subagent starts fresh with no memory of this conversation and has only " +
             "read/research tools (web search/fetch, calculator, date, conversation search) — it " +
             "cannot delegate, ask you questions, or write memory/files — so make every prompt fully " +
             "self-contained. The call blocks until all subagents finish.",
@@ -91,9 +89,11 @@ class DelegateTool @Inject constructor(
             )
         }
 
-        val results = coroutineScope {
-            goals.map { goal -> async { runSubagent(goal) } }.map { it.await() }
-        }
+        // Run subagents sequentially. Firing 3+ LLM completions at one cloud
+        // endpoint concurrently reliably tripped provider-side timeouts/rate
+        // limits on-device (2 of 3 would fail), so we trade wall-clock overlap
+        // for reliability — the isolation/decomposition value is unchanged.
+        val results = goals.map { goal -> runSubagent(goal) }
 
         val output = if (results.size == 1) {
             results.first()

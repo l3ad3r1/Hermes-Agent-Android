@@ -33,9 +33,10 @@ class ClarifyTool @Inject constructor(
         name = "clarify",
         description = "Ask the user a single clarifying question and wait for their answer. Use this " +
             "when the request is ambiguous and proceeding on an assumption risks doing the wrong " +
-            "thing — prefer asking once over guessing. Provide up to 4 `choices` for a multiple-choice " +
-            "question, or omit them for an open-ended one (the user can always type a free-form reply). " +
-            "Returns the user's answer.",
+            "thing — prefer asking once over guessing. Whenever the sensible answers form a short " +
+            "set, ALWAYS provide them as `choices` (2–4 tappable options) — it's far easier for the " +
+            "user than typing. Only omit `choices` for genuinely open-ended questions (the user can " +
+            "always type a free-form reply regardless). Returns the user's answer.",
         parameters = listOf(
             ToolParameter(
                 name = "question",
