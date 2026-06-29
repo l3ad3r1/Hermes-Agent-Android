@@ -1,5 +1,6 @@
 package com.hermes.agent.data.tools
 
+import com.hermes.agent.data.agent.TodoStore
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolParameter
@@ -11,7 +12,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
-import java.util.concurrent.CopyOnWriteArrayList
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,18 +25,13 @@ import javax.inject.Singleton
  * omitted. Every call returns the full list so the model always re-reads its
  * own plan. List order is priority.
  *
- * The store is a process-wide singleton — the Android app drives one active
- * agent session at a time, so a single shared list matches upstream's
- * "one TodoStore per session" semantics closely enough without threading a
- * session id through the tool layer.
+ * The list lives in [TodoStore] (a shared singleton) so the chat UI can show
+ * the user the agent's live plan as it works.
  */
 @Singleton
-class TodoTool @Inject constructor() : Tool {
-
-    /** One item of the plan. `id` is agent-chosen and stable across updates. */
-    private data class Item(val id: String, var content: String, var status: String)
-
-    private val items = CopyOnWriteArrayList<Item>()
+class TodoTool @Inject constructor(
+    private val store: TodoStore,
+) : Tool {
 
     override val descriptor = ToolDescriptor(
         name = "todo",
@@ -45,7 +40,8 @@ class TodoTool @Inject constructor() : Tool {
             "Call with a `todos` array to write the list (each item: id, content, status); omit " +
             "`todos` to read the current list. Status is one of: pending, in_progress, completed, " +
             "cancelled. Mark exactly one item in_progress at a time and complete it before starting " +
-            "the next. Set merge=true to update items by id and append new ones instead of replacing.",
+            "the next. Set merge=true to update items by id and append new ones instead of replacing. " +
+            "The user sees this list in the app, so keep it current.",
         parameters = listOf(
             ToolParameter(
                 name = "todos",
@@ -71,7 +67,7 @@ class TodoTool @Inject constructor() : Tool {
         val merge = (arguments["merge"] as? JsonPrimitive)?.booleanOrNull ?: false
 
         if (todosArg == null) {
-            return ToolResult.ok(render(), System.currentTimeMillis() - start)
+            return ToolResult.ok(render(store.snapshot()), System.currentTimeMillis() - start)
         }
 
         val incoming = runCatching { todosArg.map { it.toItem() } }
@@ -81,37 +77,11 @@ class TodoTool @Inject constructor() : Tool {
                 )
             }
 
-        if (merge) mergeItems(incoming) else replaceItems(incoming)
-
-        return ToolResult.ok(render(), System.currentTimeMillis() - start)
+        val result = store.write(incoming, merge)
+        return ToolResult.ok(render(result), System.currentTimeMillis() - start)
     }
 
-    private fun replaceItems(incoming: List<Item>) {
-        val deduped = dedupeById(incoming)
-        items.clear()
-        items.addAll(deduped.take(MAX_ITEMS))
-    }
-
-    private fun mergeItems(incoming: List<Item>) {
-        for (t in dedupeById(incoming)) {
-            val existing = items.firstOrNull { it.id == t.id }
-            if (existing != null) {
-                existing.content = t.content
-                existing.status = t.status
-            } else if (items.size < MAX_ITEMS) {
-                items.add(t)
-            }
-        }
-    }
-
-    /** Keep the last occurrence of each id, preserving first-seen order. */
-    private fun dedupeById(incoming: List<Item>): List<Item> {
-        val byId = LinkedHashMap<String, Item>()
-        for (item in incoming) byId[item.id] = item
-        return byId.values.toList()
-    }
-
-    private fun JsonElement.toItem(): Item {
+    private fun JsonElement.toItem(): TodoStore.Item {
         val obj = this as? JsonObject ?: throw IllegalArgumentException("each todo must be an object")
         val id = obj["id"]?.str()?.trim().orEmpty()
             .ifEmpty { throw IllegalArgumentException("todo item missing 'id'") }
@@ -119,10 +89,10 @@ class TodoTool @Inject constructor() : Tool {
             .ifEmpty { throw IllegalArgumentException("todo item '$id' missing 'content'") }
         val status = obj["status"]?.str()?.trim()?.lowercase()?.takeIf { it in VALID_STATUSES }
             ?: "pending"
-        return Item(id, content, status)
+        return TodoStore.Item(id, content, status)
     }
 
-    private fun render(): String {
+    private fun render(items: List<TodoStore.Item>): String {
         if (items.isEmpty()) return "(todo list is empty)"
         return items.joinToString("\n") { item ->
             val marker = when (item.status) {
@@ -140,6 +110,5 @@ class TodoTool @Inject constructor() : Tool {
     private companion object {
         val VALID_STATUSES = setOf("pending", "in_progress", "completed", "cancelled")
         const val MAX_CONTENT_CHARS = 4000
-        const val MAX_ITEMS = 256
     }
 }

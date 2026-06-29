@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -176,6 +177,9 @@ fun ChatScreen(
                     .padding(innerPadding),
             ) {
                 ChatModeTabs(selected = chatTab, onSelect = { chatTab = it })
+                if (chatTab == 0 && uiState.todos.isNotEmpty()) {
+                    TodoPanel(todos = uiState.todos)
+                }
                 Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                     when (chatTab) {
                         1 -> TerminalPanel()
@@ -321,6 +325,76 @@ private fun ClarificationCard(
                 ) { Text("Send") }
             }
         }
+    }
+}
+
+/**
+ * Compact, collapsible checklist showing the agent's live `todo` plan so the
+ * user can track progress. Driven by [ChatUiState.todos] (backed by TodoStore).
+ */
+@Composable
+private fun TodoPanel(todos: List<TodoItem>) {
+    val scheme = MaterialTheme.colorScheme
+    var expanded by remember { mutableStateOf(true) }
+    val done = todos.count { it.status == "completed" }
+    androidx.compose.material3.Surface(
+        color = scheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            ) {
+                Text(
+                    "PLAN",
+                    fontFamily = GeistMono,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = scheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "$done/${todos.size}",
+                    fontFamily = GeistMono,
+                    fontSize = 11.sp,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+            if (expanded) {
+                Spacer(Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 180.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    todos.forEach { item -> TodoRow(item) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodoRow(item: TodoItem) {
+    val scheme = MaterialTheme.colorScheme
+    val (glyph, color) = when (item.status) {
+        "completed" -> "✓" to scheme.tertiary
+        "in_progress" -> "▸" to scheme.primary
+        "cancelled" -> "✗" to scheme.onSurfaceVariant.copy(alpha = 0.5f)
+        else -> "○" to scheme.onSurfaceVariant
+    }
+    val dim = item.status == "completed" || item.status == "cancelled"
+    Row(verticalAlignment = Alignment.Top) {
+        Text(glyph, fontFamily = GeistMono, fontSize = 13.sp, color = color)
+        Spacer(Modifier.size(8.dp))
+        Text(
+            item.content,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (dim) scheme.onSurfaceVariant.copy(alpha = 0.6f) else scheme.onSurface,
+        )
     }
 }
 

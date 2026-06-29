@@ -39,6 +39,9 @@ data class ChatUiState(
      *  user. The UI renders the question (+ optional choices) above the input
      *  bar; answering resumes the suspended tool. */
     val pendingClarification: ClarificationRequest? = null,
+    /** The agent's current `todo` plan, shown to the user as a live checklist.
+     *  Empty when the agent hasn't created one. */
+    val todos: List<TodoItem> = emptyList(),
 ) {
     /** Messages plus the in-flight streaming bubble, if any. */
     val visibleItems: List<ChatListItem>
@@ -61,6 +64,14 @@ data class ChatUiState(
 data class ClarificationRequest(
     val question: String,
     val choices: List<String>,
+)
+
+/** One item of the agent's live todo plan. [status] is one of
+ *  pending / in_progress / completed / cancelled. */
+data class TodoItem(
+    val id: String,
+    val content: String,
+    val status: String,
 )
 
 /** Slimmed-down view of an [com.hermes.agent.domain.model.ExecutionPlan]. */
