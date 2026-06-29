@@ -68,6 +68,19 @@ class UserModelService @Inject constructor(
         }.getOrNull()
     }
 
+    /**
+     * Force an immediate rebuild regardless of the conversation counter (e.g.
+     * from the Learning screen for testing). Returns true if a new model was
+     * saved; advances the rebuild marker on success.
+     */
+    suspend fun forceRebuild(): Boolean {
+        val ok = rebuild()
+        if (ok) {
+            runCatching { learningState.setUserModelRebuiltAt(learningState.conversationCount()) }
+        }
+        return ok
+    }
+
     /** Rebuilds and persists the user model. Returns true only if a new model was saved. */
     private suspend fun rebuild(): Boolean = withContext(dispatchers.io) {
         if (!llmProvider.isAvailable()) return@withContext false
