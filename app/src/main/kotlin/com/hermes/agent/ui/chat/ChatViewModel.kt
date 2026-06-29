@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hermes.agent.data.agent.ClarificationBus
+import com.hermes.agent.data.agent.TodoStore
 import com.hermes.agent.data.voice.VoiceInputEvent
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
@@ -36,6 +37,7 @@ class ChatViewModel @Inject constructor(
     private val voiceInputManager: VoiceInputManager,
     private val voiceOutputManager: VoiceOutputManager,
     private val clarificationBus: ClarificationBus,
+    private val todoStore: TodoStore,
 ) : ViewModel() {
 
     val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
@@ -90,6 +92,10 @@ class ChatViewModel @Inject constructor(
                 isOnDevice = ephemeral.streamingIsOnDevice,
                 pendingClarification = ephemeral.pendingClarification,
             )
+        }.combine(todoStore.items) { state, todos ->
+            // The todo plan persists across turns (it survives _ephemeral
+            // resets), so it's merged in from its own store here.
+            state.copy(todos = todos.map { TodoItem(it.id, it.content, it.status) })
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -190,9 +196,12 @@ class ChatViewModel @Inject constructor(
                 _ephemeral.value = _ephemeral.value.copy(streamingText = acc)
             }
             is OrchestratorEvent.ReplyComplete -> {
+                // If the agent already used the `speak` tool this turn, it has
+                // chosen exactly what to say aloud — don't auto-read the reply
+                // on top of it (that caused the text to be spoken twice).
+                val alreadySpoke = _ephemeral.value.toolCalls.any { it.name == "speak" }
                 _ephemeral.value = ChatEphemeralState()
-                // Phase 3: speak the reply via TTS.
-                speakReply(event.finalText)
+                if (!alreadySpoke) speakReply(event.finalText)
             }
             is OrchestratorEvent.Failed -> {
                 Timber.tag("ChatVM").w("orchestration failed: %s", event.message)
