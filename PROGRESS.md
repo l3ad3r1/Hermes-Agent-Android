@@ -1,6 +1,19 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.12 RELEASED** (tag v0.7.12, --latest): make tool calls work on Gemma
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.12
+  - User runs Gemma-3 (primary) + Nemotron (backup). Router sends complex→primary,
+    simple→backup. Nemotron emits <TOOLCALL> (parsed since v0.7.9); GEMMA 3 does
+    function calling by prompt-engineering only and defaults to ```tool_code```
+    Python-call syntax the app can't parse → tools fired only on Nemotron-routed
+    turns ('somewhat works')
+  - FIX: data/agent/ToolCallPrompt.kt INSTRUCTION appended to system prompt
+    whenever tools offered (OrchestratorImpl) + to delegate subagents. Tells model
+    to emit <tool_call>{json}</tool_call> and NOT tool_code; both models follow it,
+    parser already recovers it. New test: tool_call wrapped in markdown fence
+  - generate_image confirmed WON'T work on this setup (Gemma/Nemotron text-only,
+    no /images/generations endpoint). versionCode 32→33, 0.7.11→0.7.12
 - **v0.7.11 RELEASED** (tag v0.7.11, --latest): smoke-test fixes
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.11
   - todo VISIBLE: new data/agent/TodoStore.kt (@Singleton StateFlow), TodoTool
@@ -266,10 +279,13 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. RE-SMOKE-TEST on v0.7.11: todo now shows a PLAN panel; speak no longer doubles;
-   delegate sequential; clarify should show option chips; generate_image needs an
-   image-capable provider (404 if none). If a tool still fails, capture logcat
-   (CloudLlm, Orchestrator tags)
+0. RE-SMOKE-TEST on v0.7.12: tools should now fire on BOTH models (Gemma primary
+   + Nemotron backup) via the pinned <tool_call> format. If a tool still fails,
+   grab the raw model reply from logcat (CloudLlm tag) so we can see what format
+   it actually emitted. generate_image will 404 on this provider (no image route)
+0c. If Gemma still ignores the instruction and uses ```tool_code```, add a
+    tool_code Python-call parser (deferred — needs a real sample; instruction
+    should suffice for instruction-tuned Gemma)
 0b. OPEN UX question: app auto-reads EVERY agent reply via TTS — may want a
     setting to disable, or make voice opt-in (user noted it's always on)
 1. Pre-existing test debt remaining: ChatViewModelTest (3 runtime failures,
