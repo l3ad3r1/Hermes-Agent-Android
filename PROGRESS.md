@@ -1,6 +1,13 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.19 RELEASED** (tag v0.7.19, --latest): Learning status panel
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.19
+  - Settings→Learning (ui/learning/): loop progress (conversations + countdown to
+    next user-model rebuild w/ progress bar), user-model profile or "not built",
+    facts learned (count + 5 recent), auto-created skills (author: hermes-auto).
+    Reactive on observeMemories()/skillRepo.observe() + LearningState. Exposed
+    UserModelService.UPDATE_EVERY_N. NavRow under Settings→Features. vc 39→40
 - **v0.7.17 RELEASED** (tag v0.7.17, --latest): fix timeouts on reasoning models
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.17
   - Smoke-test logs: loop "didn't work" = SocketTimeoutException, NOT a loop bug.
