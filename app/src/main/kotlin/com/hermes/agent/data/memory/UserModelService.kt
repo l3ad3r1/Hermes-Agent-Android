@@ -6,7 +6,6 @@ import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,15 +31,26 @@ import javax.inject.Singleton
 class UserModelService @Inject constructor(
     private val llmProvider: CloudLlmProvider,
     private val memoryRepository: MemoryRepository,
+    private val learningState: LearningState,
     private val dispatchers: DispatcherProvider,
 ) {
 
-    private val conversationCount = AtomicInteger(0)
-
-    /** Increments the counter; triggers a model rebuild every [UPDATE_EVERY_N] calls. */
+    /**
+     * Records a completed conversation and rebuilds the user model once at least
+     * [UPDATE_EVERY_N] conversations have happened since the last rebuild.
+     *
+     * The count is persisted (survives process death) so the trigger advances
+     * across sessions, and the "last rebuilt at" marker is only updated when a
+     * rebuild actually succeeds — so a rebuild skipped because the cloud was
+     * unavailable is retried on the next conversation rather than lost.
+     */
     suspend fun onConversationComplete() {
-        if (conversationCount.incrementAndGet() % UPDATE_EVERY_N == 0) {
-            rebuild()
+        val count = runCatching { learningState.incrementConversationCount() }.getOrNull() ?: return
+        val lastRebuiltAt = runCatching { learningState.userModelRebuiltAt() }.getOrDefault(0)
+        if (count - lastRebuiltAt >= UPDATE_EVERY_N) {
+            if (rebuild()) {
+                runCatching { learningState.setUserModelRebuiltAt(count) }
+            }
         }
     }
 
@@ -58,8 +68,9 @@ class UserModelService @Inject constructor(
         }.getOrNull()
     }
 
-    private suspend fun rebuild() = withContext(dispatchers.io) {
-        if (!llmProvider.isAvailable()) return@withContext
+    /** Rebuilds and persists the user model. Returns true only if a new model was saved. */
+    private suspend fun rebuild(): Boolean = withContext(dispatchers.io) {
+        if (!llmProvider.isAvailable()) return@withContext false
 
         val facts = runCatching {
             memoryRepository.searchMemories("", limit = 200)
@@ -67,7 +78,7 @@ class UserModelService @Inject constructor(
                 .map { it.content }
         }.getOrDefault(emptyList())
 
-        if (facts.size < 3) return@withContext
+        if (facts.size < 3) return@withContext false
 
         val factList = facts.take(50).joinToString("\n") { "- $it" }
         val response = runCatching {
@@ -78,10 +89,10 @@ class UserModelService @Inject constructor(
                 )
             )
         }.onFailure { Timber.tag("UserModel").w(it, "model rebuild failed") }
-            .getOrNull() ?: return@withContext
+            .getOrNull() ?: return@withContext false
 
         val newModel = response.content.trim()
-        if (newModel.isBlank() || newModel.length < 20) return@withContext
+        if (newModel.isBlank() || newModel.length < 20) return@withContext false
 
         // Delete old model entry.
         runCatching {
@@ -94,6 +105,7 @@ class UserModelService @Inject constructor(
         runCatching { memoryRepository.addMemory("$MODEL_PREFIX$newModel") }
             .onSuccess { Timber.tag("UserModel").i("user model rebuilt (${facts.size} facts)") }
             .onFailure { Timber.tag("UserModel").w(it, "model save failed") }
+            .isSuccess
     }
 
     companion object {
