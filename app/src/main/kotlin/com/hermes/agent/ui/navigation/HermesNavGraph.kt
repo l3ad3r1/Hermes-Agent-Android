@@ -27,6 +27,7 @@ import com.hermes.agent.ui.kanban.TicketDetailScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
 import com.hermes.agent.ui.documents.DocumentsScreen
 import com.hermes.agent.ui.experiment.ExperimentScreen
+import com.hermes.agent.ui.learning.LearningScreen
 import com.hermes.agent.ui.logs.LogScreen
 import com.hermes.agent.ui.memory.MemoryScreen
 import com.hermes.agent.ui.settings.SettingsScreen
@@ -124,6 +125,7 @@ fun HermesNavGraph() {
                 SettingsScreen(onNavigate = { route -> navController.navigate(route) })
             }
             composable("logs") { LogScreen(onBack = { navController.popBackStack() }) }
+            composable("learning") { LearningScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }

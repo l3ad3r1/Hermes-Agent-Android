@@ -110,7 +110,7 @@ class UserModelService @Inject constructor(
 
     companion object {
         const val MODEL_PREFIX = "[USER_MODEL] "
-        private const val UPDATE_EVERY_N = 5
+        const val UPDATE_EVERY_N = 5
 
         private val MODEL_SYSTEM = """
             You are a user modelling assistant. Given a list of known facts about a person,

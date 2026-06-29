@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
@@ -119,6 +120,13 @@ fun SettingsScreen(
                         title = "Memory",
                         subtitle = "View and manage agent memories",
                         onClick = { onNavigate("memory") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.AutoAwesome,
+                        title = "Learning",
+                        subtitle = "Facts learned, your profile, and auto-created skills",
+                        onClick = { onNavigate("learning") },
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
