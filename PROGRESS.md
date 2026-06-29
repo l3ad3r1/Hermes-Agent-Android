@@ -1,6 +1,21 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.11 RELEASED** (tag v0.7.11, --latest): smoke-test fixes
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.11
+  - todo VISIBLE: new data/agent/TodoStore.kt (@Singleton StateFlow), TodoTool
+    refactored to use it; ChatViewModel combines into ChatUiState.todos;
+    ChatScreen renders collapsible PLAN checklist above messages. TodoStoreTest
+    covers replace/merge/dedupe
+  - speak DOUBLE-READ fixed: ChatViewModel skips auto-read of reply when speak
+    tool ran that turn (app already auto-reads every reply — separate feature)
+  - delegate SEQUENTIAL: 3 concurrent completions tripped provider timeouts on
+    device (2/3 failed); now runs subagents one after another
+  - generate_image: 404 now returns clear "provider has no image endpoint" +
+    instructs model NOT to invent app settings (was hallucinating fake Settings
+    flow); 401/403 handled. NEEDS image-capable provider (many LLM endpoints lack)
+  - clarify: description strongly prefers 2-4 tappable choices (was free-text)
+  - versionCode 31→32, versionName 0.7.10→0.7.11
 - **v0.7.10 RELEASED** (tag v0.7.10, --latest): CRITICAL FIX #2 — new tools were
   never advertised to the model
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.10
@@ -251,9 +266,12 @@
 Nothing — all tracked issues resolved.
 
 ## Next steps (future work)
-0. RE-SMOKE-TEST on v0.7.10: todo/clarify/delegate/generate_image/speak should
-   now fire (needed BOTH v0.7.9 parser fix AND v0.7.10 agent-grant fix).
-   If a tool still fails, capture logcat (CloudLlm, Orchestrator tags)
+0. RE-SMOKE-TEST on v0.7.11: todo now shows a PLAN panel; speak no longer doubles;
+   delegate sequential; clarify should show option chips; generate_image needs an
+   image-capable provider (404 if none). If a tool still fails, capture logcat
+   (CloudLlm, Orchestrator tags)
+0b. OPEN UX question: app auto-reads EVERY agent reply via TTS — may want a
+    setting to disable, or make voice opt-in (user noted it's always on)
 1. Pre-existing test debt remaining: ChatViewModelTest (3 runtime failures,
    Main-dispatcher), RagPipelineImplTest, ToolCallExecutorTest — not yet fixed
 2. streamWithTools has no text-tool-call parsing (only completeWithTools/the
