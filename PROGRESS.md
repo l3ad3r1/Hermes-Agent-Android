@@ -1,6 +1,21 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.13 RELEASED** (tag v0.7.13, --latest): logs + dual cloud + nav/theme/audit
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.13
+  - LOGS: data/log/LogManager.kt (size-capped file in filesDir) + FileLogTree
+    planted on ALL build types (HermesApp); Settings→Logs screen (ui/logs/) with
+    Copy/Share/Refresh/Clear. Route "logs" in HermesNavGraph
+  - DUAL CLOUD PROVIDER: UserSettings.auxBaseUrl/auxApiKey (optional, fallback to
+    primary); CloudLlmProvider.activeBaseUrl()/activeApiKey() per CloudModelSource;
+    SettingsScreen Cloud split into Primary/Specialist subsections. DI unchanged
+    (aux instance already passes CloudModelSource.AUX)
+  - NAV: removed CONNECT (Messaging) from bottomNavDestinations (still in Settings)
+  - SECURITY AUDIT 9/12→10/11: removed dead KNOX_INTEGRATION; SANDBOXED_PLUGINS →
+    NO_UNTRUSTED_CODE (ENFORCED, honest); cert-pinning stays PARTIAL w/ real reason
+  - THEME: ui/theme/HermesControls.kt hermesSwitchColors()/hermesFieldColors() →
+    visible Switch off-state + textfield border/text in Midnight; applied in Settings
+  - versionCode 33→34, 0.7.12→0.7.13. compileDebugKotlin + assembleRelease OK; signed
 - **v0.7.12 RELEASED** (tag v0.7.12, --latest): make tool calls work on Gemma
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.12
   - User runs Gemma-3 (primary) + Nemotron (backup). Router sends complex→primary,
