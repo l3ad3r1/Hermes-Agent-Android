@@ -1,6 +1,13 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.14 RELEASED** (tag v0.7.14, --latest): hide Termux installer once installed
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.14
+  - TerminalPanel probes Termux (`command -v hermes` via TermuxCommandRunner.run,
+    bg RUN_COMMAND) on open; hides "Install Hermes in Termux" button when found.
+    Persisted to UserSettings.termuxHermesInstalled (seed UI immediately + re-verify).
+    TerminalEntryPoint gained settingsRepository(). Subtle "Reinstall" footer link
+    kept. Detection needs Termux + RUN_COMMAND permission granted. versionCode 34→35
 - **v0.7.13 RELEASED** (tag v0.7.13, --latest): logs + dual cloud + nav/theme/audit
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.13
   - LOGS: data/log/LogManager.kt (size-capped file in filesDir) + FileLogTree
