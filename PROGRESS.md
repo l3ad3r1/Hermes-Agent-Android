@@ -1,6 +1,20 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.17 RELEASED** (tag v0.7.17, --latest): fix timeouts on reasoning models
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.17
+  - Smoke-test logs: loop "didn't work" = SocketTimeoutException, NOT a loop bug.
+    User runs primary=Gemma-31b, specialist=nvidia/llama-3.3-nemotron-super-49b
+    (a REASONING model). LlmRouter sent ~everything to specialist (simple→aux);
+    Nemotron's long thinking traces exceeded the 60s read timeout → chat tool
+    loop + ConversationLearner both timed out
+  - FIX: NetworkModule read/write timeout 60s→180s. Reverted ConversationLearner
+    to PRIMARY (v0.7.15 aux-routing assumed specialist=lighter; this user's is
+    heavier→timed out every turn). KnoxSecurityManager.isKnoxAvailable now by-lazy
+    (was logging "Knox SDK class detected" on every UI poll → log spam). vc 37→38
+  - OPEN (needs user): ComplexityClassifier routes simple→specialist, so the
+    user's everyday chat hits the slow 49b Nemotron not the lighter Gemma primary.
+    Offer to flip routing (simple→primary) or make it configurable
 - **v0.7.16 RELEASED** (tag v0.7.16, --latest): 16 KB device compat + APK shrink
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.16
   - Android Studio warned APK not 16 KB-aligned (Android 15+ devices). Cause: dead
