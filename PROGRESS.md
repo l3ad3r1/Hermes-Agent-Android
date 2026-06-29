@@ -1,6 +1,13 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.20 RELEASED** (tag v0.7.20, --latest): interactive Learning panel
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.20
+  - Edit a fact (tap → dialog; add new + delete old, no update API), delete a fact
+    (trash icon), "Build/Rebuild now" button (forces user-model rebuild, ≥3 facts,
+    spinner). UserModelService.forceRebuild() added (rebuilds + advances marker
+    regardless of counter). LearningViewModel: deleteFact/editFact/rebuildNow +
+    rebuilding StateFlow; facts carry id (FactItem). vc 40→41
 - **v0.7.19 RELEASED** (tag v0.7.19, --latest): Learning status panel
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.19
   - Settings→Learning (ui/learning/): loop progress (conversations + countdown to
