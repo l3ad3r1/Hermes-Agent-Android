@@ -39,8 +39,8 @@ android {
         applicationId = "com.hermes.agent"
         minSdk = 29          // Android 10 — covers ~95% of active devices
         targetSdk = 34       // Android 14 — matches the plan's target
-        versionCode = 36
-        versionName = "0.7.15"
+        versionCode = 37
+        versionName = "0.7.16"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -108,11 +108,10 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
             excludes += "/META-INF/LICENSE*"
         }
-        jniLibs {
-            // Extract native libs to nativeLibraryDir so the bundled BusyBox
-            // (libbusybox.so) lands on disk as an executable file we can exec.
-            useLegacyPackaging = true
-        }
+        // Default (non-legacy) jniLibs packaging keeps shared libraries
+        // uncompressed and page-aligned, which AGP aligns to 16 KB for Android
+        // 15+ devices. (The legacy-packaging override existed only to extract
+        // the now-removed BusyBox executable.)
     }
     testOptions {
         unitTests {
@@ -143,12 +142,6 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.foundation)
     debugImplementation(libs.androidx.compose.ui.tooling)
-
-    // --- Termux terminal engine (in-app shell for the Terminal tab) ---
-    // github.com/termux/termux-app, consumed as prebuilt AARs via JitPack.
-    // terminal-view pulls terminal-emulator (with its native pty) transitively.
-    implementation("com.github.termux.termux-app:terminal-view:v0.118.3")
-    implementation("com.github.termux.termux-app:terminal-emulator:v0.118.3")
 
     // --- Hilt ---
     implementation(libs.hilt.android)

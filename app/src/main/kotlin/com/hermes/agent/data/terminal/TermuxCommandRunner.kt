@@ -20,8 +20,8 @@ import kotlin.coroutines.resume
  * Runs commands in the user's separately-installed **Termux** app via its
  * `RUN_COMMAND` intent, returning stdout/stderr/exit-code through a result
  * PendingIntent. This gives the agent the full Termux Linux environment
- * (apt/pkg, python, git, …) — unlike the in-app [TerminalSessionManager] which
- * is only the device's `/system/bin/sh` + BusyBox.
+ * (apt/pkg, python, git, …) via the real Termux app, rather than the device's
+ * limited `/system/bin/sh`.
  *
  * Requires: Termux installed, the `com.termux.permission.RUN_COMMAND` permission
  * (declared in the manifest), and `allow-external-apps=true` in the user's
