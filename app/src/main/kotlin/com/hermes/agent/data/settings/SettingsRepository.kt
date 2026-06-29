@@ -24,4 +24,6 @@ interface SettingsRepository {
     suspend fun setGithubPat(pat: String)
     suspend fun setGistId(gistId: String)
     suspend fun setLastBackupTimestamp(ts: Long)
+
+    suspend fun setTermuxHermesInstalled(installed: Boolean)
 }

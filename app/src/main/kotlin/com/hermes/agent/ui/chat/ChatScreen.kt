@@ -507,11 +507,31 @@ private fun TerminalPanel() {
     val scheme = MaterialTheme.colorScheme
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val runner = remember {
+    val entryPoint = remember {
         dagger.hilt.android.EntryPointAccessors.fromApplication(
             context.applicationContext,
             com.hermes.agent.ui.terminal.TerminalEntryPoint::class.java,
-        ).termuxCommandRunner()
+        )
+    }
+    val runner = remember { entryPoint.termuxCommandRunner() }
+    val settings = remember { entryPoint.settingsRepository() }
+    // null = not yet known. Seed from the persisted flag for an immediate correct
+    // UI, then re-verify by probing Termux for the `hermes` CLI in the background.
+    var hermesInstalled by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(Unit) {
+        hermesInstalled = settings.current().termuxHermesInstalled
+        val permGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, runner.runCommandPermission,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (runner.isTermuxInstalled() && permGranted) {
+            val result = runner.run(
+                "command -v hermes >/dev/null 2>&1 && echo __HERMES_OK__ || echo __HERMES_NO__",
+                timeoutMs = 20_000,
+            )
+            val detected = result.contains("__HERMES_OK__")
+            hermesInstalled = detected
+            settings.setTermuxHermesInstalled(detected)
+        }
     }
     fun toast(msg: String) =
         android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
@@ -549,6 +569,19 @@ private fun TerminalPanel() {
         }
     }
 
+    fun installHermes() {
+        scope.launch {
+            val script = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    context.assets.open("install-hermes-termux.sh")
+                        .bufferedReader().use { it.readText() }
+                }.getOrNull()
+            }
+            if (script == null) toast("Couldn't read installer script.")
+            else launchInTermux(script)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -573,23 +606,16 @@ private fun TerminalPanel() {
             color = scheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(16.dp))
-        androidx.compose.material3.Button(
-            onClick = {
-                scope.launch {
-                    val script = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        runCatching {
-                            context.assets.open("install-hermes-termux.sh")
-                                .bufferedReader().use { it.readText() }
-                        }.getOrNull()
-                    }
-                    if (script == null) toast("Couldn't read installer script.")
-                    else launchInTermux(script)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-        ) { Text("Install Hermes in Termux") }
-        Spacer(Modifier.height(10.dp))
+        // The installer button disappears once the Hermes CLI is detected in
+        // Termux (or was on a previous visit).
+        if (hermesInstalled != true) {
+            androidx.compose.material3.Button(
+                onClick = { installHermes() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+            ) { Text("Install Hermes in Termux") }
+            Spacer(Modifier.height(10.dp))
+        }
         androidx.compose.material3.OutlinedButton(
             onClick = { launchInTermux("hermes; echo; read -p 'press enter to close…' _") },
             modifier = Modifier.fillMaxWidth(),
@@ -602,6 +628,17 @@ private fun TerminalPanel() {
             shape = MaterialTheme.shapes.medium,
         ) { Text("Open Termux shell") }
         Spacer(Modifier.weight(1f))
+        if (hermesInstalled == true) {
+            Text(
+                "Hermes CLI detected · Reinstall",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = GeistMono,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier
+                    .clickable { installHermes() }
+                    .padding(vertical = 4.dp),
+            )
+        }
         Text(
             "Requires Termux (F-Droid) with allow-external-apps=true in ~/.termux/termux.properties.",
             style = MaterialTheme.typography.labelSmall,

@@ -17,4 +17,6 @@ data class UserSettings(
     val githubPat: String = "",
     val gistId: String = "",
     val lastBackupTimestamp: Long = 0L,
+    // True once the Hermes CLI has been detected in Termux (hides the installer).
+    val termuxHermesInstalled: Boolean = false,
 )

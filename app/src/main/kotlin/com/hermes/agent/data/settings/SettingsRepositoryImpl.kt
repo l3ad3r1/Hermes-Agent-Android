@@ -36,6 +36,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val GITHUB_PAT = stringPreferencesKey("github_pat")
         val GIST_ID = stringPreferencesKey("gist_id")
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
+        val TERMUX_HERMES_INSTALLED = booleanPreferencesKey("termux_hermes_installed")
     }
 
     override fun observe(): Flow<UserSettings> = context.hermesDataStore.data.map { prefs ->
@@ -101,6 +102,10 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.LAST_BACKUP_TS] = ts }
     }
 
+    override suspend fun setTermuxHermesInstalled(installed: Boolean) {
+        context.hermesDataStore.edit { it[Keys.TERMUX_HERMES_INSTALLED] = installed }
+    }
+
     private fun Preferences.toUserSettings(): UserSettings {
         return UserSettings(
             cloudEnabled = this[Keys.CLOUD_ENABLED] ?: false,
@@ -115,6 +120,7 @@ class SettingsRepositoryImpl @Inject constructor(
             githubPat = this[Keys.GITHUB_PAT] ?: "",
             gistId = this[Keys.GIST_ID] ?: "",
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,
+            termuxHermesInstalled = this[Keys.TERMUX_HERMES_INSTALLED] ?: false,
         )
     }
 }

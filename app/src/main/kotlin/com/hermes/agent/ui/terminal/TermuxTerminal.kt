@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.data.terminal.TerminalSessionManager
 import com.hermes.agent.data.terminal.TermuxCommandRunner
 import com.termux.terminal.TerminalSession
@@ -27,6 +28,7 @@ import timber.log.Timber
 internal interface TerminalEntryPoint {
     fun terminalSessionManager(): TerminalSessionManager
     fun termuxCommandRunner(): TermuxCommandRunner
+    fun settingsRepository(): SettingsRepository
 }
 
 /**
