@@ -27,6 +27,7 @@ import com.hermes.agent.ui.kanban.TicketDetailScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
 import com.hermes.agent.ui.documents.DocumentsScreen
 import com.hermes.agent.ui.experiment.ExperimentScreen
+import com.hermes.agent.ui.logs.LogScreen
 import com.hermes.agent.ui.memory.MemoryScreen
 import com.hermes.agent.ui.settings.SettingsScreen
 import com.hermes.agent.ui.skills.SkillsScreen
@@ -35,7 +36,6 @@ private val bottomNavDestinations = listOf(
     TopLevelDestination.HOME,
     TopLevelDestination.CONVERSATIONS,
     TopLevelDestination.KANBAN,
-    TopLevelDestination.CONNECT,
     TopLevelDestination.SETTINGS,
 )
 
@@ -123,6 +123,7 @@ fun HermesNavGraph() {
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(onNavigate = { route -> navController.navigate(route) })
             }
+            composable("logs") { LogScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }
