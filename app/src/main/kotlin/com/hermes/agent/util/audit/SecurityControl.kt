@@ -30,7 +30,7 @@ enum class SecurityControl(
     ),
     CERTIFICATE_PINNING(
         title = "Certificate pinning",
-        description = "Cloud LLM endpoints pinned to known SHA-256 hashes (placeholder — replace before release).",
+        description = "TLS is enforced for all endpoints. Public-key pinning is not applied because the cloud endpoint is user-configurable (any OpenAI-compatible provider), so a fixed pin can't be assumed.",
         status = ControlStatus.PARTIAL,
     ),
     BACKUP_EXCLUSION(
@@ -38,15 +38,10 @@ enum class SecurityControl(
         description = "Conversations, memories, settings, and models excluded from cloud backup / device transfer.",
         status = ControlStatus.ENFORCED,
     ),
-    SANDBOXED_PLUGINS(
-        title = "Sandboxed plugins",
-        description = "First-party plugins run in-process; third-party plugins deferred to Phase 3.x gRPC sandbox.",
-        status = ControlStatus.PARTIAL,
-    ),
-    KNOX_INTEGRATION(
-        title = "Samsung Knox integration",
-        description = "Knox SDK probe + KPE license activation (stub — full integration in Phase 3.x on Samsung devices).",
-        status = ControlStatus.PENDING,
+    NO_UNTRUSTED_CODE(
+        title = "No untrusted code execution",
+        description = "Only first-party plugins are loaded, in-process. There is no path to download or run third-party / remote plugin code.",
+        status = ControlStatus.ENFORCED,
     ),
     TOOL_CONFIRMATION_GATE(
         title = "Tool confirmation gate",
