@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
@@ -65,6 +66,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.BuildConfig
 import com.hermes.agent.R
 import com.hermes.agent.ui.theme.AppTheme
+import com.hermes.agent.ui.theme.hermesFieldColors
+import com.hermes.agent.ui.theme.hermesSwitchColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -145,6 +148,13 @@ fun SettingsScreen(
                         subtitle = "Manage cron jobs and recurring agent tasks",
                         onClick = { onNavigate("schedule") },
                     )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.Article,
+                        title = "Logs",
+                        subtitle = "View, copy, or share app logs for troubleshooting",
+                        onClick = { onNavigate("logs") },
+                    )
                 }
             }
 
@@ -160,6 +170,13 @@ fun SettingsScreen(
                     )
                     HorizontalDivider()
 
+                    // Primary provider (complex / general tasks).
+                    Text(
+                        "Primary provider — general tasks",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
                     var apiKey by remember(settings.cloudApiKey) { mutableStateOf(settings.cloudApiKey) }
                     OutlinedTextField(
                         value = apiKey,
@@ -173,6 +190,7 @@ fun SettingsScreen(
                         },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
+                        colors = hermesFieldColors(),
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -185,6 +203,7 @@ fun SettingsScreen(
                         },
                         label = { Text(stringResource(R.string.settings_cloud_base_url)) },
                         singleLine = true,
+                        colors = hermesFieldColors(),
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -197,7 +216,19 @@ fun SettingsScreen(
                         },
                         label = { Text(stringResource(R.string.settings_cloud_model)) },
                         singleLine = true,
+                        colors = hermesFieldColors(),
                         modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    HorizontalDivider()
+
+                    // Specialist provider (simpler / specialised tasks). The router
+                    // sends lighter requests here. URL + key are optional — leave
+                    // blank to reuse the primary provider's endpoint and key.
+                    Text(
+                        "Specialist provider — specialised tasks",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     var specialisedModel by remember(settings.auxModel) { mutableStateOf(settings.auxModel) }
@@ -210,6 +241,36 @@ fun SettingsScreen(
                         label = { Text(stringResource(R.string.settings_specialised_model)) },
                         supportingText = { Text(stringResource(R.string.settings_specialised_model_hint)) },
                         singleLine = true,
+                        colors = hermesFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    var auxBaseUrl by remember(settings.auxBaseUrl) { mutableStateOf(settings.auxBaseUrl) }
+                    OutlinedTextField(
+                        value = auxBaseUrl,
+                        onValueChange = {
+                            auxBaseUrl = it
+                            viewModel.setAuxBaseUrl(it)
+                        },
+                        label = { Text("Specialist base URL (optional)") },
+                        supportingText = { Text("Leave blank to use the primary provider's endpoint.") },
+                        singleLine = true,
+                        colors = hermesFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    var auxApiKey by remember(settings.auxApiKey) { mutableStateOf(settings.auxApiKey) }
+                    OutlinedTextField(
+                        value = auxApiKey,
+                        onValueChange = {
+                            auxApiKey = it
+                            viewModel.setAuxApiKey(it)
+                        },
+                        label = { Text("Specialist API key (optional)") },
+                        supportingText = { Text("Leave blank to use the primary provider's key.") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        colors = hermesFieldColors(),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -444,7 +505,7 @@ private fun ToggleRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = onCheckedChange, colors = hermesSwitchColors())
     }
 }
 
@@ -593,6 +654,7 @@ private fun BackupSection(
                 },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
+                colors = hermesFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
 
