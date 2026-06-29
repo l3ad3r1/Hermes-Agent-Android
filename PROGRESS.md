@@ -1,6 +1,17 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.16 RELEASED** (tag v0.7.16, --latest): 16 KB device compat + APK shrink
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.16
+  - Android Studio warned APK not 16 KB-aligned (Android 15+ devices). Cause: dead
+    libbusybox.so + libtermux.so (4 KB LOAD segments) from the abandoned in-app
+    terminal native engine (removed v0.5.7). Removed TermuxTerminal.kt,
+    TerminalSessionManager.kt, TerminalTool.kt (dormant/unregistered), busybox
+    jniLibs (4 ABIs), termux terminal-view/emulator AAR deps, legacy jniLibs
+    packaging override. Preserved TerminalEntryPoint (moved to own file; the
+    RUN_COMMAND panel needs it). Remaining AndroidX .so verified p_align=0x4000
+    (16 KB). APK 8.45MB→4.95MB. No feature loss (real-Termux bridge unchanged).
+    versionCode 36→37
 - **v0.7.15 RELEASED** (tag v0.7.15, --latest): persist the self-improvement loop
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.15
   - BUG: UserModelService gated rebuild on an in-memory AtomicInteger that reset
