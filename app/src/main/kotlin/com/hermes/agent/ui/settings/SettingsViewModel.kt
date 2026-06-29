@@ -79,6 +79,16 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setAuxModel(model)
     }
 
+    /** Optional separate endpoint for the specialist provider (blank = use primary's). */
+    fun setAuxBaseUrl(url: String) = viewModelScope.launch {
+        settingsRepository.setAuxBaseUrl(url)
+    }
+
+    /** Optional separate API key for the specialist provider (blank = use primary's). */
+    fun setAuxApiKey(key: String) = viewModelScope.launch {
+        settingsRepository.setAuxApiKey(key)
+    }
+
     fun setAppTheme(themeName: String) = viewModelScope.launch {
         settingsRepository.setAppTheme(themeName)
     }

@@ -14,6 +14,8 @@ interface SettingsRepository {
     suspend fun setAppTheme(themeName: String)
     suspend fun setReasoningEffort(effort: String)
     suspend fun setAuxModel(model: String)
+    suspend fun setAuxBaseUrl(url: String)
+    suspend fun setAuxApiKey(key: String)
 
     suspend fun isOnboardingCompleted(): Boolean
     suspend fun setOnboardingCompleted(completed: Boolean)

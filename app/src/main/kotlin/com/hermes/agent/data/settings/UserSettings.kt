@@ -7,7 +7,12 @@ data class UserSettings(
     val cloudModel: String = "gpt-4o-mini",
     val appTheme: String = "MIDNIGHT",
     val reasoningEffort: String = "medium",
+    // Specialist (aux) cloud provider. Base URL and API key are optional — when
+    // blank, the specialist model runs on the primary provider's endpoint/key.
+    // Set them to point the specialist at a fully separate provider.
     val auxModel: String = "gpt-4o-mini",
+    val auxBaseUrl: String = "",
+    val auxApiKey: String = "",
     // Backup
     val githubPat: String = "",
     val gistId: String = "",

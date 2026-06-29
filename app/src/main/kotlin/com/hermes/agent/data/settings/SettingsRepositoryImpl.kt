@@ -31,6 +31,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val APP_THEME = stringPreferencesKey("app_theme")
         val REASONING_EFFORT = stringPreferencesKey("reasoning_effort")
         val AUX_MODEL = stringPreferencesKey("aux_model")
+        val AUX_BASE_URL = stringPreferencesKey("aux_base_url")
+        val AUX_API_KEY = stringPreferencesKey("aux_api_key")
         val GITHUB_PAT = stringPreferencesKey("github_pat")
         val GIST_ID = stringPreferencesKey("gist_id")
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
@@ -71,6 +73,14 @@ class SettingsRepositoryImpl @Inject constructor(
         if (model.isNotBlank()) context.hermesDataStore.edit { it[Keys.AUX_MODEL] = model }
     }
 
+    override suspend fun setAuxBaseUrl(url: String) {
+        context.hermesDataStore.edit { it[Keys.AUX_BASE_URL] = url }
+    }
+
+    override suspend fun setAuxApiKey(key: String) {
+        context.hermesDataStore.edit { it[Keys.AUX_API_KEY] = key }
+    }
+
     override suspend fun isOnboardingCompleted(): Boolean {
         return context.hermesDataStore.data.map { it[Keys.ONBOARDING_COMPLETED] ?: false }.first()
     }
@@ -100,6 +110,8 @@ class SettingsRepositoryImpl @Inject constructor(
             appTheme = this[Keys.APP_THEME] ?: "MIDNIGHT",
             reasoningEffort = this[Keys.REASONING_EFFORT] ?: "medium",
             auxModel = this[Keys.AUX_MODEL] ?: "gpt-4o-mini",
+            auxBaseUrl = this[Keys.AUX_BASE_URL] ?: "",
+            auxApiKey = this[Keys.AUX_API_KEY] ?: "",
             githubPat = this[Keys.GITHUB_PAT] ?: "",
             gistId = this[Keys.GIST_ID] ?: "",
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,
