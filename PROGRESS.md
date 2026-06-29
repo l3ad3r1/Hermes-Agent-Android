@@ -1,6 +1,19 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.15 RELEASED** (tag v0.7.15, --latest): persist the self-improvement loop
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.15
+  - BUG: UserModelService gated rebuild on an in-memory AtomicInteger that reset
+    every process death → "rebuild every 5 conversations" almost never fired
+    across sessions (the loop's cross-session user model barely updated)
+  - FIX: data/memory/LearningState.kt (DataStore) persists lifetime conversation
+    count + userModelRebuiltAt. UserModelService rebuilds when count-lastRebuiltAt
+    >= N and only advances the marker on SUCCESS (cloud-down rebuild retried next
+    turn). rebuild() returns Boolean. UserModelServiceTest covers threshold+retry
+  - Per-turn ConversationLearner extraction routed to @Named("cloudAux") specialist
+    provider (cheap high-freq task; offloads primary; falls back to primary)
+  - versionCode 35→36. Loop parts: learn facts/turn, rebuild user model, create+
+    refine skills — now run reliably long-term
 - **v0.7.14 RELEASED** (tag v0.7.14, --latest): hide Termux installer once installed
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.14
   - TerminalPanel probes Termux (`command -v hermes` via TermuxCommandRunner.run,
