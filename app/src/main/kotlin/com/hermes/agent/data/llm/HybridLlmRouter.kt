@@ -35,21 +35,21 @@ class HybridLlmRouter @Inject constructor(
             return RoutingDecision.Unavailable(cloud, reason)
         }
 
-        // Two cloud models, one per task class: complex requests go to the
-        // primary model (settings.cloudModel); simpler ones to the lighter
-        // specialised model (settings.auxModel). Both share the same API key
-        // and base URL, so the specialised model acts as a backup too — if it
-        // is somehow unavailable we fall back to the primary.
+        // Two cloud models, one per task class: everyday / simple requests go to
+        // the primary model (settings.cloudModel) — meant to be the faster,
+        // general-purpose model — while complex / reasoning-heavy requests go to
+        // the specialist model (settings.auxModel), typically a larger reasoning
+        // model. If the specialist is unavailable we fall back to the primary.
         val lastUserMessage = messages.lastOrNull { it.role == "user" }?.content.orEmpty()
         return when (ComplexityClassifier.classify(lastUserMessage)) {
             RequestComplexity.COMPLEX -> {
-                Timber.tag("LlmRouter").d("Route=cloud/primary, model=${cloud.model}")
-                RoutingDecision.Cloud(cloud, "complex task → primary model ${cloud.model}")
+                val target = if (specialised.isAvailable()) specialised else cloud
+                Timber.tag("LlmRouter").d("Route=cloud/specialist, model=${target.model}")
+                RoutingDecision.Cloud(target, "complex task → specialist model ${target.model}")
             }
             RequestComplexity.SIMPLE -> {
-                val target = if (specialised.isAvailable()) specialised else cloud
-                Timber.tag("LlmRouter").d("Route=cloud/specialised, model=${target.model}")
-                RoutingDecision.Cloud(target, "simple task → specialised model ${target.model}")
+                Timber.tag("LlmRouter").d("Route=cloud/primary, model=${cloud.model}")
+                RoutingDecision.Cloud(cloud, "simple task → primary model ${cloud.model}")
             }
         }
     }

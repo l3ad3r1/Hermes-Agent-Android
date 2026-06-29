@@ -38,7 +38,7 @@ class HybridLlmRouterTest {
     }
 
     @Test
-    fun `routes complex tasks to the primary model`() = runTest {
+    fun `routes complex tasks to the specialist model`() = runTest {
         coEvery { settings.current() } returns UserSettings(
             cloudEnabled = true,
             cloudApiKey = "sk-test",
@@ -50,11 +50,11 @@ class HybridLlmRouterTest {
         val decision = router.route(listOf(LlmMessage("user", "Please analyze and compare these options")))
 
         assertTrue(decision is RoutingDecision.Cloud)
-        assertEquals(cloud, (decision as RoutingDecision.Cloud).provider)
+        assertEquals(specialised, (decision as RoutingDecision.Cloud).provider)
     }
 
     @Test
-    fun `routes simple tasks to the specialised model`() = runTest {
+    fun `routes simple tasks to the primary model`() = runTest {
         coEvery { settings.current() } returns UserSettings(
             cloudEnabled = true,
             cloudApiKey = "sk-test",
@@ -66,11 +66,11 @@ class HybridLlmRouterTest {
         val decision = router.route(listOf(LlmMessage("user", "hi")))
 
         assertTrue(decision is RoutingDecision.Cloud)
-        assertEquals(specialised, (decision as RoutingDecision.Cloud).provider)
+        assertEquals(cloud, (decision as RoutingDecision.Cloud).provider)
     }
 
     @Test
-    fun `falls back to primary when specialised model is unavailable`() = runTest {
+    fun `falls back to primary for a complex task when specialist is unavailable`() = runTest {
         coEvery { settings.current() } returns UserSettings(
             cloudEnabled = true,
             cloudApiKey = "sk-test",
@@ -79,7 +79,7 @@ class HybridLlmRouterTest {
         coEvery { specialised.isAvailable() } returns false
 
         val router = HybridLlmRouter(cloud, specialised, settings)
-        val decision = router.route(listOf(LlmMessage("user", "hi")))
+        val decision = router.route(listOf(LlmMessage("user", "Please analyze and compare these options")))
 
         assertTrue(decision is RoutingDecision.Cloud)
         assertEquals(cloud, (decision as RoutingDecision.Cloud).provider)
