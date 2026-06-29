@@ -11,6 +11,8 @@ import androidx.work.WorkManager
 import com.hermes.agent.work.MemoryConsolidationWorker
 import com.hermes.agent.work.OtaUpdateWorker
 import com.hermes.agent.work.SkillImprovementWorker
+import com.hermes.agent.data.log.FileLogTree
+import com.hermes.agent.data.log.LogManager
 import com.hermes.agent.data.performance.MemoryPressureMonitor
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
@@ -38,8 +40,14 @@ class HermesApp : Application(), Configuration.Provider {
     @Inject
     lateinit var memoryPressureMonitor: MemoryPressureMonitor
 
+    @Inject
+    lateinit var logManager: LogManager
+
     override fun onCreate() {
         super.onCreate()
+        // Capture logs to a file (all build types) so the user can pull them
+        // from Settings → Logs; keep the console DebugTree in debug builds.
+        Timber.plant(FileLogTree(logManager))
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
