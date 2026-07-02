@@ -9,6 +9,7 @@ import com.hermes.agent.data.memory.VectorStore
 import com.hermes.agent.domain.rag.Document
 import com.hermes.agent.util.DefaultDispatcherProvider
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -33,10 +34,14 @@ class RagPipelineImplTest {
         }
     }
 
-    private fun mockDaos() = Pair(
-        mockk<DocumentDao>(relaxed = true),
-        mockk<DocumentChunkDao>(relaxed = true),
-    )
+    private fun mockDaos(): Pair<DocumentDao, DocumentChunkDao> {
+        // A bare relaxed mock's observeAll() returns a Flow that never emits,
+        // which makes ensureIndexHydrated()'s .first() throw — stub it to an
+        // empty library by default; tests can re-stub as needed.
+        val docDao = mockk<DocumentDao>(relaxed = true)
+        every { docDao.observeAll() } returns flowOf(emptyList())
+        return Pair(docDao, mockk<DocumentChunkDao>(relaxed = true))
+    }
 
     @Test
     fun `ingest splits document into chunks and indexes them`() = runTest {

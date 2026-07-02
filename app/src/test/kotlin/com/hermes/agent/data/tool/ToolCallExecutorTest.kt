@@ -36,7 +36,11 @@ class ToolCallExecutorTest {
     fun `executes a registered tool and returns its result`() = runTest {
         val registry = ToolRegistryImpl()
         val tool = StubTool(descriptor("stub")) { args ->
-            ToolResult.ok("got x=${args["x"]}")
+            // Mirror production tools: unwrap the primitive's content rather
+            // than interpolating the raw JsonElement (whose toString() keeps
+            // the JSON quotes).
+            val x = (args["x"] as? JsonPrimitive)?.content
+            ToolResult.ok("got x=$x")
         }
         registry.register(tool)
         val executor = ToolCallExecutor(registry)
