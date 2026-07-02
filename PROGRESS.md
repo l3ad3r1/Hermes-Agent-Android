@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.23**: conditional skill activation + skill curator lifecycle
+- **v0.7.23 RELEASED** (tag v0.7.23, --latest): conditional skill activation + curator
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.23
+  - Signed APK attached as hermes-agent-v0.7.23.apk. Details:
   - Ported hermes-agent's conditional activation (`_skill_should_show`,
     agent/prompt_builder.py) and curator lifecycle (agent/curator.py):
   - Skill domain/entity/DB gain requiresTools, fallbackForTools,
