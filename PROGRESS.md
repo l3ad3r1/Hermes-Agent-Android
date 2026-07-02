@@ -1,6 +1,17 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **test suite fully green (110/110)** — fixed all 5 pre-existing failures:
+  - ChatViewModelTest rewritten against sendMessageOrchestrated/OrchestratorEvent
+    (old stubs targeted the retired Phase 1 ChatStreamEvent path); each
+    state-transition test now collects uiState in backgroundScope because
+    stateIn(WhileSubscribed) never runs upstream combine without a subscriber.
+    +2 new tests covering v0.7.21 transparency gating (on/off).
+  - ToolCallExecutorTest stub unwraps JsonPrimitive.content (raw JsonElement
+    toString() keeps JSON quotes).
+  - RagPipelineImplTest ingest: stubbed DocumentDao.observeAll() (relaxed-mock
+    Flow never emits → ensureIndexHydrated().first() threw).
+  - The "Main-dispatcher failures" note under v0.7.21 below is now obsolete.
 - **v0.7.21**: tool transparency mode (Settings→Chat)
   - Ported from hermes-agent's `.plans/openai-api-server.md` Phase 3 concept
     ("Tool Transparency Modes: opaque vs transparent") — adapted for a client
