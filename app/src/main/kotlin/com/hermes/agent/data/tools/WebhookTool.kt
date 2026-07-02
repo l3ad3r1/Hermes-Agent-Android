@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.telephony.SmsManager
 import androidx.core.content.ContextCompat
+import com.hermes.agent.data.security.WebhookSigner
 import com.hermes.agent.domain.repository.ConnectorRepository
 import com.hermes.agent.domain.model.ConnectorType
 import com.hermes.agent.domain.tool.Tool
@@ -65,7 +66,11 @@ class WebhookTool @Inject constructor(
         connectors.forEach { connector ->
             runCatching {
                 when (connector.type) {
-                    ConnectorType.WEBHOOK -> postWebhook(connector.config["url"] ?: return@forEach, message)
+                    ConnectorType.WEBHOOK -> postWebhook(
+                        connector.config["url"] ?: return@forEach,
+                        message,
+                        connector.config["secret"],
+                    )
                     ConnectorType.TELEGRAM -> postTelegram(
                         connector.config["botToken"] ?: return@forEach,
                         connector.config["chatId"] ?: return@forEach,
@@ -96,9 +101,18 @@ class WebhookTool @Inject constructor(
         return ToolResult.ok("Sent to $sent connector(s).", System.currentTimeMillis() - start)
     }
 
-    private fun postWebhook(url: String, message: String) {
-        val body = """{"text":${JsonPrimitive(message)}}""".toRequestBody(json)
-        okHttpClient.newCall(Request.Builder().url(url).post(body).build()).execute().close()
+    private fun postWebhook(url: String, message: String, secret: String?) {
+        val payload = """{"text":${JsonPrimitive(message)}}"""
+        val request = Request.Builder().url(url).post(payload.toRequestBody(json))
+        // If the user configured a shared secret, HMAC-sign the body so the
+        // receiver can authenticate the delivery (ported from hermes-agent's
+        // connector channel auth). Other platforms use their own tokens.
+        if (!secret.isNullOrBlank()) {
+            val sig = WebhookSigner.sign(secret, payload)
+            request.addHeader(WebhookSigner.HEADER_TIMESTAMP, sig.timestamp)
+            request.addHeader(WebhookSigner.HEADER_SIGNATURE, sig.header)
+        }
+        okHttpClient.newCall(request.build()).execute().close()
     }
 
     private fun postTelegram(botToken: String, chatId: String, message: String) {

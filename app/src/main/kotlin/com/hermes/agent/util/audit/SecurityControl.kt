@@ -83,6 +83,11 @@ enum class SecurityControl(
         description = "Skill content is statically vetted for prompt injection, credential exfiltration, destructive commands, and obfuscation — at creation, on improvement rewrites, on backup restore, and with a caution banner on load.",
         status = ControlStatus.ENFORCED,
     ),
+    WEBHOOK_SIGNING(
+        title = "Signed webhook delivery",
+        description = "Custom-webhook connectors can carry an HMAC-SHA256 shared secret; outbound deliveries are signed (X-Hermes-Signature + timestamp) so the receiver can authenticate them and reject replays.",
+        status = ControlStatus.ENFORCED,
+    ),
 }
 
 enum class ControlStatus {

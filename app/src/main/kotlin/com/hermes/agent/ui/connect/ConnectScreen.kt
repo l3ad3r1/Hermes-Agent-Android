@@ -171,6 +171,7 @@ private fun AddConnectorDialog(
     var url by remember { mutableStateOf("") }
     var botToken by remember { mutableStateOf("") }
     var chatId by remember { mutableStateOf("") }
+    var secret by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -204,6 +205,10 @@ private fun AddConnectorDialog(
                         OutlinedTextField(value = url, onValueChange = { url = it },
                             label = { Text("Webhook URL") }, singleLine = true,
                             modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(value = secret, onValueChange = { secret = it },
+                            label = { Text("Signing secret (optional)") },
+                            placeholder = { Text("HMAC-SHA256 shared secret") },
+                            singleLine = true, modifier = Modifier.fillMaxWidth())
                     }
                     ConnectorType.TELEGRAM -> {
                         OutlinedTextField(value = botToken, onValueChange = { botToken = it },
@@ -253,7 +258,10 @@ private fun AddConnectorDialog(
             TextButton(
                 onClick = {
                     val config = when (type) {
-                        ConnectorType.WEBHOOK  -> mapOf("url" to url)
+                        ConnectorType.WEBHOOK  -> buildMap {
+                            put("url", url)
+                            if (secret.isNotBlank()) put("secret", secret)
+                        }
                         ConnectorType.TELEGRAM -> mapOf("botToken" to botToken, "chatId" to chatId)
                         ConnectorType.DISCORD  -> mapOf("url" to url)
                         ConnectorType.SIGNAL   -> mapOf("url" to url, "recipient" to chatId)

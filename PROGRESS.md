@@ -1,6 +1,21 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.25**: HMAC-signed webhook delivery (connector channel auth)
+  - Ported hermes-agent's connector channel authenticator (docs/relay-
+    connector-contract.md §6.1 HMAC-SHA256) for the generic WEBHOOK
+    connector: WebhookSigner (data/security) signs the POST body as
+    sha256=HMAC(secret,"<ts>.<body>"), emitted as X-Hermes-Signature +
+    X-Hermes-Timestamp headers; timestamp is inside the signed string so
+    a receiver rejecting stale ts gets replay protection. GitHub/Stripe-
+    style, verifiable in a few lines on any backend.
+  - WebhookTool.postWebhook signs when the connector config has a non-blank
+    "secret". Other platforms (Telegram/Discord/WhatsApp/Signal) already
+    auth via their own tokens — untouched.
+  - ConnectScreen add-webhook dialog gains an optional "Signing secret"
+    field (stored in connector config as "secret").
+  - New WEBHOOK_SIGNING security control. +8 tests (KAT, tamper/replay/
+    wrong-secret rejection). Suite green 144/144. vc 45→46
 - **v0.7.24 RELEASED** (tag v0.7.24, --latest): redaction + Skills Guard + auto-matcher
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.24
   - Signed APK attached as hermes-agent-v0.7.24.apk. Details:
