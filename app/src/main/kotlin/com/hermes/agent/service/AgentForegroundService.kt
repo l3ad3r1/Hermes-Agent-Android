@@ -24,10 +24,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import timber.log.Timber
@@ -42,6 +44,14 @@ import javax.inject.Inject
  * [KanbanRepository] — it claims the oldest TODO ticket, marks it IN_PROGRESS,
  * runs it, marks it DONE with a result, and (optionally) pushes a notification
  * through the existing [WebhookTool] (`notify`) to any connected platform.
+ *
+ * Power model (ported from hermes-agent's going-idle / wake-poke session
+ * primitives, docs/relay-connector-contract.md): instead of a fixed poll
+ * interval, the loop drains all TODO tickets, then suspends on a conflated
+ * wake channel. Room's invalidation tracker pokes that channel whenever the
+ * TODO count changes, so new tickets wake the agent instantly while an idle
+ * board costs zero CPU. A long fallback timeout re-runs the drain even
+ * without a poke (self-healing, mirrors hermes-agent's reconcile-on-boot).
  */
 @AndroidEntryPoint
 class AgentForegroundService : Service() {
@@ -52,13 +62,21 @@ class AgentForegroundService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var loopJob: Job? = null
+    private var wakeWatcherJob: Job? = null
+
+    /** Conflated so any number of board changes while working collapses into
+     *  one pending poke — the drain loop re-checks the queue anyway. */
+    private val wake = Channel<Unit>(Channel.CONFLATED)
 
     companion object {
         const val CHANNEL_ID = "hermes_agent_service"
         const val NOTIFICATION_ID = 2001
         const val ACTION_START = "com.hermes.agent.action.START_AGENT"
         const val ACTION_STOP = "com.hermes.agent.action.STOP_AGENT"
-        private const val POLL_INTERVAL_MS = 5_000L
+
+        /** Fallback re-drain interval while idle. The wake channel is the
+         *  primary signal; this only guards against a missed poke. */
+        private const val IDLE_FALLBACK_MS = 15 * 60_000L
     }
 
     override fun onCreate() {
@@ -90,21 +108,33 @@ class AgentForegroundService : Service() {
         )
         AgentServiceController.setRunning(true)
 
+        // Wake watcher: Room re-emits the TODO count on every board change;
+        // a positive count pokes the (conflated) wake channel.
+        wakeWatcherJob = scope.launch {
+            kanbanRepository.observeTodoCount()
+                .distinctUntilChanged()
+                .collect { todos -> if (todos > 0) wake.trySend(Unit) }
+        }
+
         loopJob = scope.launch {
             while (isActive) {
-                runCatching { tick() }.onFailure { Timber.e(it, "Agent loop tick failed") }
-                delay(POLL_INTERVAL_MS)
+                // Drain everything queued, one ticket at a time.
+                while (isActive) {
+                    val worked = runCatching { tick() }
+                        .onFailure { Timber.e(it, "Agent loop tick failed") }
+                        .getOrDefault(false)
+                    if (!worked) break
+                }
+                // Going idle: suspend until poked (or the fallback fires).
+                updateNotification("Hermes Agent idle", "Waiting for new tickets…")
+                withTimeoutOrNull(IDLE_FALLBACK_MS) { wake.receive() }
             }
         }
     }
 
-    /** One iteration of the background work loop. */
-    private suspend fun tick() {
-        val ticket = kanbanRepository.nextTodo()
-        if (ticket == null) {
-            updateNotification("Hermes Agent idle", "Waiting for new tickets…")
-            return
-        }
+    /** Works the oldest TODO ticket. Returns false when the queue is empty. */
+    private suspend fun tick(): Boolean {
+        val ticket = kanbanRepository.nextTodo() ?: return false
 
         updateNotification("Working: ${ticket.title.take(28)}", "Ticket ${ticket.id} in progress")
         kanbanRepository.moveTo(ticket.id, KanbanStatus.IN_PROGRESS)
@@ -137,11 +167,14 @@ class AgentForegroundService : Service() {
                 mapOf("message" to JsonPrimitive("✅ Completed ticket ${ticket.id}: ${ticket.title}"))
             webhookTool.execute(args)
         }.onFailure { Timber.w(it, "notify after ticket completion failed") }
+        return true
     }
 
     private fun stopAgent() {
         loopJob?.cancel()
         loopJob = null
+        wakeWatcherJob?.cancel()
+        wakeWatcherJob = null
         AgentServiceController.setRunning(false)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()

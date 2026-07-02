@@ -25,6 +25,9 @@ class KanbanRepositoryImpl @Inject constructor(
     override suspend fun nextTodo(): KanbanTicket? =
         dao.getByStatus(KanbanStatus.TODO.name).firstOrNull()?.toDomain()
 
+    override fun observeTodoCount(): Flow<Int> =
+        dao.observeCountByStatus(KanbanStatus.TODO.name)
+
     override suspend fun create(
         title: String,
         body: String,

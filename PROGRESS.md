@@ -1,6 +1,19 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.22**: event-driven background agent (going-idle / wake-poke)
+  - Ported hermes-agent's going-idle / wake-poke session power primitives
+    (docs/relay-connector-contract.md) into AgentForegroundService: the old
+    fixed 5s poll loop (~17k wakeups/day even on an empty board) is replaced
+    by drain-then-suspend. The loop works TODO tickets until the queue is
+    empty, then suspends on a conflated wake Channel; a Room observer on the
+    TODO count (KanbanTicketDao.observeCountByStatus →
+    KanbanRepository.observeTodoCount) pokes it on any board change, so new
+    tickets wake the agent instantly while idle costs zero CPU. 15-min
+    idle fallback re-drain guards against a missed poke (mirrors
+    hermes-agent's reconcile self-healing). tick() now returns
+    worked:Boolean; escaping exceptions stop the drain (no hot spin) until
+    the next poke/fallback. vc 42→43
 - **v0.7.21 RELEASED** (tag v0.7.21, --latest): tool transparency + green tests
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.21
   - Signed release APK (V2, hermes-release.jks) attached as

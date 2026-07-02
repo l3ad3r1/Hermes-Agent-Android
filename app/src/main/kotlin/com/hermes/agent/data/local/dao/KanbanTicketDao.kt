@@ -17,6 +17,9 @@ interface KanbanTicketDao {
     @Query("SELECT * FROM kanban_tickets WHERE status = :status ORDER BY createdAt ASC")
     suspend fun getByStatus(status: String): List<KanbanTicketEntity>
 
+    @Query("SELECT COUNT(*) FROM kanban_tickets WHERE status = :status")
+    fun observeCountByStatus(status: String): Flow<Int>
+
     @Query("SELECT COUNT(*) FROM kanban_tickets")
     suspend fun count(): Int
 

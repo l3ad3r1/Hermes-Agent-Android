@@ -12,6 +12,11 @@ interface KanbanRepository {
     /** Oldest tickets currently in [KanbanStatus.TODO] — used by the background agent loop. */
     suspend fun nextTodo(): KanbanTicket?
 
+    /** Live count of [KanbanStatus.TODO] tickets. Room re-emits on every board
+     *  change, so this doubles as the background agent's wake signal — the
+     *  service sleeps until the count goes positive instead of polling. */
+    fun observeTodoCount(): Flow<Int>
+
     suspend fun create(
         title: String,
         body: String = "",
