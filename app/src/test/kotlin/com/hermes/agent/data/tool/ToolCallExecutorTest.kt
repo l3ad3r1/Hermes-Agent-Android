@@ -1,13 +1,19 @@
 package com.hermes.agent.data.tool
 
+import com.hermes.agent.data.security.OutputRedactor
+import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.data.settings.UserSettings
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolParameter
 import com.hermes.agent.domain.tool.ToolParameterType
 import com.hermes.agent.domain.tool.ToolResult
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -21,6 +27,14 @@ class ToolCallExecutorTest {
     ) : Tool {
         override suspend fun execute(arguments: Map<String, kotlinx.serialization.json.JsonElement>): ToolResult =
             handler(arguments)
+    }
+
+    /** A real [OutputRedactor] over stubbed settings (no configured secrets
+     *  by default, so it only applies the pattern heuristics). */
+    private fun fakeRedactor(settings: UserSettings = UserSettings()): OutputRedactor {
+        val repo = mockk<SettingsRepository>(relaxed = true)
+        coEvery { repo.current() } returns settings
+        return OutputRedactor(repo)
     }
 
     private fun descriptor(name: String, requiresConfirmation: Boolean = false) = ToolDescriptor(
@@ -43,7 +57,7 @@ class ToolCallExecutorTest {
             ToolResult.ok("got x=$x")
         }
         registry.register(tool)
-        val executor = ToolCallExecutor(registry)
+        val executor = ToolCallExecutor(registry, fakeRedactor())
 
         val result = executor.execute(
             com.hermes.agent.data.llm.ToolCall(
@@ -59,7 +73,7 @@ class ToolCallExecutorTest {
     @Test
     fun `returns error for unknown tool name`() = runTest {
         val registry = ToolRegistryImpl()
-        val executor = ToolCallExecutor(registry)
+        val executor = ToolCallExecutor(registry, fakeRedactor())
 
         val result = executor.execute(
             com.hermes.agent.data.llm.ToolCall(
@@ -78,7 +92,7 @@ class ToolCallExecutorTest {
         registry.register(StubTool(descriptor("boom")) {
             throw RuntimeException("kaboom")
         })
-        val executor = ToolCallExecutor(registry)
+        val executor = ToolCallExecutor(registry, fakeRedactor())
 
         val result = executor.execute(
             com.hermes.agent.data.llm.ToolCall(
@@ -99,7 +113,7 @@ class ToolCallExecutorTest {
             executed = true
             ToolResult.ok("ok")
         })
-        val executor = ToolCallExecutor(registry)
+        val executor = ToolCallExecutor(registry, fakeRedactor())
 
         var gateCalled = false
         val gate = object : ToolCallExecutor.ConfirmationGate {
@@ -133,7 +147,7 @@ class ToolCallExecutorTest {
             executed = true
             ToolResult.ok("ok")
         })
-        val executor = ToolCallExecutor(registry)
+        val executor = ToolCallExecutor(registry, fakeRedactor())
 
         val gate = object : ToolCallExecutor.ConfirmationGate {
             override suspend fun confirm(
@@ -156,11 +170,46 @@ class ToolCallExecutorTest {
     }
 
     @Test
+    fun `tool output containing a configured secret is redacted`() = runTest {
+        val registry = ToolRegistryImpl()
+        registry.register(StubTool(descriptor("leaky")) {
+            ToolResult.ok("the key is super-secret-key-123 and more text")
+        })
+        val executor = ToolCallExecutor(
+            registry,
+            fakeRedactor(UserSettings(cloudApiKey = "super-secret-key-123")),
+        )
+
+        val result = executor.execute(
+            com.hermes.agent.data.llm.ToolCall("c1", "leaky", emptyMap())
+        )
+        assertTrue(result.success)
+        assertFalse(result.output.contains("super-secret-key-123"))
+        assertTrue(result.output.contains("[redacted:cloud-api-key]"))
+    }
+
+    @Test
+    fun `tool output containing a credential-shaped token is redacted by pattern`() = runTest {
+        val registry = ToolRegistryImpl()
+        registry.register(StubTool(descriptor("leaky")) {
+            ToolResult.ok("found token ghp_abcdefghijklmnopqrstuv123456 in file")
+        })
+        val executor = ToolCallExecutor(registry, fakeRedactor())
+
+        val result = executor.execute(
+            com.hermes.agent.data.llm.ToolCall("c1", "leaky", emptyMap())
+        )
+        assertTrue(result.success)
+        assertFalse(result.output.contains("ghp_"))
+        assertTrue(result.output.contains("[redacted:github-token]"))
+    }
+
+    @Test
     fun `executeAll runs each call independently`() = runTest {
         val registry = ToolRegistryImpl()
         registry.register(StubTool(descriptor("a")) { ToolResult.ok("A") })
         registry.register(StubTool(descriptor("b")) { ToolResult.ok("B") })
-        val executor = ToolCallExecutor(registry)
+        val executor = ToolCallExecutor(registry, fakeRedactor())
 
         val results = executor.executeAll(
             listOf(

@@ -128,6 +128,15 @@ class GithubBackupService @Inject constructor(
 
             for (s in backupData.skills) {
                 if (s.isBuiltIn) continue
+                // Skills Guard: gist content is remote input — skip skills
+                // carrying injection/exfiltration/destructive instructions.
+                val verdict = com.hermes.agent.domain.skill.SkillGuard.vet(s.content)
+                if (!verdict.ok) {
+                    Timber.tag("GithubBackup").w(
+                        "skipping restored skill '${s.name}' — Skills Guard: ${verdict.flags.joinToString()}",
+                    )
+                    continue
+                }
                 runCatching {
                     skillRepository.upsert(
                         name = s.name,

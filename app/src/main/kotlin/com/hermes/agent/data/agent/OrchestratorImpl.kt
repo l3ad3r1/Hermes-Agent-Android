@@ -57,6 +57,7 @@ class OrchestratorImpl @Inject constructor(
     private val conversationLearner: ConversationLearner,
     private val autonomousSkillCreator: AutonomousSkillCreator,
     private val userModelService: UserModelService,
+    private val skillMatcher: SkillMatcher,
 ) : Orchestrator {
 
     // Supervisor scope for fire-and-forget post-turn learning tasks.
@@ -102,6 +103,14 @@ class OrchestratorImpl @Inject constructor(
             }
         }
 
+        // 3.5. Skill orchestrator: check whether an existing skill makes
+        // this request more efficient; if so, inject it for this turn.
+        // Deterministic lexical match — zero LLM cost (see SkillMatcher).
+        val skillBlock = runCatching { skillMatcher.findRelevantSkill(userMessage) }
+            .getOrNull()
+            ?.let { skillMatcher.renderSkillBlock(it) }
+            ?: ""
+
         // 4. Execute each step; collect all tool names used for learning.
         val aggregator = StringBuilder()
         val allToolsUsed = mutableListOf<String>()
@@ -118,7 +127,7 @@ class OrchestratorImpl @Inject constructor(
             // <TOOLCALL>) emit the <tool_call> JSON the parser recovers.
             val toolInstruction = if (tools.isNotEmpty()) ToolCallPrompt.INSTRUCTION else ""
             val llmMessages = buildList {
-                add(LlmMessage(role = "system", content = agent.systemPrompt + memoryBlock + toolInstruction))
+                add(LlmMessage(role = "system", content = agent.systemPrompt + memoryBlock + skillBlock + toolInstruction))
                 addAll(recentMessages)
                 if (recentMessages.none { it.role == "user" && it.content == userMessage }) {
                     add(LlmMessage(role = "user", content = userMessage))

@@ -3,6 +3,7 @@ package com.hermes.agent.data.agent
 import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.data.llm.LlmMessage
 import com.hermes.agent.domain.repository.SkillRepository
+import com.hermes.agent.domain.skill.SkillGuard
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -66,6 +67,16 @@ class AutonomousSkillCreator @Inject constructor(
         // Skip if a skill with this name already exists.
         if (skillRepository.getByName(parsed.name) != null) {
             Timber.tag("SkillCreator").d("skill '${parsed.name}' already exists, skipping")
+            return@withContext
+        }
+
+        // Skills Guard: never persist generated content that carries
+        // injection/exfiltration/destructive instructions.
+        val verdict = SkillGuard.vet(parsed.content)
+        if (!verdict.ok) {
+            Timber.tag("SkillCreator").w(
+                "skill '${parsed.name}' rejected by Skills Guard: ${verdict.flags.joinToString()}",
+            )
             return@withContext
         }
 

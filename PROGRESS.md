@@ -1,6 +1,26 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.24**: output redaction + Skills Guard + skill orchestrator (auto-match)
+  - **Output redaction** (data/security/OutputRedactor): ToolCallExecutor now
+    scrubs tool output/errorMessage before they re-enter the conversation.
+    Layer 1 = literal configured secrets (cloud/aux API keys, GitHub PAT via
+    SettingsRepository.current()); layer 2 = credential-shaped patterns
+    (sk-, ghp_/github_pat_, xox*, AIza, nvapi-, AKIA, bearer). +2 tests.
+  - **Skills Guard** (domain/skill/SkillGuard): static vet for prompt
+    injection / credential exfiltration / destructive shell / obfuscation
+    (long base64, zero-width unicode). Enforced at 4 points: AutonomousSkill-
+    Creator (reject save), SkillImprovementWorker (discard flagged rewrite),
+    GithubBackupService (skip flagged restored skill), SkillManagerTool view
+    (caution banner). +9 tests.
+  - **Skill orchestrator** (data/agent/SkillMatcher): runs on every prompt
+    before the LLM loop. Deterministic weighted lexical match (name 3x,
+    tags/trigger 2x, desc 1x; MIN_SCORE 5, ≥2 distinct hits) over skills
+    that pass SkillActivation + SkillGuard; injects at most one skill block
+    into the system prompt — zero LLM/token cost. A match counts as a use
+    (feeds the curator). Wired into OrchestratorImpl step 3.5. +5 tests.
+  - 2 new SecurityControls (OUTPUT_REDACTION, SKILLS_GUARD). Suite green
+    136/136. vc 44→45
 - **v0.7.23 RELEASED** (tag v0.7.23, --latest): conditional skill activation + curator
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.23
   - Signed APK attached as hermes-agent-v0.7.23.apk. Details:

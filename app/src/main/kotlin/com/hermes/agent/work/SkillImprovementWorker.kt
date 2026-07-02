@@ -9,6 +9,7 @@ import com.hermes.agent.data.llm.LlmMessage
 import com.hermes.agent.domain.model.Skill
 import com.hermes.agent.domain.model.SkillLifecycle
 import com.hermes.agent.domain.repository.SkillRepository
+import com.hermes.agent.domain.skill.SkillGuard
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import timber.log.Timber
@@ -79,6 +80,12 @@ class SkillImprovementWorker @AssistedInject constructor(
             for (skill in skills) {
                 try {
                     val improved_ = improveSkill(skill.content)
+                    // Skills Guard: a rewrite that introduces flagged
+                    // instructions is discarded — the previous body stays.
+                    if (improved_ != null && !SkillGuard.vet(improved_).ok) {
+                        Timber.tag("SkillImprove").w("rewrite of '${skill.name}' rejected by Skills Guard")
+                        continue
+                    }
                     if (improved_ != null && isSignificantImprovement(skill.content, improved_)) {
                         val updatedContent = replaceBody(skill.content, improved_)
                         skillRepository.upsert(

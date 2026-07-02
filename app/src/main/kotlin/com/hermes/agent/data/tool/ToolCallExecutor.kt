@@ -1,6 +1,7 @@
 package com.hermes.agent.data.tool
 
 import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.data.security.OutputRedactor
 import com.hermes.agent.domain.tool.ToolResult
 import com.hermes.agent.domain.tool.ToolRegistry
 import timber.log.Timber
@@ -23,6 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class ToolCallExecutor @Inject constructor(
     private val registry: ToolRegistry,
+    private val redactor: OutputRedactor,
 ) {
 
     /**
@@ -55,7 +57,7 @@ class ToolCallExecutor @Inject constructor(
         }
 
         val start = System.currentTimeMillis()
-        return runCatching { tool.execute(call.arguments) }
+        val result = runCatching { tool.execute(call.arguments) }
             .mapCatching { result ->
                 result.copy(executionMs = result.executionMs + (System.currentTimeMillis() - start))
             }
@@ -66,6 +68,14 @@ class ToolCallExecutor @Inject constructor(
                     executionMs = System.currentTimeMillis() - start,
                 )
             }
+        // Redact secrets from anything the tool returns before it re-enters
+        // the conversation (and from there the UI, history, or `notify`).
+        return runCatching {
+            result.copy(
+                output = redactor.redact(result.output),
+                errorMessage = result.errorMessage?.let { redactor.redact(it) },
+            )
+        }.getOrDefault(result)
     }
 
     /**

@@ -73,6 +73,16 @@ enum class SecurityControl(
         description = "R8 / ProGuard obfuscation + resource shrinking enabled on release builds.",
         status = ControlStatus.ENFORCED,
     ),
+    OUTPUT_REDACTION(
+        title = "Tool output redaction",
+        description = "Configured credentials and credential-shaped strings (API keys, tokens, PATs) are scrubbed from tool outputs before they re-enter the conversation.",
+        status = ControlStatus.ENFORCED,
+    ),
+    SKILLS_GUARD(
+        title = "Skills Guard",
+        description = "Skill content is statically vetted for prompt injection, credential exfiltration, destructive commands, and obfuscation — at creation, on improvement rewrites, on backup restore, and with a caution banner on load.",
+        status = ControlStatus.ENFORCED,
+    ),
 }
 
 enum class ControlStatus {
