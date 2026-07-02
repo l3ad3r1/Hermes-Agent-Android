@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.25**: HMAC-signed webhook delivery (connector channel auth)
+- **v0.7.25 RELEASED** (tag v0.7.25, --latest): HMAC-signed webhook delivery
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.25
+  - Signed APK attached as hermes-agent-v0.7.25.apk. Details:
   - Ported hermes-agent's connector channel authenticator (docs/relay-
     connector-contract.md §6.1 HMAC-SHA256) for the generic WEBHOOK
     connector: WebhookSigner (data/security) signs the POST body as
