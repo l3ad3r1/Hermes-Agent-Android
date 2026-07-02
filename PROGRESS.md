@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.22**: event-driven background agent (going-idle / wake-poke)
+- **v0.7.22 RELEASED** (tag v0.7.22, --latest): event-driven background agent
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.22
+  - Signed APK (hermes-release.jks) attached as hermes-agent-v0.7.22.apk.
   - Ported hermes-agent's going-idle / wake-poke session power primitives
     (docs/relay-connector-contract.md) into AgentForegroundService: the old
     fixed 5s poll loop (~17k wakeups/day even on an empty board) is replaced
