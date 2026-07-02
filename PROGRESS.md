@@ -1,6 +1,25 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.21**: tool transparency mode (Settings→Chat)
+  - Ported from hermes-agent's `.plans/openai-api-server.md` Phase 3 concept
+    ("Tool Transparency Modes: opaque vs transparent") — adapted for a client
+    app rather than an API server: a Settings→Chat toggle "Show tool call
+    details" (default ON, preserves current behavior). When OFF, tool-call
+    cards are withheld from the live streaming bubble and only the final
+    reply shows.
+  - UserSettings.showToolCalls + SettingsRepository/Impl (DataStore key
+    show_tool_calls) + EncryptedSettingsRepository picks it up for free via
+    `by delegate`. ChatViewModel now takes SettingsRepository, combines
+    settings.showToolCalls into ChatUiState; ChatUiState.visibleItems gates
+    StreamingItem.toolCalls on it (no changes needed in MessageBubble/
+    ToolCallCard — gating happens upstream).
+  - ChatViewModelTest: added fakeSettingsRepository() helper (a bare relaxed
+    mock's observe() never emits, which would've starved every combine()
+    downstream — all 5 constructor call sites updated). 2/5 tests pass;
+    the other 3 are the pre-existing "Main-dispatcher" failures already
+    documented below (stale ChatStreamEvent/sendMessage stubs, unrelated to
+    this change) — not a new regression. vc 41→42
 - **v0.7.20 RELEASED** (tag v0.7.20, --latest): interactive Learning panel
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.20
   - Edit a fact (tap → dialog; add new + delete old, no update API), delete a fact

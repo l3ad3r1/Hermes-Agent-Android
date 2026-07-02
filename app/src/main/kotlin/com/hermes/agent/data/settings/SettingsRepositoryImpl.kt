@@ -37,6 +37,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val GIST_ID = stringPreferencesKey("gist_id")
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
         val TERMUX_HERMES_INSTALLED = booleanPreferencesKey("termux_hermes_installed")
+        val SHOW_TOOL_CALLS = booleanPreferencesKey("show_tool_calls")
     }
 
     override fun observe(): Flow<UserSettings> = context.hermesDataStore.data.map { prefs ->
@@ -106,6 +107,10 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.TERMUX_HERMES_INSTALLED] = installed }
     }
 
+    override suspend fun setShowToolCalls(enabled: Boolean) {
+        context.hermesDataStore.edit { it[Keys.SHOW_TOOL_CALLS] = enabled }
+    }
+
     private fun Preferences.toUserSettings(): UserSettings {
         return UserSettings(
             cloudEnabled = this[Keys.CLOUD_ENABLED] ?: false,
@@ -121,6 +126,7 @@ class SettingsRepositoryImpl @Inject constructor(
             gistId = this[Keys.GIST_ID] ?: "",
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,
             termuxHermesInstalled = this[Keys.TERMUX_HERMES_INSTALLED] ?: false,
+            showToolCalls = this[Keys.SHOW_TOOL_CALLS] ?: true,
         )
     }
 }

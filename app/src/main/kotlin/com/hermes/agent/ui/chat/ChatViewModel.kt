@@ -9,6 +9,7 @@ import com.hermes.agent.data.voice.VoiceInputEvent
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
 import com.hermes.agent.data.voice.VoiceOutputManager
+import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.ConversationRepository
@@ -38,6 +39,7 @@ class ChatViewModel @Inject constructor(
     private val voiceOutputManager: VoiceOutputManager,
     private val clarificationBus: ClarificationBus,
     private val todoStore: TodoStore,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
@@ -96,6 +98,8 @@ class ChatViewModel @Inject constructor(
             // The todo plan persists across turns (it survives _ephemeral
             // resets), so it's merged in from its own store here.
             state.copy(todos = todos.map { TodoItem(it.id, it.content, it.status) })
+        }.combine(settingsRepository.observe()) { state, settings ->
+            state.copy(showToolCalls = settings.showToolCalls)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

@@ -26,4 +26,6 @@ interface SettingsRepository {
     suspend fun setLastBackupTimestamp(ts: Long)
 
     suspend fun setTermuxHermesInstalled(installed: Boolean)
+
+    suspend fun setShowToolCalls(enabled: Boolean)
 }

@@ -93,6 +93,12 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setAppTheme(themeName)
     }
 
+    /** Tool transparency: show tool-call cards live during a turn (default) vs.
+     *  keep tool use opaque and show only the final reply. */
+    fun setShowToolCalls(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setShowToolCalls(enabled)
+    }
+
     fun probeKeystore(onResult: (Boolean) -> Unit) = viewModelScope.launch {
         runCatching {
             keystore.ensureKey(KeystoreManager.ALIAS_CLOUD_API_KEY)

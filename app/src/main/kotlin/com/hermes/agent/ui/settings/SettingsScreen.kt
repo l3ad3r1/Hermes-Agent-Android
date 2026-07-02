@@ -166,6 +166,20 @@ fun SettingsScreen(
                 }
             }
 
+            // --- Chat ---
+            SectionHeader(text = "Chat")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    ToggleRow(
+                        title = "Show tool call details",
+                        subtitle = "See what the agent does mid-reply (web search, calendar, etc.) " +
+                            "instead of just the final answer",
+                        checked = settings.showToolCalls,
+                        onCheckedChange = viewModel::setShowToolCalls,
+                    )
+                }
+            }
+
             // --- Cloud ---
             SectionHeader(text = stringResource(R.string.settings_section_cloud))
             Card(modifier = Modifier.fillMaxWidth()) {

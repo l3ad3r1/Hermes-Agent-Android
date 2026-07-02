@@ -42,6 +42,10 @@ data class ChatUiState(
     /** The agent's current `todo` plan, shown to the user as a live checklist.
      *  Empty when the agent hasn't created one. */
     val todos: List<TodoItem> = emptyList(),
+    /** Tool transparency setting (mirrors [com.hermes.agent.data.settings.UserSettings.showToolCalls]).
+     *  When false, tool-call cards are withheld from [visibleItems] — the agent's
+     *  tool use stays opaque and only the final reply is shown. */
+    val showToolCalls: Boolean = true,
 ) {
     /** Messages plus the in-flight streaming bubble, if any. */
     val visibleItems: List<ChatListItem>
@@ -53,7 +57,7 @@ data class ChatUiState(
                         text = streaming,
                         isOnDevice = streamingIsOnDevice,
                         agentRole = streamingAgentRole,
-                        toolCalls = toolCalls,
+                        toolCalls = if (showToolCalls) toolCalls else emptyList(),
                     )
                 )
             }

@@ -19,4 +19,8 @@ data class UserSettings(
     val lastBackupTimestamp: Long = 0L,
     // True once the Hermes CLI has been detected in Termux (hides the installer).
     val termuxHermesInstalled: Boolean = false,
+    // Tool transparency: when true (default), tool-call cards (web search,
+    // calendar, etc.) are shown live as the agent works. When false, only the
+    // final reply is shown — the agent's tool use stays opaque to the user.
+    val showToolCalls: Boolean = true,
 )
