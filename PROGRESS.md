@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.24**: output redaction + Skills Guard + skill orchestrator (auto-match)
+- **v0.7.24 RELEASED** (tag v0.7.24, --latest): redaction + Skills Guard + auto-matcher
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.24
+  - Signed APK attached as hermes-agent-v0.7.24.apk. Details:
   - **Output redaction** (data/security/OutputRedactor): ToolCallExecutor now
     scrubs tool output/errorMessage before they re-enter the conversation.
     Layer 1 = literal configured secrets (cloud/aux API keys, GitHub PAT via
