@@ -38,7 +38,7 @@ import com.hermes.agent.data.local.entity.SkillEntity
         SkillEntity::class,
         KanbanTicketEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -153,6 +153,18 @@ abstract class HermesDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_kanban_tickets_status ON kanban_tickets(status)")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Conditional skill activation + curator lifecycle (v0.7.23).
+                db.execSQL("ALTER TABLE skills ADD COLUMN requiresToolsJson TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL("ALTER TABLE skills ADD COLUMN fallbackForToolsJson TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL("ALTER TABLE skills ADD COLUMN lifecycleState TEXT NOT NULL DEFAULT 'ACTIVE'")
+                db.execSQL("ALTER TABLE skills ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE skills ADD COLUMN useCount INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE skills ADD COLUMN lastUsedAt INTEGER")
             }
         }
 

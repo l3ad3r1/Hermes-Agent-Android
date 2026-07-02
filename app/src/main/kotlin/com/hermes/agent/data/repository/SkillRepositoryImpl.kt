@@ -3,6 +3,7 @@ package com.hermes.agent.data.repository
 import com.hermes.agent.data.local.dao.SkillDao
 import com.hermes.agent.data.local.entity.SkillEntity
 import com.hermes.agent.domain.model.Skill
+import com.hermes.agent.domain.model.SkillLifecycle
 import com.hermes.agent.domain.repository.SkillRepository
 import com.hermes.agent.util.IdGenerator
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,8 @@ class SkillRepositoryImpl @Inject constructor(
         category: String,
         tags: List<String>,
         version: String,
+        requiresTools: List<String>,
+        fallbackForTools: List<String>,
     ): Skill {
         val existing = dao.getByName(name)
         val now = System.currentTimeMillis()
@@ -45,6 +48,14 @@ class SkillRepositoryImpl @Inject constructor(
             isBuiltIn = false,
             createdAt = existing?.createdAt ?: now,
             updatedAt = now,
+            requiresToolsJson = Json.encodeToString(requiresTools),
+            fallbackForToolsJson = Json.encodeToString(fallbackForTools),
+            // Usage/lifecycle survive re-upserts (skill improvement passes
+            // must not reset the curator's signal).
+            lifecycleState = existing?.lifecycleState ?: SkillLifecycle.ACTIVE.name,
+            pinned = existing?.pinned ?: false,
+            useCount = existing?.useCount ?: 0,
+            lastUsedAt = existing?.lastUsedAt,
         )
         dao.upsert(entity)
         return entity.toDomain()
@@ -55,6 +66,38 @@ class SkillRepositoryImpl @Inject constructor(
     override suspend fun seedBuiltIn() {
         dao.deleteAllBuiltIn()
         BUILT_IN_SKILLS.forEach { dao.upsert(SkillEntity.fromDomain(it)) }
+    }
+
+    override suspend fun recordUse(name: String) =
+        dao.recordUse(name, System.currentTimeMillis())
+
+    override suspend fun setPinned(id: String, pinned: Boolean) =
+        dao.setPinned(id, pinned)
+
+    override suspend fun applyLifecycleTransitions(
+        staleAfterDays: Int,
+        archiveAfterDays: Int,
+        now: Long,
+    ): Pair<Int, Int> {
+        val dayMs = 86_400_000L
+        var staled = 0
+        var archived = 0
+        for (entity in dao.getAll()) {
+            if (entity.isBuiltIn || entity.pinned) continue
+            val lastActivity = entity.lastUsedAt ?: entity.updatedAt
+            val idleDays = (now - lastActivity) / dayMs
+            when (entity.lifecycleState) {
+                SkillLifecycle.ACTIVE.name -> if (idleDays >= staleAfterDays) {
+                    dao.setLifecycle(entity.id, SkillLifecycle.STALE.name)
+                    staled++
+                }
+                SkillLifecycle.STALE.name -> if (idleDays >= archiveAfterDays) {
+                    dao.setLifecycle(entity.id, SkillLifecycle.ARCHIVED.name)
+                    archived++
+                }
+            }
+        }
+        return staled to archived
     }
 }
 

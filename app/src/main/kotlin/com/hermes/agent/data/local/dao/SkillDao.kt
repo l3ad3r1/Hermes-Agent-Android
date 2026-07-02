@@ -20,6 +20,20 @@ interface SkillDao {
     @Upsert
     suspend fun upsert(skill: SkillEntity)
 
+    /** Record a use: bump the counter, stamp the time, and revive the skill
+     *  to ACTIVE (using a STALE/ARCHIVED skill un-shelves it). */
+    @Query(
+        "UPDATE skills SET useCount = useCount + 1, lastUsedAt = :ts, " +
+            "lifecycleState = 'ACTIVE' WHERE name = :name",
+    )
+    suspend fun recordUse(name: String, ts: Long)
+
+    @Query("UPDATE skills SET lifecycleState = :state WHERE id = :id")
+    suspend fun setLifecycle(id: String, state: String)
+
+    @Query("UPDATE skills SET pinned = :pinned WHERE id = :id")
+    suspend fun setPinned(id: String, pinned: Boolean)
+
     @Query("DELETE FROM skills WHERE id = :id AND isBuiltIn = 0")
     suspend fun delete(id: String)
 

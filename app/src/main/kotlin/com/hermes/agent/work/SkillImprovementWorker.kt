@@ -6,28 +6,37 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.model.Skill
+import com.hermes.agent.domain.model.SkillLifecycle
 import com.hermes.agent.domain.repository.SkillRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import timber.log.Timber
 
 /**
- * Weekly self-improvement pass over user-created skills.
+ * Weekly curator pass over user-created skills (ported from hermes-agent's
+ * curator.py, adapted from its idle-triggered fork to WorkManager).
  *
- * For each non-built-in skill, asks the LLM:
- *   "Can this skill be improved? If yes, rewrite the body only."
- *
- * If the LLM returns a better body (judged by length and change threshold),
- * the skill content is updated in place. The name, description, category,
- * and tags are preserved — only the markdown body is rewritten.
+ * Two phases per run:
+ *  1. **Lifecycle transitions** (deterministic, free): non-builtin,
+ *     non-pinned skills go ACTIVE → STALE after 30 days unused and
+ *     STALE → ARCHIVED after 90 — never deleted; using a skill revives it
+ *     (see SkillManagerTool). Archived skills stop cluttering the agent's
+ *     skill index.
+ *  2. **Improvement pass** (LLM cost): for the most-used ACTIVE skills
+ *     (top [MAX_IMPROVEMENTS_PER_RUN] by useCount — evolution effort goes
+ *     where usage is), asks the LLM: "Can this skill be improved? If yes,
+ *     rewrite the body only." Body-only rewrite preserves name/description/
+ *     category/tags/activation metadata.
  *
  * This closes the third part of the self-improvement loop:
  *   1. [ConversationLearner]   — facts extracted per conversation
  *   2. [AutonomousSkillCreator] — skills created from complex tasks
- *   3. [SkillImprovementWorker] — skills refined over time
+ *   3. [SkillImprovementWorker] — skills curated + refined over time
  *
  * Constraints:
- * - Only runs if the cloud provider is available (API key configured)
+ * - Improvement only runs if the cloud provider is available (API key
+ *   configured); lifecycle transitions run regardless (they're free)
  * - Skips built-in skills (isBuiltIn = true)
  * - Fail-soft: any exception is caught; the worker always returns success
  *   so WorkManager doesn't retry-storm
@@ -41,17 +50,31 @@ class SkillImprovementWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        Timber.tag("SkillImprove").i("starting weekly skill improvement pass")
+        Timber.tag("SkillImprove").i("starting weekly skill curator pass")
+
+        // Phase 1: lifecycle transitions — deterministic and free, so they
+        // run even when the cloud provider is unavailable.
+        runCatching { skillRepository.applyLifecycleTransitions() }
+            .onSuccess { (staled, archived) ->
+                if (staled + archived > 0) {
+                    Timber.tag("SkillImprove").i("lifecycle: $staled staled, $archived archived")
+                }
+            }
+            .onFailure { Timber.tag("SkillImprove").w(it, "lifecycle transitions failed") }
 
         if (!llmProvider.isAvailable()) {
-            Timber.tag("SkillImprove").d("cloud unavailable — skipping")
+            Timber.tag("SkillImprove").d("cloud unavailable — skipping improvement pass")
             return Result.success()
         }
 
+        // Phase 2: LLM improvement — evolution effort goes where usage is.
         var improved = 0
         try {
-            val skills = skillRepository.getAll().filter { !it.isBuiltIn }
-            Timber.tag("SkillImprove").d("reviewing ${skills.size} user-created skills")
+            val skills = skillRepository.getAll()
+                .filter { !it.isBuiltIn && it.lifecycleState == SkillLifecycle.ACTIVE }
+                .sortedWith(compareByDescending<Skill> { it.useCount }.thenBy { it.updatedAt })
+                .take(MAX_IMPROVEMENTS_PER_RUN)
+            Timber.tag("SkillImprove").d("reviewing ${skills.size} most-used active skills")
 
             for (skill in skills) {
                 try {
@@ -65,6 +88,8 @@ class SkillImprovementWorker @AssistedInject constructor(
                             category = skill.category,
                             tags = skill.tags,
                             version = bumpPatch(skill.version),
+                            requiresTools = skill.requiresTools,
+                            fallbackForTools = skill.fallbackForTools,
                         )
                         improved++
                         Timber.tag("SkillImprove").i("improved skill: ${skill.name}")
@@ -119,6 +144,10 @@ class SkillImprovementWorker @AssistedInject constructor(
 
     companion object {
         const val UNIQUE_NAME = "hermes.skill_improvement"
+
+        /** Cap on LLM improvement calls per weekly run (cost control —
+         *  mirrors the curator's conservative consolidation defaults). */
+        private const val MAX_IMPROVEMENTS_PER_RUN = 5
 
         private val IMPROVE_SYSTEM = """
             You are a skill editor for the Hermes AI agent.

@@ -1,6 +1,27 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.23**: conditional skill activation + skill curator lifecycle
+  - Ported hermes-agent's conditional activation (`_skill_should_show`,
+    agent/prompt_builder.py) and curator lifecycle (agent/curator.py):
+  - Skill domain/entity/DB gain requiresTools, fallbackForTools,
+    lifecycleState (ACTIVE/STALE/ARCHIVED), pinned, useCount, lastUsedAt.
+    Room v6→7 migration (6 ALTER TABLEs on skills).
+  - SkillActivation (domain/skill): requires hides when a needed tool is
+    missing; fallback_for hides while the primary tool IS available;
+    ARCHIVED never shown. 9 unit tests.
+  - SkillManagerTool: list filters via SkillActivation against the live
+    ToolRegistry (dagger.Lazy to break the registry↔tool DI cycle) and
+    reports hidden counts; view records a use (revives STALE/ARCHIVED →
+    ACTIVE via SkillDao.recordUse).
+  - AutonomousSkillCreator: auto-created skills self-gate with
+    requiresTools = tools the originating task used.
+  - SkillImprovementWorker → weekly curator: phase 1 lifecycle transitions
+    (30d unused → STALE, 90d → ARCHIVED; never deletes; skips builtin/
+    pinned; runs even without cloud), phase 2 LLM improvement now targets
+    the top-5 most-used ACTIVE skills (evolution effort follows usage) and
+    preserves activation metadata on rewrite.
+  - Suite green: 119/119. vc 43→44
 - **v0.7.22 RELEASED** (tag v0.7.22, --latest): event-driven background agent
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.22
   - Signed APK (hermes-release.jks) attached as hermes-agent-v0.7.22.apk.

@@ -77,6 +77,10 @@ class AutonomousSkillCreator @Inject constructor(
                 category = parsed.category,
                 tags = parsed.tags,
                 version = "1.0.0",
+                // Self-gating: the skill was distilled from a run that used
+                // these tools, so it only makes sense where they exist —
+                // conditional activation hides it if one goes away.
+                requiresTools = taskTools.sorted(),
             )
         }.onSuccess { Timber.tag("SkillCreator").i("auto-created skill: ${parsed.name}") }
          .onFailure { Timber.tag("SkillCreator").w(it, "save failed for ${parsed.name}") }
