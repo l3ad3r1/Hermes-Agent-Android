@@ -1,6 +1,11 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.21 RELEASED** (tag v0.7.21, --latest): tool transparency + green tests
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.21
+  - Signed release APK (V2, hermes-release.jks) attached as
+    hermes-agent-v0.7.21.apk. Covers the two entries below (transparency
+    mode + full test-suite fix).
 - **test suite fully green (110/110)** — fixed all 5 pre-existing failures:
   - ChatViewModelTest rewritten against sendMessageOrchestrated/OrchestratorEvent
     (old stubs targeted the retired Phase 1 ChatStreamEvent path); each
