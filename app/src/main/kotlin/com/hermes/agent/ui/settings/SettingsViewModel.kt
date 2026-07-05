@@ -99,6 +99,38 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setShowToolCalls(enabled)
     }
 
+    // --- Local API server ---
+
+    /** Persist the enabled flag; auto-generate a bearer key on first enable
+     *  so the server is never unintentionally open. Returns nothing — the
+     *  caller starts/stops [com.hermes.agent.service.ApiServerService]. */
+    fun setApiServerEnabled(enabled: Boolean) = viewModelScope.launch {
+        if (enabled && settings.value.apiServerKey.isBlank()) {
+            settingsRepository.setApiServerKey(generateApiKey())
+        }
+        settingsRepository.setApiServerEnabled(enabled)
+    }
+
+    fun setApiServerPort(port: Int) = viewModelScope.launch {
+        settingsRepository.setApiServerPort(port)
+    }
+
+    fun setApiServerAllowLan(allow: Boolean) = viewModelScope.launch {
+        settingsRepository.setApiServerAllowLan(allow)
+    }
+
+    fun regenerateApiServerKey() = viewModelScope.launch {
+        settingsRepository.setApiServerKey(generateApiKey())
+    }
+
+    private fun generateApiKey(): String {
+        val bytes = ByteArray(24)
+        java.security.SecureRandom().nextBytes(bytes)
+        return "hermes-" + android.util.Base64.encodeToString(
+            bytes, android.util.Base64.NO_WRAP or android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING,
+        )
+    }
+
     fun probeKeystore(onResult: (Boolean) -> Unit) = viewModelScope.launch {
         runCatching {
             keystore.ensureKey(KeystoreManager.ALIAS_CLOUD_API_KEY)

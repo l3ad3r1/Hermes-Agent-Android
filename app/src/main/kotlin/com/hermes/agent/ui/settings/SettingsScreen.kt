@@ -66,6 +66,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.BuildConfig
 import com.hermes.agent.R
+import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.service.ApiServerController
 import com.hermes.agent.ui.theme.AppTheme
 import com.hermes.agent.ui.theme.hermesFieldColors
 import com.hermes.agent.ui.theme.hermesSwitchColors
@@ -179,6 +181,18 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // --- Local API server ---
+            SectionHeader(text = "Local API server")
+            ApiServerSection(
+                settings = settings,
+                onToggle = { enabled ->
+                    viewModel.setApiServerEnabled(enabled)
+                    if (enabled) ApiServerController.start(context) else ApiServerController.stop(context)
+                },
+                onAllowLan = viewModel::setApiServerAllowLan,
+                onRegenerateKey = viewModel::regenerateApiServerKey,
+            )
 
             // --- Cloud ---
             SectionHeader(text = stringResource(R.string.settings_section_cloud))
@@ -504,6 +518,80 @@ private fun SectionHeader(text: String) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ApiServerSection(
+    settings: UserSettings,
+    onToggle: (Boolean) -> Unit,
+    onAllowLan: (Boolean) -> Unit,
+    onRegenerateKey: () -> Unit,
+) {
+    val status by ApiServerController.status.collectAsStateWithLifecycle()
+    val clipboard = LocalContext.current.getSystemService(android.content.ClipboardManager::class.java)
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ToggleRow(
+                title = "Run local API server",
+                subtitle = "Expose an OpenAI-compatible endpoint so other apps (Open WebUI, " +
+                    "LobeChat, scripts) can use Hermes as a backend.",
+                checked = settings.apiServerEnabled,
+                onCheckedChange = onToggle,
+            )
+
+            if (settings.apiServerEnabled) {
+                HorizontalDivider()
+
+                val reachable = if (status.running) status.baseUrl
+                else "http://${if (settings.apiServerAllowLan) "0.0.0.0" else "127.0.0.1"}:${settings.apiServerPort}/v1"
+                InfoRow(title = "Status", value = if (status.running) "Running" else "Starting…")
+                InfoRow(title = "Endpoint", value = reachable)
+                status.error?.let {
+                    Text(
+                        "Error: $it",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
+                // API key (read-only display + copy + regenerate).
+                OutlinedTextField(
+                    value = settings.apiServerKey,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Bearer token") },
+                    supportingText = { Text("Send as: Authorization: Bearer <token>") },
+                    singleLine = true,
+                    colors = hermesFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        clipboard?.setPrimaryClip(
+                            android.content.ClipData.newPlainText("Hermes API key", settings.apiServerKey),
+                        )
+                    }) { Text("Copy token") }
+                    OutlinedButton(onClick = onRegenerateKey) { Text("Regenerate") }
+                }
+
+                HorizontalDivider()
+                ToggleRow(
+                    title = "Allow LAN access",
+                    subtitle = "Off: reachable only from this device (127.0.0.1). " +
+                        "On: reachable from other devices on your Wi-Fi — keep the token secret.",
+                    checked = settings.apiServerAllowLan,
+                    onCheckedChange = onAllowLan,
+                )
+                Text(
+                    "Changing LAN or port takes effect the next time you toggle the server off and on.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }
 
 @Composable

@@ -88,6 +88,11 @@ enum class SecurityControl(
         description = "Custom-webhook connectors can carry an HMAC-SHA256 shared secret; outbound deliveries are signed (X-Hermes-Signature + timestamp) so the receiver can authenticate them and reject replays.",
         status = ControlStatus.ENFORCED,
     ),
+    API_SERVER_AUTH(
+        title = "API server auth & loopback bind",
+        description = "The optional local API server binds to 127.0.0.1 by default (same-device only); LAN exposure is opt-in. A bearer token is auto-generated on enable and required on every request (Bearer-token, constant-time compared).",
+        status = ControlStatus.ENFORCED,
+    ),
 }
 
 enum class ControlStatus {

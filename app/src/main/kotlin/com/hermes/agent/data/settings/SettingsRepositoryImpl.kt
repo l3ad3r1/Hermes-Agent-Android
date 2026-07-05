@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -38,6 +39,10 @@ class SettingsRepositoryImpl @Inject constructor(
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
         val TERMUX_HERMES_INSTALLED = booleanPreferencesKey("termux_hermes_installed")
         val SHOW_TOOL_CALLS = booleanPreferencesKey("show_tool_calls")
+        val API_SERVER_ENABLED = booleanPreferencesKey("api_server_enabled")
+        val API_SERVER_PORT = intPreferencesKey("api_server_port")
+        val API_SERVER_KEY = stringPreferencesKey("api_server_key")
+        val API_SERVER_ALLOW_LAN = booleanPreferencesKey("api_server_allow_lan")
     }
 
     override fun observe(): Flow<UserSettings> = context.hermesDataStore.data.map { prefs ->
@@ -111,6 +116,22 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.SHOW_TOOL_CALLS] = enabled }
     }
 
+    override suspend fun setApiServerEnabled(enabled: Boolean) {
+        context.hermesDataStore.edit { it[Keys.API_SERVER_ENABLED] = enabled }
+    }
+
+    override suspend fun setApiServerPort(port: Int) {
+        if (port in 1024..65535) context.hermesDataStore.edit { it[Keys.API_SERVER_PORT] = port }
+    }
+
+    override suspend fun setApiServerKey(key: String) {
+        context.hermesDataStore.edit { it[Keys.API_SERVER_KEY] = key }
+    }
+
+    override suspend fun setApiServerAllowLan(allow: Boolean) {
+        context.hermesDataStore.edit { it[Keys.API_SERVER_ALLOW_LAN] = allow }
+    }
+
     private fun Preferences.toUserSettings(): UserSettings {
         return UserSettings(
             cloudEnabled = this[Keys.CLOUD_ENABLED] ?: false,
@@ -127,6 +148,10 @@ class SettingsRepositoryImpl @Inject constructor(
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,
             termuxHermesInstalled = this[Keys.TERMUX_HERMES_INSTALLED] ?: false,
             showToolCalls = this[Keys.SHOW_TOOL_CALLS] ?: true,
+            apiServerEnabled = this[Keys.API_SERVER_ENABLED] ?: false,
+            apiServerPort = this[Keys.API_SERVER_PORT] ?: 8642,
+            apiServerKey = this[Keys.API_SERVER_KEY] ?: "",
+            apiServerAllowLan = this[Keys.API_SERVER_ALLOW_LAN] ?: false,
         )
     }
 }

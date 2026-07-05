@@ -23,4 +23,16 @@ data class UserSettings(
     // calendar, etc.) are shown live as the agent works. When false, only the
     // final reply is shown — the agent's tool use stays opaque to the user.
     val showToolCalls: Boolean = true,
+    // Local OpenAI-compatible API server (v0.7.26). When enabled, Hermes runs
+    // an embedded HTTP server exposing /v1/chat/completions so other apps on
+    // the device (or LAN) can use the agent as a backend.
+    val apiServerEnabled: Boolean = false,
+    val apiServerPort: Int = 8642,
+    // Bearer token required on API requests. Blank = no auth (only safe on the
+    // loopback bind). Generated on first enable.
+    val apiServerKey: String = "",
+    // When false (default), the server binds to 127.0.0.1 only (same-device
+    // clients). When true, it binds to 0.0.0.0 so other devices on the LAN can
+    // reach it — a key is then strongly recommended.
+    val apiServerAllowLan: Boolean = false,
 )

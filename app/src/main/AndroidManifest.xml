@@ -74,6 +74,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Local OpenAI-compatible API server (opt-in, Settings-controlled). -->
+        <service
+            android:name=".service.ApiServerService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Restarts the agent service after device reboot. -->
         <receiver
             android:name=".service.BootReceiver"

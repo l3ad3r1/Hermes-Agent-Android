@@ -1,6 +1,30 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.26**: local OpenAI-compatible API server (embedded NanoHTTPD)
+  - Ported hermes-agent's gateway/platforms/api_server.py as an on-device
+    embedded HTTP server so any OpenAI-compatible frontend (Open WebUI,
+    LobeChat, scripts, other apps) can use Hermes as a backend.
+  - Endpoints: GET /health, GET /v1/models (advertises "hermes-agent"),
+    POST /v1/chat/completions (non-streaming + SSE streaming). Requests are
+    stateless (messages array IS the conversation); each runs the full
+    Orchestrator under an ephemeral conversationId, so nothing touches the
+    user's chat history.
+  - ApiCompletion (data/server): pure, NanoHTTPD-free codec — request parse
+    (string + array content), Bearer auth (constant-time, requires "Bearer "
+    prefix), OpenAI response/SSE-chunk shaping. HermesApiServer (data/server):
+    NanoHTTPD subclass; non-streaming via runBlocking, streaming via piped
+    stream + coroutine on an IO scope.
+  - ApiServerService (foreground, dataSync) + ApiServerController (state/URL);
+    started from a new Settings → Local API server section (toggle, auto-
+    generated bearer token w/ copy+regenerate, LAN toggle, live status/URL).
+    Binds 127.0.0.1 by default; LAN (0.0.0.0) is opt-in.
+  - Settings: apiServerEnabled/Port/Key/AllowLan (DataStore). New dep
+    org.nanohttpd:nanohttpd 2.3.1. New API_SERVER_AUTH security control.
+    Manifest: ApiServerService declared. R8 release build clean.
+  - Tests: +13 ApiCompletion (parse/auth/shaping) +8 HermesApiServer HTTP
+    integration (health/models/completion/stream/401/404 over real sockets).
+    Suite green 165/165. vc 46→47
 - **v0.7.25 RELEASED** (tag v0.7.25, --latest): HMAC-signed webhook delivery
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.25
   - Signed APK attached as hermes-agent-v0.7.25.apk. Details:

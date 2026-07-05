@@ -28,4 +28,10 @@ interface SettingsRepository {
     suspend fun setTermuxHermesInstalled(installed: Boolean)
 
     suspend fun setShowToolCalls(enabled: Boolean)
+
+    // Local API server
+    suspend fun setApiServerEnabled(enabled: Boolean)
+    suspend fun setApiServerPort(port: Int)
+    suspend fun setApiServerKey(key: String)
+    suspend fun setApiServerAllowLan(allow: Boolean)
 }
