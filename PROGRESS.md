@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.26**: local OpenAI-compatible API server (embedded NanoHTTPD)
+- **v0.7.26 RELEASED** (tag v0.7.26, --latest): local OpenAI-compatible API server
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.26
+  - Signed APK attached as hermes-agent-v0.7.26.apk. Details:
   - Ported hermes-agent's gateway/platforms/api_server.py as an on-device
     embedded HTTP server so any OpenAI-compatible frontend (Open WebUI,
     LobeChat, scripts, other apps) can use Hermes as a backend.
