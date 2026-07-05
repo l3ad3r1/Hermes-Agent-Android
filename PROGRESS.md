@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.27**: context-aware home screen — persona, greeting, expressive eyes
+- **v0.7.27 RELEASED** (tag v0.7.27, --latest): context-aware persona + expressive eyes
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.27
+  - Signed APK attached as hermes-agent-v0.7.27.apk. Details:
   - Inspired by the Xiaozhi ESP32-S3 desk robot (TechTalkies/Xiaozhi-for-
     XiaoESP32S3), whose personality is carried entirely by two animated eyes.
   - HermesPersona (ui/home, pure/testable): time-of-day greeting buckets
