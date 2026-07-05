@@ -1,6 +1,27 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.27**: context-aware home screen — persona, greeting, expressive eyes
+  - Inspired by the Xiaozhi ESP32-S3 desk robot (TechTalkies/Xiaozhi-for-
+    XiaoESP32S3), whose personality is carried entirely by two animated eyes.
+  - HermesPersona (ui/home, pure/testable): time-of-day greeting buckets
+    (morning/afternoon/evening/"Up late"), name-aware ("Good morning, Ren"),
+    personality idle lines (seeded stable per hour), busy override ("I'm busy
+    working on \"<ticket>\" — ask me anything anyway"), and Mood enum
+    (HAPPY/NEUTRAL/FOCUSED/SLEEPY). extractName() pulls the user's name from
+    memory facts ("my name is X", "call me X", …) or the user-model lead
+    ("Rinu is a …"), with a non-name stoplist.
+  - ExpressiveEyes (ui/components): pure Canvas robot eyes — randomized
+    double-blink, wandering gaze saccades that return to center, mood
+    shapes: HAPPY crescent squints, FOCUSED half-lidded with down-left
+    "reading" scan, SLEEPY droop with slow blinks.
+  - Busy signal: AgentServiceController.currentTask StateFlow, set/cleared
+    by AgentForegroundService as it claims/drains tickets.
+  - HomeViewModel.presence: combines observeMemories() (name updates live
+    when Hermes learns it) + currentTask/running + a 60s ticker (hour
+    transitions). HomeScreen header: eyes + greeting + status line.
+  - Tests: +14 HermesPersonaTest (buckets, busy override, truncation, seed
+    stability, name extraction/rejection). Suite green 179/179. vc 47→48
 - **v0.7.26 RELEASED** (tag v0.7.26, --latest): local OpenAI-compatible API server
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.26
   - Signed APK attached as hermes-agent-v0.7.26.apk. Details:

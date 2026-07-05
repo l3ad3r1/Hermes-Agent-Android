@@ -21,7 +21,18 @@ object AgentServiceController {
     private val _running = MutableStateFlow(false)
     val running: StateFlow<Boolean> = _running
 
-    internal fun setRunning(value: Boolean) { _running.value = value }
+    /** Title of the Kanban ticket the background agent is working right now,
+     *  or null when idle. Drives the home screen's context-aware status
+     *  ("I'm busy working on …") and the FOCUSED eye expression. */
+    private val _currentTask = MutableStateFlow<String?>(null)
+    val currentTask: StateFlow<String?> = _currentTask
+
+    internal fun setRunning(value: Boolean) {
+        _running.value = value
+        if (!value) _currentTask.value = null
+    }
+
+    internal fun setWorkingOn(taskTitle: String?) { _currentTask.value = taskTitle }
 
     fun start(context: Context) {
         requestBatteryOptimizationExemption(context)

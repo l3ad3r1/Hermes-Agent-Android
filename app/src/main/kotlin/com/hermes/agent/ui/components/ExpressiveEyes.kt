@@ -1,0 +1,148 @@
+package com.hermes.agent.ui.components
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.hermes.agent.ui.home.HermesPersona.Mood
+import kotlin.random.Random
+
+/**
+ * Hermes's face: a pair of expressive robot eyes, inspired by the Xiaozhi
+ * ESP32-S3 desk robot (github.com/TechTalkies/Xiaozhi-for-XiaoESP32S3),
+ * whose whole personality is carried by two animated eyes on a tiny display.
+ *
+ * Behaviors, all pure Compose Canvas (no images):
+ *  - **Blink**: double-eyelid blink at randomized 2.5–6s intervals.
+ *  - **Gaze**: occasional saccade — the eyes glance a random direction,
+ *    dwell, and return to center.
+ *  - **Moods** (from [HermesPersona.Mood]):
+ *      HAPPY   → upward crescent squint (the classic ^ ^ robot smile-eyes)
+ *      NEUTRAL → tall rounded-square eyes, full blink/gaze life
+ *      FOCUSED → half-lidded, gaze pinned slightly down (busy working)
+ *      SLEEPY  → nearly closed lids with a slow droop cycle
+ */
+@Composable
+fun ExpressiveEyes(
+    mood: Mood,
+    modifier: Modifier = Modifier,
+    eyeColor: Color,
+    width: Dp = 84.dp,
+    height: Dp = 44.dp,
+) {
+    // Lid openness driven by mood + blink overlay.
+    val moodOpenTarget = when (mood) {
+        Mood.HAPPY -> 1f      // crescent shape handles the squint
+        Mood.NEUTRAL -> 1f
+        Mood.FOCUSED -> 0.55f
+        Mood.SLEEPY -> 0.28f
+    }
+    val moodOpen by animateFloatAsState(moodOpenTarget, tween(450), label = "moodOpen")
+
+    val blink = remember { Animatable(1f) }
+    LaunchedEffect(mood) {
+        while (true) {
+            // Sleepy eyes blink slower and stay half-shut longer.
+            val interval = if (mood == Mood.SLEEPY) Random.nextLong(3200, 7000)
+            else Random.nextLong(2500, 6000)
+            kotlinx.coroutines.delay(interval)
+            blink.animateTo(0f, tween(if (mood == Mood.SLEEPY) 220 else 90))
+            blink.animateTo(1f, tween(if (mood == Mood.SLEEPY) 320 else 110))
+            // Occasional double blink, robots do this and it's charming.
+            if (mood != Mood.SLEEPY && Random.nextFloat() < 0.25f) {
+                blink.animateTo(0f, tween(80))
+                blink.animateTo(1f, tween(100))
+            }
+        }
+    }
+
+    // Gaze saccades. FOCUSED pins the gaze slightly down-left ("reading").
+    val gazeX = remember { Animatable(0f) }
+    val gazeY = remember { Animatable(0f) }
+    LaunchedEffect(mood) {
+        if (mood == Mood.FOCUSED) {
+            gazeX.animateTo(-0.35f, tween(300))
+            gazeY.animateTo(0.4f, tween(300))
+            while (true) {
+                // Small scanning movements while working.
+                kotlinx.coroutines.delay(Random.nextLong(900, 2100))
+                gazeX.animateTo(Random.nextFloat() * 0.9f - 0.55f, tween(220))
+            }
+        } else {
+            gazeX.snapTo(0f); gazeY.snapTo(0f)
+            while (true) {
+                kotlinx.coroutines.delay(Random.nextLong(1800, 5200))
+                // Glance somewhere…
+                gazeX.animateTo(Random.nextFloat() * 1.6f - 0.8f, tween(260))
+                gazeY.animateTo(Random.nextFloat() * 0.8f - 0.4f, tween(260))
+                kotlinx.coroutines.delay(Random.nextLong(500, 1400))
+                // …and settle back to center.
+                gazeX.animateTo(0f, tween(300))
+                gazeY.animateTo(0f, tween(300))
+            }
+        }
+    }
+
+    Canvas(modifier = modifier.size(width, height)) {
+        val open = (moodOpen * blink.value).coerceIn(0.06f, 1f)
+        val eyeW = size.width * 0.34f
+        val gap = size.width * 0.32f
+        val maxH = size.height * 0.92f
+        val cx1 = (size.width - gap) / 2f - eyeW / 2f
+        val cx2 = (size.width + gap) / 2f + eyeW / 2f
+        val cy = size.height / 2f + gazeY.value * size.height * 0.12f
+        val dx = gazeX.value * eyeW * 0.22f
+
+        if (mood == Mood.HAPPY && blink.value > 0.5f) {
+            // Crescent smile-eyes: thick upward arcs.
+            val stroke = Stroke(width = maxH * 0.22f, cap = StrokeCap.Round)
+            listOf(cx1, cx2).forEach { cx ->
+                val r = eyeW * 0.52f
+                val rect = Rect(
+                    left = cx - r + dx, top = cy - r * 0.7f,
+                    right = cx + r + dx, bottom = cy + r * 1.1f,
+                )
+                val path = Path().apply { arcTo(rect, 180f, 180f, forceMoveTo = true) }
+                drawPath(path, eyeColor, style = stroke)
+            }
+        } else {
+            // Rounded-square eyes whose height is the lid openness.
+            val h = maxH * open
+            listOf(cx1, cx2).forEach { cx ->
+                drawRoundedEye(
+                    center = Offset(cx + dx, cy),
+                    w = eyeW,
+                    h = h,
+                    color = eyeColor,
+                )
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawRoundedEye(center: Offset, w: Float, h: Float, color: Color) {
+    val radius = minOf(w, h) * 0.45f
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(center.x - w / 2f, center.y - h / 2f),
+        size = Size(w, h),
+        cornerRadius = CornerRadius(radius, radius),
+    )
+}

@@ -126,6 +126,7 @@ class AgentForegroundService : Service() {
                     if (!worked) break
                 }
                 // Going idle: suspend until poked (or the fallback fires).
+                AgentServiceController.setWorkingOn(null)
                 updateNotification("Hermes Agent idle", "Waiting for new tickets…")
                 withTimeoutOrNull(IDLE_FALLBACK_MS) { wake.receive() }
             }
@@ -134,8 +135,12 @@ class AgentForegroundService : Service() {
 
     /** Works the oldest TODO ticket. Returns false when the queue is empty. */
     private suspend fun tick(): Boolean {
-        val ticket = kanbanRepository.nextTodo() ?: return false
+        val ticket = kanbanRepository.nextTodo() ?: run {
+            AgentServiceController.setWorkingOn(null)
+            return false
+        }
 
+        AgentServiceController.setWorkingOn(ticket.title)
         updateNotification("Working: ${ticket.title.take(28)}", "Ticket ${ticket.id} in progress")
         kanbanRepository.moveTo(ticket.id, KanbanStatus.IN_PROGRESS)
 

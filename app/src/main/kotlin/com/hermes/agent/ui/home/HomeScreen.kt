@@ -31,10 +31,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.model.Conversation
+import com.hermes.agent.ui.components.ExpressiveEyes
 import com.hermes.agent.ui.components.HermesDiamond
 import com.hermes.agent.ui.theme.GeistMono
 import com.hermes.agent.ui.theme.HermesAccentDeep
-import java.util.Calendar
 
 /**
  * Home dashboard — the app's landing surface: greeting, the active cloud model,
@@ -50,6 +50,7 @@ fun HomeScreen(
 ) {
     val threads by viewModel.recentThreads.collectAsStateWithLifecycle()
     val model by viewModel.modelName.collectAsStateWithLifecycle()
+    val presence by viewModel.presence.collectAsStateWithLifecycle()
     val scheme = MaterialTheme.colorScheme
 
     Column(
@@ -59,18 +60,25 @@ fun HomeScreen(
             .padding(horizontal = 18.dp)
             .padding(top = 8.dp, bottom = 26.dp),
     ) {
-        // Header
+        // Header: Hermes's face (expressive eyes) + context-aware greeting.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            ExpressiveEyes(
+                mood = presence.mood,
+                eyeColor = scheme.primary,
+                width = 72.dp,
+                height = 40.dp,
+            )
+            Spacer(Modifier.size(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(greeting(), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+                Text(presence.greeting, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
                 Text(
-                    "Hermes is on it.",
-                    style = MaterialTheme.typography.headlineSmall,
+                    presence.statusLine,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = scheme.onBackground,
                 )
@@ -250,10 +258,4 @@ private fun EmptyHint(text: String) {
     ) {
         Text(text, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
     }
-}
-
-private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-    in 5..11 -> "Good morning"
-    in 12..17 -> "Good afternoon"
-    else -> "Good evening"
 }
