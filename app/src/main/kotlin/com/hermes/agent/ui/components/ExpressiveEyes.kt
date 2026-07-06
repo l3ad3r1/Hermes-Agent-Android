@@ -53,11 +53,29 @@ fun ExpressiveEyes(
         Mood.NEUTRAL -> 1f
         Mood.FOCUSED -> 0.55f
         Mood.SLEEPY -> 0.28f
+        Mood.THINKING -> 0.82f
+        Mood.SURPRISED -> 1f
     }
     val moodOpen by animateFloatAsState(moodOpenTarget, tween(450), label = "moodOpen")
 
+    // Startle pop: SURPRISED eyes overshoot in scale, then settle.
+    val startle = remember { Animatable(1f) }
+    LaunchedEffect(mood) {
+        if (mood == Mood.SURPRISED) {
+            startle.snapTo(0.7f)
+            startle.animateTo(1.22f, tween(120))
+            startle.animateTo(1f, tween(180))
+        } else {
+            startle.animateTo(1f, tween(150))
+        }
+    }
+
     val blink = remember { Animatable(1f) }
     LaunchedEffect(mood) {
+        if (mood == Mood.SURPRISED) {
+            blink.snapTo(1f) // wide awake — no blinking mid-startle
+            return@LaunchedEffect
+        }
         while (true) {
             // Sleepy eyes blink slower and stay half-shut longer.
             val interval = if (mood == Mood.SLEEPY) Random.nextLong(3200, 7000)
@@ -73,44 +91,67 @@ fun ExpressiveEyes(
         }
     }
 
-    // Gaze saccades. FOCUSED pins the gaze slightly down-left ("reading").
+    // Gaze saccades. FOCUSED pins the gaze slightly down-left ("reading");
+    // THINKING looks up and drifts side to side ("recalling").
     val gazeX = remember { Animatable(0f) }
     val gazeY = remember { Animatable(0f) }
     LaunchedEffect(mood) {
-        if (mood == Mood.FOCUSED) {
-            gazeX.animateTo(-0.35f, tween(300))
-            gazeY.animateTo(0.4f, tween(300))
-            while (true) {
-                // Small scanning movements while working.
-                kotlinx.coroutines.delay(Random.nextLong(900, 2100))
-                gazeX.animateTo(Random.nextFloat() * 0.9f - 0.55f, tween(220))
+        when (mood) {
+            Mood.FOCUSED -> {
+                gazeX.animateTo(-0.35f, tween(300))
+                gazeY.animateTo(0.4f, tween(300))
+                while (true) {
+                    // Small scanning movements while working.
+                    kotlinx.coroutines.delay(Random.nextLong(900, 2100))
+                    gazeX.animateTo(Random.nextFloat() * 0.9f - 0.55f, tween(220))
+                }
             }
-        } else {
-            gazeX.snapTo(0f); gazeY.snapTo(0f)
-            while (true) {
-                kotlinx.coroutines.delay(Random.nextLong(1800, 5200))
-                // Glance somewhere…
-                gazeX.animateTo(Random.nextFloat() * 1.6f - 0.8f, tween(260))
-                gazeY.animateTo(Random.nextFloat() * 0.8f - 0.4f, tween(260))
-                kotlinx.coroutines.delay(Random.nextLong(500, 1400))
-                // …and settle back to center.
-                gazeX.animateTo(0f, tween(300))
-                gazeY.animateTo(0f, tween(300))
+            Mood.THINKING -> {
+                gazeY.animateTo(-0.55f, tween(280))
+                gazeX.animateTo(0.45f, tween(280))
+                while (true) {
+                    // Slow pendulum between up-right and up-left.
+                    kotlinx.coroutines.delay(Random.nextLong(1100, 2000))
+                    gazeX.animateTo(-gazeX.value.coerceIn(-0.45f, 0.45f), tween(420))
+                }
+            }
+            Mood.SURPRISED -> {
+                gazeX.animateTo(0f, tween(100))
+                gazeY.animateTo(0f, tween(100))
+            }
+            else -> {
+                gazeX.snapTo(0f); gazeY.snapTo(0f)
+                while (true) {
+                    kotlinx.coroutines.delay(Random.nextLong(1800, 5200))
+                    // Glance somewhere…
+                    gazeX.animateTo(Random.nextFloat() * 1.6f - 0.8f, tween(260))
+                    gazeY.animateTo(Random.nextFloat() * 0.8f - 0.4f, tween(260))
+                    kotlinx.coroutines.delay(Random.nextLong(500, 1400))
+                    // …and settle back to center.
+                    gazeX.animateTo(0f, tween(300))
+                    gazeY.animateTo(0f, tween(300))
+                }
             }
         }
     }
 
     Canvas(modifier = modifier.size(width, height)) {
         val open = (moodOpen * blink.value).coerceIn(0.06f, 1f)
-        val eyeW = size.width * 0.34f
+        val eyeW = size.width * 0.34f * startle.value
         val gap = size.width * 0.32f
-        val maxH = size.height * 0.92f
+        val maxH = size.height * 0.92f * startle.value
         val cx1 = (size.width - gap) / 2f - eyeW / 2f
         val cx2 = (size.width + gap) / 2f + eyeW / 2f
         val cy = size.height / 2f + gazeY.value * size.height * 0.12f
         val dx = gazeX.value * eyeW * 0.22f
 
-        if (mood == Mood.HAPPY && blink.value > 0.5f) {
+        if (mood == Mood.SURPRISED) {
+            // Startled: perfectly round wide eyes.
+            val r = minOf(eyeW, maxH) * 0.52f
+            listOf(cx1, cx2).forEach { cx ->
+                drawCircle(color = eyeColor, radius = r, center = Offset(cx + dx, cy))
+            }
+        } else if (mood == Mood.HAPPY && blink.value > 0.5f) {
             // Crescent smile-eyes: thick upward arcs.
             val stroke = Stroke(width = maxH * 0.22f, cap = StrokeCap.Round)
             listOf(cx1, cx2).forEach { cx ->

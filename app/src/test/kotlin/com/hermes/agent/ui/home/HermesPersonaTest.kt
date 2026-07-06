@@ -63,6 +63,42 @@ class HermesPersonaTest {
         assertEquals(a.statusLine, b.statusLine)
     }
 
+    // --- thinking ---
+
+    @Test
+    fun `thinking mood while a reply is being composed`() {
+        val p = HermesPersona.compose("Ren", 9, busyTask = null, isThinking = true)
+        assertEquals(HermesPersona.Mood.THINKING, p.mood)
+        assertEquals("Good morning, Ren", p.greeting)
+        assertTrue(p.statusLine.isNotBlank())
+    }
+
+    @Test
+    fun `busy ticket outranks thinking`() {
+        val p = HermesPersona.compose("Ren", 9, busyTask = "Ship v1", isThinking = true)
+        assertEquals(HermesPersona.Mood.FOCUSED, p.mood)
+        assertTrue(p.statusLine.contains("Ship v1"))
+    }
+
+    // --- poke reaction ---
+
+    @Test
+    fun `poke reaction is surprised and keeps the greeting`() {
+        val base = HermesPersona.compose("Ren", 9, null)
+        val poked = HermesPersona.pokeReaction(base, seed = 1)
+        assertEquals(HermesPersona.Mood.SURPRISED, poked.mood)
+        assertEquals(base.greeting, poked.greeting)
+        assertTrue(poked.statusLine.isNotBlank())
+    }
+
+    @Test
+    fun `poke quips rotate with the seed`() {
+        val base = HermesPersona.compose(null, 9, null)
+        val a = HermesPersona.pokeReaction(base, seed = 1)
+        val b = HermesPersona.pokeReaction(base, seed = 2)
+        assertTrue(a.statusLine != b.statusLine)
+    }
+
     // --- name extraction ---
 
     @Test

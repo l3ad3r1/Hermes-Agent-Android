@@ -18,7 +18,7 @@ import kotlin.math.absoluteValue
 object HermesPersona {
 
     /** Eye expression states, in the spirit of the Xiaozhi desk robot. */
-    enum class Mood { HAPPY, NEUTRAL, FOCUSED, SLEEPY }
+    enum class Mood { HAPPY, NEUTRAL, FOCUSED, SLEEPY, THINKING, SURPRISED }
 
     data class Presence(
         val greeting: String,
@@ -30,11 +30,21 @@ object HermesPersona {
      * @param name the user's name or null if unknown
      * @param hourOfDay 0-23 local hour
      * @param busyTask title of the ticket the background agent is working, or null
+     * @param isThinking true while an orchestrator run is composing a reply
      * @param seed stabiliser for the personality-line pick (pass e.g.
      *   dayOfYear*24+hour so the line doesn't change on every recomposition
      *   but does rotate over time)
+     *
+     * Priority: busy ticket (FOCUSED, most informative) > thinking > time mood.
+     * A tap reaction ([pokeReaction]) is layered on top by the ViewModel.
      */
-    fun compose(name: String?, hourOfDay: Int, busyTask: String?, seed: Long = 0L): Presence {
+    fun compose(
+        name: String?,
+        hourOfDay: Int,
+        busyTask: String?,
+        isThinking: Boolean = false,
+        seed: Long = 0L,
+    ): Presence {
         val bucket = bucketFor(hourOfDay)
         val greeting = buildString {
             append(bucket.salutation)
@@ -51,10 +61,28 @@ object HermesPersona {
             )
         }
 
+        // Actively composing a reply somewhere (chat, delegate, API server).
+        if (isThinking) {
+            val line = THINKING_LINES[(seed.absoluteValue % THINKING_LINES.size).toInt()]
+            return Presence(greeting = greeting, statusLine = line, mood = Mood.THINKING)
+        }
+
         val lines = bucket.idleLines
         val line = lines[(seed.absoluteValue % lines.size).toInt()]
         return Presence(greeting = greeting, statusLine = line, mood = bucket.mood)
     }
+
+    /**
+     * Reaction to the user tapping the eyes: startled wide eyes + a quip.
+     * The ViewModel shows this for a few seconds, then reverts to [compose].
+     * Pass a per-tap [seed] (e.g. the tap count) so repeated pokes rotate
+     * through the quips.
+     */
+    fun pokeReaction(base: Presence, seed: Long): Presence = Presence(
+        greeting = base.greeting,
+        statusLine = POKE_QUIPS[(seed.absoluteValue % POKE_QUIPS.size).toInt()],
+        mood = Mood.SURPRISED,
+    )
 
     /**
      * Extract the user's first name from what Hermes has learned.
@@ -134,4 +162,18 @@ object HermesPersona {
 
     /** Words that match the name shape but aren't names. */
     private val NON_NAMES = setOf("the", "user", "they", "there", "this", "that", "unknown")
+
+    private val THINKING_LINES = listOf(
+        "Thinking… give me a second.",
+        "Composing a reply — neurons at work.",
+        "Hold on, connecting some dots…",
+    )
+
+    private val POKE_QUIPS = listOf(
+        "Hey! I felt that.",
+        "Careful — those are load-bearing eyes.",
+        "Blinking is my cardio. What's up?",
+        "You rang?",
+        "Poke registered. Deploying attention.",
+    )
 }

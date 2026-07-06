@@ -1,6 +1,21 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.28**: eyes react to taps + THINKING mood while replies compose
+  - Two new moods: SURPRISED (poke) and THINKING (live orchestrator run).
+  - Tap reaction: eyes are clickable (no ripple) → HomeViewModel.poke() →
+    HermesPersona.pokeReaction(base, seed=tapCount): startled wide round
+    eyes with a 0.7→1.22→1.0 scale pop, blinking suppressed, + a rotating
+    quip ("Careful — those are load-bearing eyes."); reverts after 3s
+    (poke job cancels/restarts on rapid taps).
+  - THINKING: new domain/agent/AgentActivity object (AtomicInteger run
+    counter → thinking Flow); OrchestratorImpl.run marks onStart/
+    onCompletion, so ANY run (chat reply, delegate, kanban ticket, API
+    server request) flips it. Eyes look up and pendulum side-to-side
+    ("recalling"), status line: "Composing a reply — neurons at work."
+  - Priority: poke > busy ticket (FOCUSED) > THINKING > time-of-day mood.
+  - Tests: +4 (thinking mood, busy-outranks-thinking, poke keeps greeting,
+    quips rotate). Suite green 183/183. vc 48→49
 - **v0.7.27 RELEASED** (tag v0.7.27, --latest): context-aware persona + expressive eyes
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.27
   - Signed APK attached as hermes-agent-v0.7.27.apk. Details:

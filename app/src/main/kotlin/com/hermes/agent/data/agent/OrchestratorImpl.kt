@@ -20,11 +20,14 @@ import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.util.DispatcherProvider
 import com.hermes.agent.util.IdGenerator
+import com.hermes.agent.domain.agent.AgentActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -183,6 +186,11 @@ class OrchestratorImpl @Inject constructor(
             userModelService.onConversationComplete()
         }
     }
+        // Live "thinking" presence: any orchestrator run (chat, kanban,
+        // delegate, API server) flips the process-wide activity signal the
+        // home screen's eyes observe.
+        .onStart { AgentActivity.begin() }
+        .onCompletion { AgentActivity.end() }
         .flowOn(dispatchers.io)
 
     /**
