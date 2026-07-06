@@ -43,6 +43,10 @@ class SettingsRepositoryImpl @Inject constructor(
         val API_SERVER_PORT = intPreferencesKey("api_server_port")
         val API_SERVER_KEY = stringPreferencesKey("api_server_key")
         val API_SERVER_ALLOW_LAN = booleanPreferencesKey("api_server_allow_lan")
+        val SSH_HOST = stringPreferencesKey("ssh_host")
+        val SSH_PORT = intPreferencesKey("ssh_port")
+        val SSH_USER = stringPreferencesKey("ssh_user")
+        val SSH_PASSWORD = stringPreferencesKey("ssh_password")
     }
 
     override fun observe(): Flow<UserSettings> = context.hermesDataStore.data.map { prefs ->
@@ -132,6 +136,22 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.API_SERVER_ALLOW_LAN] = allow }
     }
 
+    override suspend fun setSshHost(host: String) {
+        context.hermesDataStore.edit { it[Keys.SSH_HOST] = host.trim() }
+    }
+
+    override suspend fun setSshPort(port: Int) {
+        if (port in 1..65535) context.hermesDataStore.edit { it[Keys.SSH_PORT] = port }
+    }
+
+    override suspend fun setSshUser(user: String) {
+        context.hermesDataStore.edit { it[Keys.SSH_USER] = user.trim() }
+    }
+
+    override suspend fun setSshPassword(password: String) {
+        context.hermesDataStore.edit { it[Keys.SSH_PASSWORD] = password }
+    }
+
     private fun Preferences.toUserSettings(): UserSettings {
         return UserSettings(
             cloudEnabled = this[Keys.CLOUD_ENABLED] ?: false,
@@ -152,6 +172,10 @@ class SettingsRepositoryImpl @Inject constructor(
             apiServerPort = this[Keys.API_SERVER_PORT] ?: 8642,
             apiServerKey = this[Keys.API_SERVER_KEY] ?: "",
             apiServerAllowLan = this[Keys.API_SERVER_ALLOW_LAN] ?: false,
+            sshHost = this[Keys.SSH_HOST] ?: "",
+            sshPort = this[Keys.SSH_PORT] ?: 22,
+            sshUser = this[Keys.SSH_USER] ?: "",
+            sshPassword = this[Keys.SSH_PASSWORD] ?: "",
         )
     }
 }

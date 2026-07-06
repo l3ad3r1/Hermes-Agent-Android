@@ -35,4 +35,11 @@ data class UserSettings(
     // clients). When true, it binds to 0.0.0.0 so other devices on the LAN can
     // reach it — a key is then strongly recommended.
     val apiServerAllowLan: Boolean = false,
+    // Remote shell over SSH (v0.7.29): when configured, the shell tool can run
+    // commands on this host via target='remote' (roadmap: remote terminal
+    // backends — through SSH you also reach Docker on the host).
+    val sshHost: String = "",
+    val sshPort: Int = 22,
+    val sshUser: String = "",
+    val sshPassword: String = "",
 )

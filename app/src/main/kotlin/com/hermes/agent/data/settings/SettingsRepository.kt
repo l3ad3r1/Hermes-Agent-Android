@@ -34,4 +34,10 @@ interface SettingsRepository {
     suspend fun setApiServerPort(port: Int)
     suspend fun setApiServerKey(key: String)
     suspend fun setApiServerAllowLan(allow: Boolean)
+
+    // Remote shell (SSH)
+    suspend fun setSshHost(host: String)
+    suspend fun setSshPort(port: Int)
+    suspend fun setSshUser(user: String)
+    suspend fun setSshPassword(password: String)
 }

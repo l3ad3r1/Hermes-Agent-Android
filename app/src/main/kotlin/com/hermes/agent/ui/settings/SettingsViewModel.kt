@@ -123,6 +123,13 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setApiServerKey(generateApiKey())
     }
 
+    // --- Remote shell (SSH) ---
+
+    fun setSshHost(host: String) = viewModelScope.launch { settingsRepository.setSshHost(host) }
+    fun setSshPort(port: Int) = viewModelScope.launch { settingsRepository.setSshPort(port) }
+    fun setSshUser(user: String) = viewModelScope.launch { settingsRepository.setSshUser(user) }
+    fun setSshPassword(password: String) = viewModelScope.launch { settingsRepository.setSshPassword(password) }
+
     private fun generateApiKey(): String {
         val bytes = ByteArray(24)
         java.security.SecureRandom().nextBytes(bytes)

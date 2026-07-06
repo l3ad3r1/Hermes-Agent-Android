@@ -1,6 +1,27 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
+- **v0.7.29**: personality (voice/celebrate) + SSH remote shell (roadmap #5 — last item)
+  - **Personality** (committed earlier as 3b0d82a): LISTENING mood driven by
+    a process-wide VoiceActivity flag (set by VoiceInputManager while the mic
+    is hot) — wide attentive eyes + breathing pulse, "I'm listening…";
+    CELEBRATE happy bounce when the background agent finishes a Kanban ticket
+    (AgentServiceController.taskCompleted SharedFlow → home overlay, ~4s).
+    HomeViewModel folds VoiceActivity.listening into compose() and overlays
+    transient poke/celebrate reactions. +4 persona tests.
+  - **SSH remote shell** (roadmap #5, completing paused parallel work):
+    ShellTool gains target='remote' → runs commands over SSH on the host in
+    Settings → Remote shell (reach Docker via 'docker exec …'). Pieces:
+    RemoteTerminalBackend interface + Config(isConfigured) + SshTerminalBackend
+    (JSch mwiede fork, pure-Java; combined stdout/stderr; StrictHostKeyChecking
+    off) + TerminalModule DI (pre-existing paused work); I completed
+    ShellTool.executeRemote (reads SSH settings, delegates, formats
+    exit_code=… like the local path), SettingsViewModel setSsh* methods, a
+    Settings → Remote shell UI section (host/user/port/password), and the
+    REMOTE_SHELL_SSH audit control (PARTIAL — host-key checking disabled).
+    Still gated by the shell tool's requiresConfirmation. New dep
+    com.github.mwiede:jsch 0.2.20. +5 RemoteTerminalBackend config tests.
+  - Suite green 192/192. vc 49→50
 - **v0.7.28 RELEASED** (tag v0.7.28, --latest): poke reaction + THINKING mood
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.28
   - Signed APK attached as hermes-agent-v0.7.28.apk. Details:

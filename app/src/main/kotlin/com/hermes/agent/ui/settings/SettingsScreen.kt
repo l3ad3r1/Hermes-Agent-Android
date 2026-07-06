@@ -194,6 +194,16 @@ fun SettingsScreen(
                 onRegenerateKey = viewModel::regenerateApiServerKey,
             )
 
+            // --- Remote shell (SSH) ---
+            SectionHeader(text = "Remote shell")
+            RemoteShellSection(
+                settings = settings,
+                onHost = viewModel::setSshHost,
+                onPort = viewModel::setSshPort,
+                onUser = viewModel::setSshUser,
+                onPassword = viewModel::setSshPassword,
+            )
+
             // --- Cloud ---
             SectionHeader(text = stringResource(R.string.settings_section_cloud))
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -590,6 +600,75 @@ private fun ApiServerSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RemoteShellSection(
+    settings: UserSettings,
+    onHost: (String) -> Unit,
+    onPort: (Int) -> Unit,
+    onUser: (String) -> Unit,
+    onPassword: (String) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "Let the shell tool run commands on a remote host over SSH " +
+                    "(target='remote'). Through SSH you also reach Docker on that host " +
+                    "(docker exec …). Leave the host blank to keep the shell on-device only.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            var host by remember(settings.sshHost) { mutableStateOf(settings.sshHost) }
+            OutlinedTextField(
+                value = host,
+                onValueChange = { host = it; onHost(it) },
+                label = { Text("Host") },
+                placeholder = { Text("192.168.1.10 or example.com") },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                var user by remember(settings.sshUser) { mutableStateOf(settings.sshUser) }
+                OutlinedTextField(
+                    value = user,
+                    onValueChange = { user = it; onUser(it) },
+                    label = { Text("User") },
+                    singleLine = true,
+                    colors = hermesFieldColors(),
+                    modifier = Modifier.weight(1f),
+                )
+                var portText by remember(settings.sshPort) { mutableStateOf(settings.sshPort.toString()) }
+                OutlinedTextField(
+                    value = portText,
+                    onValueChange = {
+                        portText = it.filter(Char::isDigit).take(5)
+                        portText.toIntOrNull()?.let(onPort)
+                    },
+                    label = { Text("Port") },
+                    singleLine = true,
+                    colors = hermesFieldColors(),
+                    modifier = Modifier.width(96.dp),
+                )
+            }
+
+            var password by remember(settings.sshPassword) { mutableStateOf(settings.sshPassword) }
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it; onPassword(it) },
+                label = { Text("Password") },
+                supportingText = { Text("Stored on-device. Host-key checking is disabled (trusted networks only).") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

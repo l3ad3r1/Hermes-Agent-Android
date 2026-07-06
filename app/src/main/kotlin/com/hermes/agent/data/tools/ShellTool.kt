@@ -1,5 +1,7 @@
 package com.hermes.agent.data.tools
 
+import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.terminal.RemoteTerminalBackend
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolParameter
@@ -17,6 +19,7 @@ import javax.inject.Singleton
 
 private const val MAX_OUTPUT_CHARS = 4000
 private const val TIMEOUT_SECONDS = 10L
+private const val REMOTE_TIMEOUT_SECONDS = 30L
 
 /**
  * Executes a shell command via ProcessBuilder in the app's process context.
@@ -28,19 +31,31 @@ private const val TIMEOUT_SECONDS = 10L
  * before running any shell command.
  */
 @Singleton
-class ShellTool @Inject constructor() : Tool {
+class ShellTool @Inject constructor(
+    private val settingsRepository: SettingsRepository,
+    private val remoteBackend: RemoteTerminalBackend,
+) : Tool {
 
     override val descriptor = ToolDescriptor(
         name = "shell",
-        description = "Execute a shell command on the device and return the combined stdout+stderr " +
-            "output (capped at $MAX_OUTPUT_CHARS chars). The command runs as the app's user " +
-            "account — not root. Use for listing files, inspecting device state, running " +
-            "adb-shell-compatible commands, or any other shell task. Timeout: ${TIMEOUT_SECONDS}s.",
+        description = "Execute a shell command and return the combined stdout+stderr output " +
+            "(capped at $MAX_OUTPUT_CHARS chars). target='local' (default) runs on this device " +
+            "as the app user — not root (${TIMEOUT_SECONDS}s timeout). target='remote' runs over " +
+            "SSH on the host configured in Settings → Remote shell (${REMOTE_TIMEOUT_SECONDS}s " +
+            "timeout; reach Docker via 'docker exec …'). Use for listing files, inspecting state, " +
+            "or any shell task.",
         parameters = listOf(
             ToolParameter(
                 name = "command",
                 type = ToolParameterType.STRING,
                 description = "The shell command to execute, e.g. 'ls /sdcard/Download' or 'date'.",
+            ),
+            ToolParameter(
+                name = "target",
+                type = ToolParameterType.STRING,
+                description = "'local' (default, on-device) or 'remote' (SSH host from Settings).",
+                required = false,
+                enumValues = listOf("local", "remote"),
             ),
         ),
         category = "device",
@@ -56,6 +71,11 @@ class ShellTool @Inject constructor() : Tool {
 
             if (command.isEmpty()) {
                 return@withContext ToolResult.error("command must not be empty")
+            }
+
+            val target = (arguments["target"] as? JsonPrimitive)?.contentOrNull?.trim()?.lowercase()
+            if (target == "remote") {
+                return@withContext executeRemote(command, start)
             }
 
             runCatching {
@@ -122,4 +142,46 @@ class ShellTool @Inject constructor() : Tool {
                 )
             }
         }
+
+    /**
+     * Run [command] over SSH on the host configured in Settings → Remote
+     * shell. Reads the current SSH config, delegates to [remoteBackend],
+     * and formats the result in the same `exit_code=…\n<output>` shape the
+     * local path produces so the LLM sees a consistent transcript.
+     */
+    private suspend fun executeRemote(command: String, start: Long): ToolResult {
+        val s = runCatching { settingsRepository.current() }.getOrNull()
+            ?: return ToolResult.error("could not read remote shell settings")
+
+        val config = RemoteTerminalBackend.Config(
+            host = s.sshHost,
+            port = s.sshPort,
+            username = s.sshUser,
+            password = s.sshPassword,
+        )
+        if (!config.isConfigured) {
+            return ToolResult.error(
+                "remote shell is not configured — set the host, port, and username in " +
+                    "Settings → Remote shell before using target='remote'.",
+            )
+        }
+
+        return remoteBackend.execute(config, command, REMOTE_TIMEOUT_SECONDS * 1000).fold(
+            onSuccess = { r ->
+                val output = r.output
+                    .let { if (it.length > MAX_OUTPUT_CHARS) it.take(MAX_OUTPUT_CHARS) + "\n...[truncated]" else it }
+                val resultText = buildString {
+                    append("exit_code=${r.exitCode} (remote ${s.sshUser}@${s.sshHost})\n")
+                    if (output.isNotEmpty()) append(output)
+                }
+                ToolResult.ok(output = resultText, executionMs = System.currentTimeMillis() - start)
+            },
+            onFailure = { t ->
+                ToolResult.error(
+                    message = "remote shell failed: ${t.message ?: t.javaClass.simpleName}",
+                    executionMs = System.currentTimeMillis() - start,
+                )
+            },
+        )
+    }
 }

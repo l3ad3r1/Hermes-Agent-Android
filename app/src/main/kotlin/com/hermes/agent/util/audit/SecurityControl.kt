@@ -93,6 +93,11 @@ enum class SecurityControl(
         description = "The optional local API server binds to 127.0.0.1 by default (same-device only); LAN exposure is opt-in. A bearer token is auto-generated on enable and required on every request (Bearer-token, constant-time compared).",
         status = ControlStatus.ENFORCED,
     ),
+    REMOTE_SHELL_SSH(
+        title = "Remote shell over SSH",
+        description = "The shell tool's opt-in target='remote' runs commands over SSH (JSch, pure-Java). It still requires the per-tool confirmation gate. Host-key checking is disabled because a phone has no known_hosts provisioning story — use it only on trusted networks.",
+        status = ControlStatus.PARTIAL,
+    ),
 }
 
 enum class ControlStatus {
