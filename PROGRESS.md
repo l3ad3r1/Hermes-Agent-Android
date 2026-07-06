@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.28**: eyes react to taps + THINKING mood while replies compose
+- **v0.7.28 RELEASED** (tag v0.7.28, --latest): poke reaction + THINKING mood
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.28
+  - Signed APK attached as hermes-agent-v0.7.28.apk. Details:
   - Two new moods: SURPRISED (poke) and THINKING (live orchestrator run).
   - Tap reaction: eyes are clickable (no ripple) → HomeViewModel.poke() →
     HermesPersona.pokeReaction(base, seed=tapCount): startled wide round
