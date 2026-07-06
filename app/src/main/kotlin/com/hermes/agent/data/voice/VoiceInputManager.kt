@@ -97,8 +97,11 @@ class VoiceInputManager @Inject constructor(
         })
 
         recognizer.startListening(intent)
+        // Mic is now hot — surface it process-wide so Hermes's eyes react.
+        VoiceActivity.setListening(true)
 
         awaitClose {
+            VoiceActivity.setListening(false)
             runCatching {
                 recognizer.stopListening()
                 recognizer.destroy()

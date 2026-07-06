@@ -166,6 +166,8 @@ class AgentForegroundService : Service() {
             "Agent error: ${e.message}"
         }
         kanbanRepository.complete(ticket.id, result)
+        // Celebrate: the home screen's eyes do a happy bounce.
+        AgentServiceController.emitTaskCompleted(ticket.title)
 
         runCatching {
             val args: Map<String, JsonElement> =

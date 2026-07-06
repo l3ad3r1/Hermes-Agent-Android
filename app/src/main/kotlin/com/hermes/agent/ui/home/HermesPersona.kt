@@ -18,7 +18,7 @@ import kotlin.math.absoluteValue
 object HermesPersona {
 
     /** Eye expression states, in the spirit of the Xiaozhi desk robot. */
-    enum class Mood { HAPPY, NEUTRAL, FOCUSED, SLEEPY, THINKING, SURPRISED }
+    enum class Mood { HAPPY, NEUTRAL, FOCUSED, SLEEPY, THINKING, SURPRISED, LISTENING, CELEBRATE }
 
     data class Presence(
         val greeting: String,
@@ -31,18 +31,21 @@ object HermesPersona {
      * @param hourOfDay 0-23 local hour
      * @param busyTask title of the ticket the background agent is working, or null
      * @param isThinking true while an orchestrator run is composing a reply
+     * @param isListening true while the mic is capturing voice input
      * @param seed stabiliser for the personality-line pick (pass e.g.
      *   dayOfYear*24+hour so the line doesn't change on every recomposition
      *   but does rotate over time)
      *
-     * Priority: busy ticket (FOCUSED, most informative) > thinking > time mood.
-     * A tap reaction ([pokeReaction]) is layered on top by the ViewModel.
+     * Priority: listening (mic hot, most immediate) > busy ticket (FOCUSED) >
+     * thinking > time mood. Transient reactions ([pokeReaction],
+     * [celebrateReaction]) are layered on top by the ViewModel.
      */
     fun compose(
         name: String?,
         hourOfDay: Int,
         busyTask: String?,
         isThinking: Boolean = false,
+        isListening: Boolean = false,
         seed: Long = 0L,
     ): Presence {
         val bucket = bucketFor(hourOfDay)
@@ -51,7 +54,12 @@ object HermesPersona {
             if (!name.isNullOrBlank()) append(", ").append(name.trim())
         }
 
-        // Busy wins: focused eyes + an honest "I'm on it" line.
+        // Listening wins: the user is talking to Hermes right now.
+        if (isListening) {
+            return Presence(greeting = greeting, statusLine = "I'm listening…", mood = Mood.LISTENING)
+        }
+
+        // Busy: focused eyes + an honest "I'm on it" line.
         if (!busyTask.isNullOrBlank()) {
             val shortTask = busyTask.trim().let { if (it.length > 48) it.take(45) + "…" else it }
             return Presence(
@@ -83,6 +91,21 @@ object HermesPersona {
         statusLine = POKE_QUIPS[(seed.absoluteValue % POKE_QUIPS.size).toInt()],
         mood = Mood.SURPRISED,
     )
+
+    /**
+     * Reaction to a background Kanban ticket finishing: a happy bounce +
+     * a celebratory line naming the task. The ViewModel shows this for a
+     * few seconds, then reverts to [compose].
+     */
+    fun celebrateReaction(base: Presence, taskTitle: String, seed: Long): Presence {
+        val shortTask = taskTitle.trim().let { if (it.length > 40) it.take(37) + "…" else it }
+        val quip = CELEBRATE_QUIPS[(seed.absoluteValue % CELEBRATE_QUIPS.size).toInt()]
+        return Presence(
+            greeting = base.greeting,
+            statusLine = "$quip Finished \"$shortTask\".",
+            mood = Mood.CELEBRATE,
+        )
+    }
 
     /**
      * Extract the user's first name from what Hermes has learned.
@@ -175,5 +198,13 @@ object HermesPersona {
         "Blinking is my cardio. What's up?",
         "You rang?",
         "Poke registered. Deploying attention.",
+    )
+
+    private val CELEBRATE_QUIPS = listOf(
+        "Done! ✨",
+        "Nailed it. 🎉",
+        "One more off the board!",
+        "Ta-da —",
+        "Shipped it. 🚀",
     )
 }

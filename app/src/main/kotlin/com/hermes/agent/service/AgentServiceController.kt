@@ -7,7 +7,9 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -33,6 +35,14 @@ object AgentServiceController {
     }
 
     internal fun setWorkingOn(taskTitle: String?) { _currentTask.value = taskTitle }
+
+    /** One-shot stream of just-completed ticket titles. The home screen
+     *  observes it to trigger Hermes's celebratory bounce. Buffered so an
+     *  emission isn't lost if there's briefly no collector. */
+    private val _taskCompleted = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val taskCompleted: SharedFlow<String> = _taskCompleted
+
+    internal fun emitTaskCompleted(taskTitle: String) { _taskCompleted.tryEmit(taskTitle) }
 
     fun start(context: Context) {
         requestBatteryOptimizationExemption(context)

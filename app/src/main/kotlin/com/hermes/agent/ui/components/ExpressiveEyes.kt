@@ -55,8 +55,37 @@ fun ExpressiveEyes(
         Mood.SLEEPY -> 0.28f
         Mood.THINKING -> 0.82f
         Mood.SURPRISED -> 1f
+        Mood.LISTENING -> 1f
+        Mood.CELEBRATE -> 1f  // crescent handles the shape
     }
     val moodOpen by animateFloatAsState(moodOpenTarget, tween(450), label = "moodOpen")
+
+    // LISTENING: a gentle attentive scale pulse (like a soft breathing focus).
+    val listenPulse = remember { Animatable(1f) }
+    LaunchedEffect(mood) {
+        if (mood == Mood.LISTENING) {
+            while (true) {
+                listenPulse.animateTo(1.12f, tween(620))
+                listenPulse.animateTo(1f, tween(620))
+            }
+        } else {
+            listenPulse.snapTo(1f)
+        }
+    }
+
+    // CELEBRATE: a couple of vertical hops.
+    val bounce = remember { Animatable(0f) }
+    LaunchedEffect(mood) {
+        if (mood == Mood.CELEBRATE) {
+            bounce.snapTo(0f)
+            repeat(2) {
+                bounce.animateTo(-1f, tween(150))
+                bounce.animateTo(0f, tween(220))
+            }
+        } else {
+            bounce.snapTo(0f)
+        }
+    }
 
     // Startle pop: SURPRISED eyes overshoot in scale, then settle.
     val startle = remember { Animatable(1f) }
@@ -115,9 +144,18 @@ fun ExpressiveEyes(
                     gazeX.animateTo(-gazeX.value.coerceIn(-0.45f, 0.45f), tween(420))
                 }
             }
-            Mood.SURPRISED -> {
+            Mood.SURPRISED, Mood.CELEBRATE -> {
                 gazeX.animateTo(0f, tween(100))
                 gazeY.animateTo(0f, tween(100))
+            }
+            Mood.LISTENING -> {
+                // Attentive: eyes up a touch, small alert flicks.
+                gazeY.animateTo(-0.2f, tween(200))
+                gazeX.animateTo(0f, tween(200))
+                while (true) {
+                    kotlinx.coroutines.delay(Random.nextLong(700, 1500))
+                    gazeX.animateTo(Random.nextFloat() * 0.5f - 0.25f, tween(180))
+                }
             }
             else -> {
                 gazeX.snapTo(0f); gazeY.snapTo(0f)
@@ -137,12 +175,13 @@ fun ExpressiveEyes(
 
     Canvas(modifier = modifier.size(width, height)) {
         val open = (moodOpen * blink.value).coerceIn(0.06f, 1f)
-        val eyeW = size.width * 0.34f * startle.value
+        val scale = startle.value * listenPulse.value
+        val eyeW = size.width * 0.34f * scale
         val gap = size.width * 0.32f
-        val maxH = size.height * 0.92f * startle.value
+        val maxH = size.height * 0.92f * scale
         val cx1 = (size.width - gap) / 2f - eyeW / 2f
         val cx2 = (size.width + gap) / 2f + eyeW / 2f
-        val cy = size.height / 2f + gazeY.value * size.height * 0.12f
+        val cy = size.height / 2f + gazeY.value * size.height * 0.12f + bounce.value * size.height * 0.2f
         val dx = gazeX.value * eyeW * 0.22f
 
         if (mood == Mood.SURPRISED) {
@@ -151,7 +190,7 @@ fun ExpressiveEyes(
             listOf(cx1, cx2).forEach { cx ->
                 drawCircle(color = eyeColor, radius = r, center = Offset(cx + dx, cy))
             }
-        } else if (mood == Mood.HAPPY && blink.value > 0.5f) {
+        } else if ((mood == Mood.HAPPY || mood == Mood.CELEBRATE) && blink.value > 0.5f) {
             // Crescent smile-eyes: thick upward arcs.
             val stroke = Stroke(width = maxH * 0.22f, cap = StrokeCap.Round)
             listOf(cx1, cx2).forEach { cx ->

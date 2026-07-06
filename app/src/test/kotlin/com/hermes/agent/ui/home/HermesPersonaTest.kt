@@ -80,6 +80,41 @@ class HermesPersonaTest {
         assertTrue(p.statusLine.contains("Ship v1"))
     }
 
+    // --- listening ---
+
+    @Test
+    fun `listening mood while the mic is hot`() {
+        val p = HermesPersona.compose("Ren", 14, busyTask = null, isListening = true)
+        assertEquals(HermesPersona.Mood.LISTENING, p.mood)
+        assertEquals("I'm listening…", p.statusLine)
+    }
+
+    @Test
+    fun `listening outranks busy and thinking`() {
+        val p = HermesPersona.compose(
+            "Ren", 14, busyTask = "Ship v1", isThinking = true, isListening = true,
+        )
+        assertEquals(HermesPersona.Mood.LISTENING, p.mood)
+    }
+
+    // --- celebrate reaction ---
+
+    @Test
+    fun `celebrate reaction is happy and names the task`() {
+        val base = HermesPersona.compose("Ren", 14, null)
+        val c = HermesPersona.celebrateReaction(base, taskTitle = "Wire cron to Telegram", seed = 1)
+        assertEquals(HermesPersona.Mood.CELEBRATE, c.mood)
+        assertEquals(base.greeting, c.greeting)
+        assertTrue(c.statusLine.contains("Wire cron to Telegram"))
+    }
+
+    @Test
+    fun `celebrate truncates long task titles`() {
+        val base = HermesPersona.compose(null, 14, null)
+        val c = HermesPersona.celebrateReaction(base, taskTitle = "T".repeat(80), seed = 1)
+        assertTrue(c.statusLine.contains("…"))
+    }
+
     // --- poke reaction ---
 
     @Test

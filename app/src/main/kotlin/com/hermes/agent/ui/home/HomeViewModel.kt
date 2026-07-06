@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hermes.agent.data.memory.UserModelService
 import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.data.voice.VoiceActivity
 import com.hermes.agent.domain.agent.AgentActivity
 import com.hermes.agent.domain.model.Conversation
 import com.hermes.agent.domain.repository.ConversationRepository
@@ -50,27 +51,43 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /** Non-zero while a tap reaction is showing; the value seeds the quip. */
-    private val pokeSeed = MutableStateFlow(0L)
-    private var pokeCount = 0L
-    private var pokeJob: Job? = null
+    /** A transient reaction overlaid on the contextual presence (tap or a
+     *  celebrated ticket completion). Null when nothing is reacting. */
+    private sealed interface Reaction {
+        val seed: Long
+        data class Poke(override val seed: Long) : Reaction
+        data class Celebrate(val task: String, override val seed: Long) : Reaction
+    }
+
+    private val reaction = MutableStateFlow<Reaction?>(null)
+    private var reactionCount = 0L
+    private var reactionJob: Job? = null
+
+    init {
+        // A finished background ticket → celebratory bounce.
+        viewModelScope.launch {
+            AgentServiceController.taskCompleted.collect { title ->
+                fireReaction(Reaction.Celebrate(title, seed = ++reactionCount), CELEBRATE_REACTION_MS)
+            }
+        }
+    }
 
     /**
-     * Hermes's context-aware presence: name-aware time-of-day greeting,
-     * a status line (poke reaction > busy ticket > thinking > idle
-     * personality lines), and the eye mood. Reactive to new memories
-     * (Hermes learning your name updates the greeting live), the
-     * background agent's activity, live orchestrator runs (THINKING
-     * while a reply is being composed anywhere), and taps on the eyes.
+     * Hermes's context-aware presence. Base priority: listening (mic hot) >
+     * busy ticket > thinking > time-of-day. Transient reactions (poke,
+     * celebrate) are overlaid on top. Reactive to memories (Hermes learning
+     * your name updates the greeting live), the background agent's activity,
+     * live orchestrator runs (THINKING), voice capture (LISTENING), taps,
+     * and ticket completions.
      */
     val presence: StateFlow<HermesPersona.Presence> =
         combine(
             memoryRepository.observeMemories(),
             AgentServiceController.currentTask,
             AgentActivity.thinking,
-            pokeSeed,
+            VoiceActivity.listening,
             minuteTicker,
-        ) { memories, busyTask, thinking, poke, _ ->
+        ) { memories, busyTask, thinking, listening, _ ->
             val contents = memories.map { it.content }
             val userModel = contents
                 .firstOrNull { it.startsWith(UserModelService.MODEL_PREFIX) }
@@ -81,14 +98,20 @@ class HomeViewModel @Inject constructor(
             )
             val cal = Calendar.getInstance()
             val hour = cal.get(Calendar.HOUR_OF_DAY)
-            val base = HermesPersona.compose(
+            HermesPersona.compose(
                 name = name,
                 hourOfDay = hour,
                 busyTask = if (AgentServiceController.running.value) busyTask else null,
                 isThinking = thinking,
+                isListening = listening,
                 seed = (cal.get(Calendar.DAY_OF_YEAR) * 24 + hour).toLong(),
             )
-            if (poke > 0L) HermesPersona.pokeReaction(base, poke) else base
+        }.combine(reaction) { base, r ->
+            when (r) {
+                is Reaction.Poke -> HermesPersona.pokeReaction(base, r.seed)
+                is Reaction.Celebrate -> HermesPersona.celebrateReaction(base, r.task, r.seed)
+                null -> base
+            }
         }.stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
@@ -101,12 +124,16 @@ class HomeViewModel @Inject constructor(
 
     /** Tap on the eyes: startled reaction + quip for a few seconds. */
     fun poke() {
-        pokeCount += 1
-        pokeSeed.value = pokeCount
-        pokeJob?.cancel()
-        pokeJob = viewModelScope.launch {
-            delay(POKE_REACTION_MS)
-            pokeSeed.value = 0L
+        fireReaction(Reaction.Poke(seed = ++reactionCount), POKE_REACTION_MS)
+    }
+
+    private fun fireReaction(r: Reaction, durationMs: Long) {
+        reaction.value = r
+        reactionJob?.cancel()
+        reactionJob = viewModelScope.launch {
+            delay(durationMs)
+            // Only clear if still showing this reaction (avoid racing a newer one).
+            if (reaction.value === r) reaction.value = null
         }
     }
 
@@ -118,5 +145,6 @@ class HomeViewModel @Inject constructor(
 
     private companion object {
         const val POKE_REACTION_MS = 3_000L
+        const val CELEBRATE_REACTION_MS = 4_000L
     }
 }
