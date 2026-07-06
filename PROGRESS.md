@@ -1,7 +1,9 @@
 # Hermes Agent — Progress
 
 ## Completed (Merged App)
-- **v0.7.29**: personality (voice/celebrate) + SSH remote shell (roadmap #5 — last item)
+- **v0.7.29 RELEASED** (tag v0.7.29, --latest): personality (voice/celebrate) + SSH remote shell
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.29
+  - Signed APK attached as hermes-agent-v0.7.29.apk. Roadmap #5 (last item) done. Details:
   - **Personality** (committed earlier as 3b0d82a): LISTENING mood driven by
     a process-wide VoiceActivity flag (set by VoiceInputManager while the mic
     is hot) — wide attentive eyes + breathing pulse, "I'm listening…";
