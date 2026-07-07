@@ -38,7 +38,7 @@ import com.hermes.agent.data.local.entity.SkillEntity
         SkillEntity::class,
         KanbanTicketEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -157,18 +157,98 @@ abstract class HermesDatabase : RoomDatabase() {
         }
 
         val MIGRATION_6_7 = object : Migration(6, 7) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // Conditional skill activation + curator lifecycle (v0.7.23).
-                db.execSQL("ALTER TABLE skills ADD COLUMN requiresToolsJson TEXT NOT NULL DEFAULT '[]'")
-                db.execSQL("ALTER TABLE skills ADD COLUMN fallbackForToolsJson TEXT NOT NULL DEFAULT '[]'")
-                db.execSQL("ALTER TABLE skills ADD COLUMN lifecycleState TEXT NOT NULL DEFAULT 'ACTIVE'")
-                db.execSQL("ALTER TABLE skills ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE skills ADD COLUMN useCount INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE skills ADD COLUMN lastUsedAt INTEGER")
-            }
-        }
+                    override fun migrate(db: SupportSQLiteDatabase) {
+                        // Conditional skill activation + curator lifecycle (v0.7.23).
+                        db.execSQL("ALTER TABLE skills ADD COLUMN requiresToolsJson TEXT NOT NULL DEFAULT '[]'")
+                        db.execSQL("ALTER TABLE skills ADD COLUMN fallbackForToolsJson TEXT NOT NULL DEFAULT '[]'")
+                        db.execSQL("ALTER TABLE skills ADD COLUMN lifecycleState TEXT NOT NULL DEFAULT 'ACTIVE'")
+                        db.execSQL("ALTER TABLE skills ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+                        db.execSQL("ALTER TABLE skills ADD COLUMN useCount INTEGER NOT NULL DEFAULT 0")
+                        db.execSQL("ALTER TABLE skills ADD COLUMN lastUsedAt INTEGER")
+                    }
+                }
 
-        val MIGRATION_3_4 = object : Migration(3, 4) {
+                val MIGRATION_7_8 = object : Migration(7, 8) {
+                            override fun migrate(db: SupportSQLiteDatabase) {
+                                // Phase 5.1: FTS5-powered session search (Hermes Agent parity).
+                                // Creates standalone FTS5 virtual table (no contentEntity to avoid KSP issues).
+                                db.execSQL("""
+                                    CREATE VIRTUAL TABLE IF NOT EXISTS conversation_fts USING fts5(
+                                        id,
+                                        title,
+                                        messages,
+                                        created_at,
+                                        updated_at
+                                    )
+                                """)
+                                // Populate FTS index with existing data.
+                                db.execSQL("""
+                                    INSERT INTO conversation_fts (id, title, messages, created_at, updated_at)
+                                    SELECT 
+                                        c.id,
+                                        c.title,
+                                        GROUP_CONCAT(m.content, ' ') as messages,
+                                        c.created_at,
+                                        c.updated_at
+                                    FROM conversations c
+                                    LEFT JOIN messages m ON c.id = m.conversation_id
+                                    GROUP BY c.id
+                                """)
+                                // Trigger: keep FTS index in sync on message insert.
+                                db.execSQL("""
+                                    CREATE TRIGGER IF NOT EXISTS conversation_fts_ai AFTER INSERT ON messages
+                                    BEGIN
+                                        INSERT OR REPLACE INTO conversation_fts (id, title, messages, created_at, updated_at)
+                                        SELECT 
+                                            c.id,
+                                            c.title,
+                                            GROUP_CONCAT(m.content, ' '),
+                                            c.created_at,
+                                            c.updated_at
+                                        FROM conversations c
+                                        JOIN messages m ON c.id = m.conversation_id
+                                        WHERE c.id = NEW.conversation_id
+                                        GROUP BY c.id
+                                    END
+                                """)
+                                // Trigger: keep FTS index in sync on message delete.
+                                db.execSQL("""
+                                    CREATE TRIGGER IF NOT EXISTS conversation_fts_ad AFTER DELETE ON messages
+                                    BEGIN
+                                        INSERT OR REPLACE INTO conversation_fts (id, title, messages, created_at, updated_at)
+                                        SELECT 
+                                            c.id,
+                                            c.title,
+                                            GROUP_CONCAT(m.content, ' '),
+                                            c.created_at,
+                                            c.updated_at
+                                        FROM conversations c
+                                        JOIN messages m ON c.id = m.conversation_id
+                                        WHERE c.id = OLD.conversation_id
+                                        GROUP BY c.id
+                                    END
+                                """)
+                                // Trigger: keep FTS index in sync on conversation update.
+                                db.execSQL("""
+                                    CREATE TRIGGER IF NOT EXISTS conversation_fts_au AFTER UPDATE ON conversations
+                                    BEGIN
+                                        INSERT OR REPLACE INTO conversation_fts (id, title, messages, created_at, updated_at)
+                                        SELECT 
+                                            c.id,
+                                            c.title,
+                                            GROUP_CONCAT(m.content, ' '),
+                                            c.created_at,
+                                            c.updated_at
+                                        FROM conversations c
+                                        JOIN messages m ON c.id = m.conversation_id
+                                        WHERE c.id = NEW.id
+                                        GROUP BY c.id
+                                    END
+                                """)
+                            }
+                        }
+
+                val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """

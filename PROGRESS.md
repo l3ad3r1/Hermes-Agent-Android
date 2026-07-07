@@ -1,5 +1,33 @@
 # Hermes Agent — Progress
 
+## In Progress
+
+### Phase 5: Hermes Agent Feature Parity Initiative ( Started 2026-07-07 )
+**Kanban Ticket:** t_23687d7a — "Implement core Hermes Agent features in Android app"
+
+**Goal:** Port core features from NousResearch/hermes-agent to achieve 90%+ feature parity.
+
+**Feature Categories:**
+1. **Skills System** — Hub integration, conditional activation, curator lifecycle, usage tracking
+2. **Session Management** — FTS5 search, compression, snapshots, context_from chaining
+3. **Provider Expansion** — 20+ providers, credential pooling, OAuth support
+4. **Cron Scheduler** — Scheduled jobs with WorkManager, platform delivery, scripting
+5. **Multi-Agent Delegation** — Subagent framework, parallel execution, result delivery
+6. **Kanban Board** — Task queue, dispatcher, worker lifecycle, comments/linking
+7. **Gateway Expansions** — Discord, Slack, WhatsApp connectors, message fanout
+8. **CLI Parity** — Slash commands, Termux integration, config/auth management
+9. **Additional Tools** — GitHub tools, OCR/document processing, conversation search
+
+**See:** `docs/FEATURE_GAP_ANALYSIS.md` for detailed gap analysis, implementation priorities, and Android adaptation patterns.
+
+**Roadmap:**
+- Weeks 1-4: Session management, Skills system, Provider expansion
+- Weeks 5-8: Cron scheduler, Multi-agent delegation, Kanban board
+- Weeks 9-12: Gateway expansions, CLI parity, Additional tools
+- Weeks 13-16: Testing, documentation, v0.8.0 beta release
+
+---
+
 ## Completed (Merged App)
 - **v0.7.29 RELEASED** (tag v0.7.29, --latest): personality (voice/celebrate) + SSH remote shell
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.29

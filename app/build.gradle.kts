@@ -154,6 +154,8 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    // SQLite with FTS5 support (Android's built-in SQLite only has FTS3/4)
+    implementation(libs.sqlite.android)
 
     // --- Networking ---
     implementation(libs.retrofit)
