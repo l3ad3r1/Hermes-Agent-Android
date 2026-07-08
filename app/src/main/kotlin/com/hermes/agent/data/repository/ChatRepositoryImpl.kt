@@ -63,6 +63,10 @@ class ChatRepositoryImpl @Inject constructor(
             tokens = (content.length / 4).coerceAtLeast(1),
             isOnDevice = true,
         )
+        // The new-chat flow navigates to a client-generated id before any
+        // conversation row exists — create it here so the message insert below
+        // doesn't fail the message→conversation foreign key (SQLITE 787).
+        conversationRepository.ensureConversation(conversationId)
         conversationRepository.addMessage(conversationId, userMessage)
 
         // 2. Build the LLM prompt: system + recent window + current user message.
@@ -145,6 +149,10 @@ class ChatRepositoryImpl @Inject constructor(
             tokens = (content.length / 4).coerceAtLeast(1),
             isOnDevice = true,
         )
+        // The new-chat flow navigates to a client-generated id before any
+        // conversation row exists — create it here so the message insert below
+        // doesn't fail the message→conversation foreign key (SQLITE 787).
+        conversationRepository.ensureConversation(conversationId)
         conversationRepository.addMessage(conversationId, userMessage)
 
         // 2. Build the recent-window context for the orchestrator.

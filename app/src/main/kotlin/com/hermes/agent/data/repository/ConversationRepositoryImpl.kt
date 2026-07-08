@@ -49,6 +49,20 @@ class ConversationRepositoryImpl @Inject constructor(
         id
     }
 
+    override suspend fun ensureConversation(id: String, title: String): Unit = withContext(dispatchers.io) {
+        if (conversationDao.getById(id) == null) {
+            val now = System.currentTimeMillis()
+            conversationDao.upsert(
+                ConversationEntity(
+                    id = id,
+                    title = title,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            )
+        }
+    }
+
     override suspend fun addMessage(conversationId: String, message: Message): String =
         withContext(dispatchers.io) {
             val now = System.currentTimeMillis()

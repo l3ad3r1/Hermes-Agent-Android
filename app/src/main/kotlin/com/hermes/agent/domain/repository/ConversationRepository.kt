@@ -27,6 +27,16 @@ interface ConversationRepository {
     /** Create a new empty conversation and return its id. */
     suspend fun createConversation(title: String = "New conversation"): String
 
+    /**
+     * Ensure a conversation with [id] exists, creating an empty one if it
+     * doesn't. Idempotent — an existing conversation is left untouched.
+     *
+     * The new-chat flow navigates to `chat/{uuid}` with a client-generated id
+     * before any row exists; this guarantees the parent row is present so the
+     * first [addMessage] doesn't fail the message→conversation foreign key.
+     */
+    suspend fun ensureConversation(id: String, title: String = "New conversation")
+
     /** Append a message to a conversation. Returns the message id. */
     suspend fun addMessage(conversationId: String, message: Message): String
 

@@ -158,4 +158,39 @@ class ConversationRepositoryImplTest {
         val conv = repo.observeConversation(convId).first()
         assertEquals("New", conv?.title)
     }
+
+    @Test
+    fun `ensureConversation creates a row for a client-generated id`() = runTest {
+        // Regression: the new-chat flow navigates to chat/{uuid} before any
+        // conversation exists. Without ensureConversation, addMessage would fail
+        // the message->conversation foreign key (SQLITE 787).
+        val id = IdGenerator.newId()
+        assertEquals(null, repo.observeConversation(id).first())
+
+        repo.ensureConversation(id)
+
+        val created = repo.observeConversation(id).first()
+        assertNotNull(created)
+
+        // The first message must now insert cleanly (no FK failure).
+        repo.addMessage(
+            id,
+            Message(
+                id = IdGenerator.newId(),
+                conversationId = id,
+                role = MessageRole.USER,
+                content = "first message",
+                agentRole = null,
+                timestamp = System.currentTimeMillis(),
+            ),
+        )
+        assertEquals(1, repo.observeMessages(id).first().size)
+    }
+
+    @Test
+    fun `ensureConversation leaves an existing conversation untouched`() = runTest {
+        val id = repo.createConversation(title = "Original")
+        repo.ensureConversation(id, title = "Should Not Overwrite")
+        assertEquals("Original", repo.observeConversation(id).first()?.title)
+    }
 }
