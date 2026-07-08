@@ -7,6 +7,7 @@ import com.hermes.agent.data.security.KeystoreManager
 import com.hermes.agent.data.security.KnoxSecurityManager
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,14 @@ import javax.inject.Inject
 sealed class UpdateUiState {
     object Idle : UpdateUiState()
     object Checking : UpdateUiState()
-    data class UpdateAvailable(val version: String, val url: String) : UpdateUiState()
+    data class UpdateAvailable(
+        val version: String,
+        /** Direct APK download URL; blank when the release has no APK asset. */
+        val apkUrl: String,
+        /** Release page — browser fallback when there is no APK asset. */
+        val releaseUrl: String,
+    ) : UpdateUiState()
+    data class Downloading(val version: String, val percent: Int) : UpdateUiState()
     object UpToDate : UpdateUiState()
     data class Error(val message: String) : UpdateUiState()
 }
@@ -38,6 +46,7 @@ class SettingsViewModel @Inject constructor(
     private val knox: KnoxSecurityManager,
     private val keystore: KeystoreManager,
     private val otaUpdateChecker: OtaUpdateChecker,
+    private val otaInstaller: OtaInstaller,
     private val githubBackupService: GithubBackupService,
 ) : ViewModel() {
 
@@ -157,8 +166,36 @@ class SettingsViewModel @Inject constructor(
                 result.getOrNull() == null -> UpdateUiState.UpToDate
                 else -> {
                     val u = result.getOrNull()!!
-                    UpdateUiState.UpdateAvailable(u.version, u.releaseUrl)
+                    UpdateUiState.UpdateAvailable(u.version, u.apkUrl, u.releaseUrl)
                 }
+            }
+        }
+    }
+
+    /** True when the app may install packages without the user first flipping a setting. */
+    fun canInstallPackages(): Boolean = otaInstaller.canInstallPackages()
+
+    /** Opens the system "install unknown apps" screen for this app. */
+    fun promptInstallPermission() = otaInstaller.promptInstallPermission()
+
+    /**
+     * Downloads the update APK in-app and launches the installer — no browser.
+     * Requires the current state to be [UpdateUiState.UpdateAvailable] with an
+     * APK asset URL.
+     */
+    fun downloadAndInstall() {
+        val available = _updateState.value as? UpdateUiState.UpdateAvailable ?: return
+        if (available.apkUrl.isBlank()) return
+        _updateState.value = UpdateUiState.Downloading(available.version, 0)
+        viewModelScope.launch {
+            val result = otaInstaller.downloadAndInstall(available.apkUrl) { percent ->
+                _updateState.value = UpdateUiState.Downloading(available.version, percent)
+            }
+            _updateState.value = if (result.isFailure) {
+                UpdateUiState.Error(result.exceptionOrNull()?.message ?: "Download failed")
+            } else {
+                // System installer has taken over — reset the panel.
+                UpdateUiState.Idle
             }
         }
     }

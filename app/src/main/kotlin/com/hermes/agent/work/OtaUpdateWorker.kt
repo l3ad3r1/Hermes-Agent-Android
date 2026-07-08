@@ -47,19 +47,27 @@ class OtaUpdateWorker @AssistedInject constructor(
             nm.createNotificationChannel(channel)
         }
 
+        // Open the app so the user can download & install in-app (Settings →
+        // Updates), rather than sending them to the browser. Falls back to the
+        // release page only if the launch intent can't be resolved.
+        val launchIntent = appContext.packageManager
+            .getLaunchIntentForPackage(appContext.packageName)
+            ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            ?: Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl))
+
         val openIntent = PendingIntent.getActivity(
             appContext,
             0,
-            Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)),
+            launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
         val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Hermes ${update.version} available")
-            .setContentText("Tap to view release and download the update.")
+            .setContentText("Tap to open Hermes and install the update.")
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(update.releaseNotes.ifBlank { "Tap to view release and download the update." }))
+                .bigText(update.releaseNotes.ifBlank { "Tap to open Hermes and install the update." }))
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .build()

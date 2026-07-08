@@ -19,6 +19,9 @@ class OtaUpdateChecker @Inject constructor(
         val version: String,
         val releaseUrl: String,
         val releaseNotes: String,
+        /** Direct download URL of the .apk release asset, or "" if the release
+         *  has no APK attached (then only the release page is available). */
+        val apkUrl: String,
     )
 
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
@@ -43,14 +46,28 @@ class OtaUpdateChecker @Inject constructor(
         val remoteVersion = obj.optString("tag_name", "").removePrefix("v")
         val releaseUrl = obj.optString("html_url", "")
         val releaseNotes = obj.optString("body", "").take(500)
+        val apkUrl = firstApkAssetUrl(obj)
 
-        Timber.tag("OtaChecker").d("remote=%s current=%s", remoteVersion, BuildConfig.VERSION_NAME)
+        Timber.tag("OtaChecker").d("remote=%s current=%s apk=%s", remoteVersion, BuildConfig.VERSION_NAME, apkUrl)
 
         if (remoteVersion.isBlank() || !isNewer(remoteVersion, BuildConfig.VERSION_NAME)) {
             return@withContext null
         }
 
-        UpdateInfo(remoteVersion, releaseUrl, releaseNotes)
+        UpdateInfo(remoteVersion, releaseUrl, releaseNotes, apkUrl)
+    }
+
+    /** Pull the first `.apk` asset's direct download URL out of a release JSON. */
+    private fun firstApkAssetUrl(release: JSONObject): String {
+        val assets = release.optJSONArray("assets") ?: return ""
+        for (i in 0 until assets.length()) {
+            val asset = assets.optJSONObject(i) ?: continue
+            val name = asset.optString("name", "")
+            if (name.endsWith(".apk", ignoreCase = true)) {
+                return asset.optString("browser_download_url", "")
+            }
+        }
+        return ""
     }
 
     private fun isNewer(remote: String, current: String): Boolean {

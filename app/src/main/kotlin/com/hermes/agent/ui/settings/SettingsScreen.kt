@@ -35,6 +35,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -326,7 +327,10 @@ fun SettingsScreen(
             SectionHeader(text = "Updates")
             UpdateSection(
                 state = updateState,
+                canInstall = viewModel.canInstallPackages(),
                 onCheck = viewModel::checkForUpdate,
+                onDownload = viewModel::downloadAndInstall,
+                onManagePermission = viewModel::promptInstallPermission,
                 onOpenUrl = { url ->
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     viewModel.dismissUpdateState()
@@ -722,7 +726,10 @@ private fun InfoRow(title: String, value: String) {
 @Composable
 private fun UpdateSection(
     state: UpdateUiState,
+    canInstall: Boolean,
     onCheck: () -> Unit,
+    onDownload: () -> Unit,
+    onManagePermission: () -> Unit,
     onOpenUrl: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -784,12 +791,44 @@ private fun UpdateSection(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                    Button(
-                        onClick = { onOpenUrl(state.url) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("View release & download")
+                    if (state.apkUrl.isNotBlank()) {
+                        if (!canInstall) {
+                            Text(
+                                "Allow \"install unknown apps\" for Hermes so it can " +
+                                    "install the update directly.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(onClick = onManagePermission, modifier = Modifier.fillMaxWidth()) {
+                                Text("Allow installs")
+                            }
+                        }
+                        Button(
+                            onClick = onDownload,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Download & install")
+                        }
+                    } else {
+                        // No APK attached to this release — fall back to the release page.
+                        Button(
+                            onClick = { onOpenUrl(state.releaseUrl) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("View release")
+                        }
                     }
+                }
+                is UpdateUiState.Downloading -> {
+                    Text(
+                        "Downloading Hermes ${state.version}… ${state.percent}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    LinearProgressIndicator(
+                        progress = { state.percent / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
