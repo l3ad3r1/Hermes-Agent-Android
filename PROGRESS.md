@@ -1,5 +1,13 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.8.4 (2026-07-08)
+- GitHub release **v0.8.4** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.4 (versionCode 54). Signer verified identical to prior releases.
+- **Event-driven refinement**: `SkillRefineScheduler` (hooked after both `recordUse` call sites — SkillMatcher auto-load + skill_manager view) enqueues one-off `SkillRefineWorker` every **5th use** of a user skill (network-constrained, `KEEP` policy dedupes). Skill evolution now: create → use → auto-refine every 5 uses + weekly pass → notify.
+- **EvolutionNotifier**: low-priority notification whenever a skill is auto-refined (event-driven or weekly) — self-modification is never invisible.
+- Full unit suite green (SkillMatcherTest updated for new constructor). Compile + unit-tested; not device-verified.
+
+---
+
 ## RELEASED: v0.8.3 (2026-07-08)
 - GitHub release **v0.8.3** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.3 (versionCode 53). Signer verified identical to 0.8.0–0.8.2.
 - Ships the self-evolution integration below, plus: the weekly `SkillImprovementWorker` now **prefers trace-grounded refinement** (via `ReflectiveSkillRefiner`) and only falls back to the blind text-only rewrite when a skill has no relevant usage traces.
