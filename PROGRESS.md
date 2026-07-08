@@ -1,5 +1,20 @@
 # Hermes Agent — Progress
 
+## Latest (2026-07-08): UI polish — top bar & bottom nav
+
+**Done (commits 7b0cf4a, a3c26c8, f5d3f85):**
+- Added `ui/components/SlimTopBar.kt` — compact 52dp top bar (vs Material3's fixed 64dp) that keeps the status-bar inset.
+- ChatScreen + SessionBrowserScreen now use SlimTopBar. Removed the earlier fake `padding(top = 4.dp)` "slimming" (it added height) and the misleading black-bar comment.
+- **Black bar fix:** ChatScreen bottom bar wrapped in a `Surface` so its colour fills edge-to-edge behind the transparent nav bar; `navigationBarsPadding().imePadding()` moved onto the bottom bar (off the Scaffold) so nav-bar + keyboard insets don't double-count.
+- Bottom nav: "Chats" tab relabelled to "Search" with a search icon (it already routes to the search-capable SessionBrowserScreen).
+- Verified: `./gradlew :app:compileDebugKotlin` → BUILD SUCCESSFUL.
+
+**Next steps / not yet done:**
+- Not visually verified on a device/emulator — build only. Worth a run to confirm the black strip is gone and top bar height feels right.
+- Optional: make the Search tab open SessionBrowserScreen directly in search mode (currently opens browse list with a search icon).
+
+---
+
 ## In Progress
 
 ### Phase 5: Hermes Agent Feature Parity Initiative ( Started 2026-07-07 )
