@@ -149,6 +149,13 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
+                        icon = Icons.Outlined.Science,
+                        title = "Refine skills",
+                        subtitle = "Improve a skill from how it was actually used",
+                        onClick = { onNavigate("refine_skills") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
                         icon = Icons.Outlined.Link,
                         title = "Messaging",
                         subtitle = "Configure Telegram, Discord, Signal, WhatsApp",

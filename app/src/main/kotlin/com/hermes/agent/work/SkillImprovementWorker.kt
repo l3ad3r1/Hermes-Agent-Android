@@ -9,6 +9,7 @@ import com.hermes.agent.data.llm.LlmMessage
 import com.hermes.agent.domain.model.Skill
 import com.hermes.agent.domain.model.SkillLifecycle
 import com.hermes.agent.domain.repository.SkillRepository
+import com.hermes.agent.domain.skill.SkillDoc
 import com.hermes.agent.domain.skill.SkillGuard
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -87,14 +88,14 @@ class SkillImprovementWorker @AssistedInject constructor(
                         continue
                     }
                     if (improved_ != null && isSignificantImprovement(skill.content, improved_)) {
-                        val updatedContent = replaceBody(skill.content, improved_)
+                        val updatedContent = SkillDoc.replaceBody(skill.content, improved_)
                         skillRepository.upsert(
                             name = skill.name,
                             description = skill.description,
                             content = updatedContent,
                             category = skill.category,
                             tags = skill.tags,
-                            version = bumpPatch(skill.version),
+                            version = SkillDoc.bumpPatch(skill.version),
                             requiresTools = skill.requiresTools,
                             fallbackForTools = skill.fallbackForTools,
                         )
@@ -125,28 +126,10 @@ class SkillImprovementWorker @AssistedInject constructor(
     }
 
     private fun isSignificantImprovement(old: String, newBody: String): Boolean {
-        val oldBody = extractBody(old)
+        val oldBody = SkillDoc.extractBody(old)
         val diff = Math.abs(newBody.length - oldBody.length).toFloat()
         return diff / (oldBody.length.coerceAtLeast(1)) > 0.05f ||
             newBody.split("\n").size > oldBody.split("\n").size
-    }
-
-    private fun extractBody(content: String): String {
-        val idx = content.indexOf("\n---\n", content.indexOf("---") + 1)
-        return if (idx >= 0) content.substring(idx + 5) else content
-    }
-
-    private fun replaceBody(original: String, newBody: String): String {
-        val idx = original.indexOf("\n---\n", original.indexOf("---") + 1)
-        return if (idx >= 0) original.substring(0, idx + 5) + newBody
-        else original
-    }
-
-    private fun bumpPatch(version: String): String {
-        val parts = version.split(".")
-        return if (parts.size == 3) {
-            "${parts[0]}.${parts[1]}.${(parts[2].toIntOrNull() ?: 0) + 1}"
-        } else version
     }
 
     companion object {

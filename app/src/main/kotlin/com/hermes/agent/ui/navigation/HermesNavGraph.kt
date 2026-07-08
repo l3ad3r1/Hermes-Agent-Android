@@ -26,6 +26,7 @@ import com.hermes.agent.ui.home.HomeScreen
 import com.hermes.agent.ui.kanban.KanbanBoardScreen
 import com.hermes.agent.ui.kanban.TicketDetailScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
+import com.hermes.agent.ui.evolution.RefineSkillScreen
 import com.hermes.agent.ui.documents.DocumentsScreen
 import com.hermes.agent.ui.experiment.ExperimentScreen
 import com.hermes.agent.ui.learning.LearningScreen
@@ -137,6 +138,7 @@ fun HermesNavGraph() {
             }
             composable("logs") { LogScreen(onBack = { navController.popBackStack() }) }
             composable("learning") { LearningScreen(onBack = { navController.popBackStack() }) }
+            composable("refine_skills") { RefineSkillScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }
