@@ -155,11 +155,32 @@ class SessionRepository @Inject constructor(
     }
 
     /**
-     * Delete a session.
-     */
-    suspend fun delete(id: String) {
-        conversationDao.delete(id)
-    }
+         * Delete a session.
+         */
+        suspend fun delete(id: String) {
+            conversationDao.delete(id)
+        }
+    
+        /**
+         * Alias for delete (for consistency with UI naming).
+         */
+        suspend fun deleteSession(id: String) = delete(id)
+    
+        /**
+         * Get message count for a session.
+         */
+        suspend fun getMessageCount(sessionId: String): Int {
+            val cursor = db.query(
+                "SELECT COUNT(*) FROM messages WHERE conversation_id = ?",
+                arrayOf(sessionId)
+            )
+            var count = 0
+            if (cursor.moveToNext()) {
+                count = cursor.getInt(0)
+            }
+            cursor.close()
+            return count
+        }
 
     /**
      * Export session to JSON.

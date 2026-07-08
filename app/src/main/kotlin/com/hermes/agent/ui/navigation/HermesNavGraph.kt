@@ -32,6 +32,7 @@ import com.hermes.agent.ui.logs.LogScreen
 import com.hermes.agent.ui.memory.MemoryScreen
 import com.hermes.agent.ui.settings.SettingsScreen
 import com.hermes.agent.ui.skills.SkillsScreen
+import com.hermes.agent.ui.sessions.SessionBrowserScreen
 
 private val bottomNavDestinations = listOf(
     TopLevelDestination.HOME,
@@ -86,11 +87,14 @@ fun HermesNavGraph() {
                 )
             }
             composable(TopLevelDestination.CONVERSATIONS.route) {
-                ConversationsScreen(
-                    onOpenConversation = { navController.navigate(TopLevelDestination.chatRoute(it)) },
-                    onNewConversation  = { navController.navigate(TopLevelDestination.chatRoute(it)) },
-                )
-            }
+                            SessionBrowserScreen(
+                                onOpenSession = { navController.navigate(TopLevelDestination.chatRoute(it)) },
+                                onNewSession = {
+                                    val newId = java.util.UUID.randomUUID().toString()
+                                    navController.navigate(TopLevelDestination.chatRoute(newId))
+                                },
+                            )
+                        }
             composable(
                 route = TopLevelDestination.CHAT.route,
                 arguments = listOf(navArgument("conversationId") { type = NavType.StringType }),

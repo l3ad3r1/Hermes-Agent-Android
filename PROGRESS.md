@@ -29,6 +29,29 @@
 ---
 
 ## Completed (Merged App)
+- **v0.8.0-phase5.1 RELEASED** (tag v0.8.0-phase5.1): Session Management with FTS5 search
+  - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.0-phase5.1
+  - Signed release APK (11.3 MB) attached. Phase 5.1 complete — 90%+ feature parity for session management.
+  - **FTS5 Search** — Full-text search powered by ReQuery SQLite (io.github.requery:sqlite-android:3.45.0):
+    - 4 search shapes matching desktop Hermes Agent `session_search()`:
+      1. **Discovery**: `"auth refactor"` → ranked results via `WHERE conversation_fts MATCH ? ORDER BY rank`
+      2. **Browse**: Recent sessions chronologically (no query)
+      3. **Read**: Full session dump by ID
+      4. **Scroll**: Windowed retrieval around anchor message (±N messages with bookends)
+    - FTS5 syntax support: AND (default), OR, quoted phrases, boolean, prefix wildcards (`deploy*`)
+    - MIGRATION_7→8: Raw SQL `CREATE VIRTUAL TABLE conversation_fts USING fts5(...)` + 3 auto-sync triggers
+    - Avoided Room `@Fts5` annotation (causes KSP StackOverflowError in Kotlin 2.0+)
+  - **SessionRepository** (272 lines): Clean API for all 4 search shapes, message window pagination
+  - **Session Compression** (SessionCompressionService, 211 lines): LLM-based context reduction when >150 messages,
+    hierarchical compression for very long conversations, ~80-90% token reduction
+  - **Session Snapshots** (SessionSnapshotService, 233 lines): JSON export/import, scheduled pruning, backup/restore
+  - **Session Search Tool** (SessionSearchTool, 241 lines): Agent-callable `session_search()` wrapper for Hermes Agent
+  - **SessionBrowserScreen UI** (Compose): Searchable session list with FTS5 query bar, message count badges, delete
+  - **Hilt DI** (SessionModule): SessionRepository, SupportSQLiteDatabase injection
+  - **Device Verified**: Tested on Pixel 7 emulator (API 34), no FTS5 errors, database migrations successful
+  - **Git**: Merged to main (commit da0e67c), 13 files changed, +1,864 insertions
+  - Release artifact: `app-release.apk` (11.3 MB, 83% smaller than debug via R8 optimization)
+  
 - **v0.7.29 RELEASED** (tag v0.7.29, --latest): personality (voice/celebrate) + SSH remote shell
   - https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.7.29
   - Signed APK attached as hermes-agent-v0.7.29.apk. Roadmap #5 (last item) done. Details:
