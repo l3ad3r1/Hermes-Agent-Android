@@ -30,19 +30,19 @@ internal object AgentToolAccess {
         com.hermes.agent.domain.model.AgentRole.CONVERSATIONAL to COMMON + setOf(
             "get_current_datetime", "memory", "notes", "search_conversations",
             "skill_manager", "scheduler", "web_search", "web_fetch", "calculator",
-            "shell", "delegate", "speak", "generate_image",
+            "shell", "termux", "delegate", "speak", "generate_image", "notify",
         ),
         com.hermes.agent.domain.model.AgentRole.PRODUCTIVITY to COMMON + setOf(
             "get_current_datetime", "calendar_add_event", "memory", "notes",
             "search_conversations", "skill_manager", "scheduler", "calculator",
-            "web_search", "web_fetch", "delegate",
+            "web_search", "web_fetch", "delegate", "notify",
         ),
         com.hermes.agent.domain.model.AgentRole.RESEARCH to COMMON + setOf(
             "web_search", "web_fetch", "search_conversations", "memory", "notes",
             "skill_manager", "calculator", "delegate",
         ),
         com.hermes.agent.domain.model.AgentRole.DEVICE_CONTROL to COMMON + setOf(
-            "device_settings", "get_current_datetime", "memory", "shell", "speak",
+            "device_settings", "get_current_datetime", "memory", "shell", "termux", "speak",
         ),
         com.hermes.agent.domain.model.AgentRole.CREATIVE to COMMON + setOf(
             "memory", "notes", "search_conversations", "skill_manager",

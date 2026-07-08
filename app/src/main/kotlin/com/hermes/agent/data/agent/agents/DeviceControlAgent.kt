@@ -28,6 +28,9 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "- shell: execute a shell command (runs as app user, not root; 10 s timeout; " +
             "stdout+stderr returned combined). Use for inspecting files, processes, or " +
             "device state via adb-shell-compatible commands.\n" +
+            "- termux: run a Linux command in the user's Termux app — full package manager " +
+            "(pkg/apt), python, git, ssh, compilers. Prefer termux over shell when the task " +
+            "needs real Linux tooling or installed packages.\n" +
             "- memory: recall user preferences (e.g. preferred brightness level)\n" +
             "- speak: read text aloud through the device speaker (use when asked to say/announce " +
             "something out loud)\n" +

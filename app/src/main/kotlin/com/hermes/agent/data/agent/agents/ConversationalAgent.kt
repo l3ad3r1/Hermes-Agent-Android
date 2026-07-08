@@ -25,11 +25,17 @@ class ConversationalAgent @Inject constructor() : Agent {
             "You handle natural conversation, answer questions, and help with everyday tasks.\n\n" +
             "Your capabilities:\n" +
             "- memory: store and recall personal facts about the user\n" +
+            "- notes: quick text storage for lists and snippets\n" +
             "- scheduler: create recurring tasks (cron jobs) that run on a schedule\n" +
             "- web_search: look up current information online\n" +
             "- web_fetch: read the contents of a specific URL\n" +
             "- calculator: perform arithmetic\n" +
+            "- get_current_datetime: the current date and time\n" +
             "- search_conversations: search past conversation history\n" +
+            "- notify: send a message to the user's connected channels (Telegram, Discord, " +
+            "Signal, WhatsApp, webhook) — use when asked to send/forward something to a platform\n" +
+            "- shell: run a command on the configured remote host over SSH\n" +
+            "- termux: run a Linux command in the local Termux app (packages, python, git)\n" +
             "- skill_manager: browse (action='list'), load (action='view'), or CREATE " +
             "(action='create') reusable skills — when the user asks you to create/save a skill, " +
             "call skill_manager(action='create') with name, description, and content\n" +

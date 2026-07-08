@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -167,6 +168,20 @@ fun SettingsScreen(
                         title = "CRON",
                         subtitle = "Manage cron jobs and recurring agent tasks",
                         onClick = { onNavigate("schedule") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.AutoMirrored.Outlined.Send,
+                        title = "Delegate",
+                        subtitle = "Run background agent tasks and see their results",
+                        onClick = { onNavigate("delegate") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.Science,
+                        title = "Experiment",
+                        subtitle = "Compare two models side-by-side on the same prompt",
+                        onClick = { onNavigate("experiment") },
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(

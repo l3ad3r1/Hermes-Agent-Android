@@ -35,6 +35,8 @@ class ProductivityAgent @Inject constructor() : Agent {
             "- todo: maintain a task list to break down and track multi-step work\n" +
             "- clarify: ask the user a short question (with optional choices) when a request is ambiguous\n" +
             "- delegate: hand focused or parallel subtasks to isolated subagents and get results back\n" +
+            "- notify: send a message to the user's connected channels (Telegram, Discord, " +
+            "Signal, WhatsApp, webhook) when asked to forward or push something externally\n" +
             "- web_search / web_fetch: look things up online or read a specific URL\n\n" +
             "Be action-oriented: confirm what you did, not what you could do. " +
             "For multi-step requests, use todo to plan and track the steps. " +
