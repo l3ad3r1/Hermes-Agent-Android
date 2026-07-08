@@ -1,6 +1,7 @@
 package com.hermes.agent.ui.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -76,7 +77,13 @@ fun HermesNavGraph() {
         NavHost(
             navController = navController,
             startDestination = TopLevelDestination.HOME.route,
-            modifier = Modifier.padding(innerPadding),
+            // Consume the insets the outer Scaffold already turned into
+            // innerPadding, so each screen's own Scaffold / top bar doesn't pad
+            // for the status + navigation bars a second time (the double-inset
+            // gap above every title and the black strip at the bottom).
+            modifier = Modifier
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding),
         ) {
             composable(TopLevelDestination.HOME.route) {
                 HomeScreen(
