@@ -1,5 +1,19 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.8.7 (2026-07-08)
+- GitHub release **v0.8.7** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.7 (versionCode 57). Signer verified.
+- Fixes from **docs/CODE-AUDIT-2026-07-08.md** (audit for the smoke-test bug class):
+  - **H1**: `notify` tool granted to CONVERSATIONAL + PRODUCTIVITY (+ prompts) — chat can now message configured Telegram/Discord/Signal/WhatsApp/webhook channels.
+  - **H2**: `termux` tool granted to CONVERSATIONAL + DEVICE_CONTROL (+ prompts) — Termux integration reachable for the first time.
+  - **H3**: Delegate + Experiment screens now reachable via Settings → Features NavRows.
+  - **M1**: backup exports memories via `observeMemories()` (all rows) instead of `searchMemories("", 1000)`.
+  - **M3 (partial)**: Conversational prompt synced with grants (notes/shell/datetime).
+  - **M4**: CronViewModel.toggle reads task back from repository (StateFlow race).
+- Remaining from audit: **M2** (cron ignores time-of-day — needs initial-delay computation), L1–L5.
+- Compile + full unit suite green; not device-verified. Smoke-test suggestions in the release notes (notify → Telegram is the key one).
+
+---
+
 ## RELEASED: v0.8.6 (2026-07-08)
 - GitHub release **v0.8.6** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.6 (versionCode 56). Signer verified.
 - **Smoke test round 2 finding fixed**: the created git-explainer skill never auto-loaded for "explain git rebase" — SkillMatcher required exact token equality (explain ≠ explainer ≠ explains → only 'git' hit, 3.0 < MIN_SCORE 5.0, 1 < 2 distinct hits). Reply came from the plain model.
