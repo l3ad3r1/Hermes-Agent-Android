@@ -74,8 +74,10 @@ class SkillManagerTool @Inject constructor(
             ToolParameter(
                 name = "content",
                 type = ToolParameterType.STRING,
-                description = "Markdown instruction body for the skill: purpose, steps, example trigger " +
-                    "(required for action='create').",
+                description = "Markdown instruction body for the skill (required for action='create'). " +
+                    "Include: ## Purpose, ## Steps, any strict output-format rules, and an " +
+                    "## Example Trigger section with a typical user phrasing — the trigger " +
+                    "improves automatic loading on future matching requests.",
                 required = false,
             ),
             ToolParameter(

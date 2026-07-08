@@ -76,8 +76,10 @@ class SkillMatcher @Inject constructor(
     /** Renders the auto-loaded skill as a system-prompt block. */
     fun renderSkillBlock(skill: Skill): String = buildString {
         append("\n\n## Auto-loaded skill: ${skill.name}\n")
-        append("This request matches the skill below. Follow its steps where they apply; ")
-        append("ignore it if the user is asking for something else.\n\n")
+        append("This request matches the skill below. Follow its procedure, and obey any ")
+        append("output-format constraints it declares (sentence/length limits, structure, ")
+        append("style) EXACTLY — do not add extra sections beyond what the skill asks for. ")
+        append("Ignore the skill only if the user is clearly asking for something else.\n\n")
         append(skill.content.trim())
     }
 
@@ -93,16 +95,47 @@ class SkillMatcher @Inject constructor(
         val hits = mutableSetOf<String>()
         for (t in promptTokens) {
             var w = 0.0
-            if (t in nameTokens) w = maxOf(w, 3.0)
-            if (t in tagTokens) w = maxOf(w, 2.0)
-            if (t in triggerTokens) w = maxOf(w, 2.0)
-            if (t in descTokens) w = maxOf(w, 1.0)
+            if (matchesAny(t, nameTokens)) w = maxOf(w, 3.0)
+            if (matchesAny(t, tagTokens)) w = maxOf(w, 2.0)
+            if (matchesAny(t, triggerTokens)) w = maxOf(w, 2.0)
+            if (matchesAny(t, descTokens)) w = maxOf(w, 1.0)
             if (w > 0) {
                 total += w
                 hits += t
             }
         }
         return Score(total, hits.size)
+    }
+
+    private fun matchesAny(token: String, candidates: Set<String>): Boolean =
+        candidates.any { tokensMatch(token, it) }
+
+    /**
+     * Morphology-tolerant token equality: "explain", "explains", and
+     * "explainer" all refer to the same act, and a skill named
+     * git-explainer must match the prompt "explain git rebase". Exact match,
+     * or equal after light suffix stemming, or one stem is a ≥4-char prefix
+     * of the other (rebase/rebasing).
+     */
+    private fun tokensMatch(a: String, b: String): Boolean {
+        if (a == b) return true
+        val sa = stem(a)
+        val sb = stem(b)
+        if (sa == sb) return true
+        val shorter = if (sa.length <= sb.length) sa else sb
+        val longer = if (sa.length <= sb.length) sb else sa
+        return shorter.length >= 4 && longer.startsWith(shorter)
+    }
+
+    /** Strip one common English suffix from tokens longer than 4 chars. */
+    private fun stem(t: String): String {
+        if (t.length <= 4) return t
+        for (suffix in STEM_SUFFIXES) {
+            if (t.endsWith(suffix) && t.length - suffix.length >= 4) {
+                return t.dropLast(suffix.length)
+            }
+        }
+        return t
     }
 
     /** The "## Example Trigger" line body, if the skill declares one. */
@@ -125,6 +158,9 @@ class SkillMatcher @Inject constructor(
 
         /** At least this many distinct prompt tokens must hit the skill. */
         private const val MIN_DISTINCT_HITS = 2
+
+        /** Longest-first so e.g. "ers" wins over "s". */
+        private val STEM_SUFFIXES = listOf("ers", "ing", "ion", "es", "ed", "er", "s")
 
         private val STOPWORDS = setOf(
             "the", "and", "for", "you", "your", "with", "that", "this", "then",

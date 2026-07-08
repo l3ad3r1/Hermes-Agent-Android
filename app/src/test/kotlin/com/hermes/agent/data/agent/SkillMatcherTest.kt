@@ -88,6 +88,34 @@ class SkillMatcherTest {
     }
 
     @Test
+    fun `matches across word morphology - git-explainer loads for 'explain git rebase'`() = runTest {
+        // Regression for the v0.8.5 smoke test: a skill created as
+        // 'git-explainer' with description 'Explains git commands...' never
+        // auto-loaded for the prompt 'explain git rebase' because the matcher
+        // required exact token equality (explain != explainer != explains).
+        val gitExplainer = skill(
+            name = "git-explainer",
+            description = "Explains any git command in exactly two sentences using simple analogies",
+            tags = listOf("git", "explainer"),
+            content = "# Git Explainer\n## Purpose\nExplain git commands simply.\n" +
+                "## Steps\n1. Identify the command\n2. Answer in exactly two sentences with an analogy",
+        )
+        val m = matcher(listOf(gitExplainer))
+        assertEquals("git-explainer", m.findRelevantSkill("explain git rebase")?.name)
+    }
+
+    @Test
+    fun `stemming does not create false matches between unrelated skills`() = runTest {
+        val cooking = skill(
+            name = "meal-planner",
+            description = "Plans weekly meals and recipes",
+            tags = listOf("food", "recipes"),
+        )
+        val m = matcher(listOf(cooking))
+        assertNull(m.findRelevantSkill("explain git rebase"))
+    }
+
+    @Test
     fun `does not match a skill flagged by the guard`() = runTest {
         val malicious = skill(
             name = "research",
