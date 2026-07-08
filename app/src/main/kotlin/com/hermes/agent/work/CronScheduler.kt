@@ -4,7 +4,6 @@ import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.hermes.agent.domain.model.CronPresets
 import com.hermes.agent.domain.model.ScheduledTask
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -27,11 +26,20 @@ class CronScheduler @Inject constructor(
             .putString(ScheduledTaskWorker.KEY_TASK_ID, task.id)
             .putString(ScheduledTaskWorker.KEY_TASK_PROMPT, task.prompt)
             .putString(ScheduledTaskWorker.KEY_TASK_LABEL, task.label)
+            .putString(ScheduledTaskWorker.KEY_TASK_CRON, task.cronExpression)
             .build()
 
+        // Anchor the first run on the cron's actual fire time ("daily at 8am"
+        // used to mean "every 24h from whenever the job was created" — audit
+        // M2). WorkManager may still flex within its execution window, and
+        // day-of-week filters (weekdays) are enforced at runtime by the
+        // worker via CronTiming.shouldRunNow.
         val request = PeriodicWorkRequestBuilder<ScheduledTaskWorker>(
-            intervalMinutesFor(task.cronExpression), TimeUnit.MINUTES,
-        ).setInputData(data).build()
+            CronTiming.periodMinutes(task.cronExpression), TimeUnit.MINUTES,
+        )
+            .setInputData(data)
+            .setInitialDelay(CronTiming.initialDelayMillis(task.cronExpression), TimeUnit.MILLISECONDS)
+            .build()
 
         workManager.enqueueUniquePeriodicWork(
             "cron_${task.id}",
@@ -42,15 +50,5 @@ class CronScheduler @Inject constructor(
 
     fun cancel(taskId: String) {
         workManager.cancelUniqueWork("cron_$taskId")
-    }
-
-    /** Derive a WorkManager repeat interval from a cron expression.
-     *  Full cron parsing is out of scope for WorkManager; we map common
-     *  patterns and fall back to 24h for anything else. */
-    private fun intervalMinutesFor(cron: String): Long = when (cron.trim()) {
-        CronPresets.HOURLY   -> 60L
-        CronPresets.WEEKDAYS -> 24 * 60L
-        CronPresets.WEEKLY   -> 7 * 24 * 60L
-        else                 -> 24 * 60L // daily default
     }
 }

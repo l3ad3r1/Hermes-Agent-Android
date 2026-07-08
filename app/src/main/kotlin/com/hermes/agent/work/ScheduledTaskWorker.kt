@@ -9,6 +9,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.hermes.agent.R
+import com.hermes.agent.domain.model.ChatStreamEvent
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.CronRepository
 import com.hermes.agent.domain.repository.ConversationRepository
@@ -40,6 +41,7 @@ class ScheduledTaskWorker @AssistedInject constructor(
         const val KEY_TASK_ID     = "task_id"
         const val KEY_TASK_PROMPT = "task_prompt"
         const val KEY_TASK_LABEL  = "task_label"
+        const val KEY_TASK_CRON   = "task_cron"
         const val CHANNEL_ID      = "hermes_scheduled"
     }
 
@@ -47,6 +49,14 @@ class ScheduledTaskWorker @AssistedInject constructor(
         val taskId     = inputData.getString(KEY_TASK_ID)     ?: return Result.failure()
         val prompt     = inputData.getString(KEY_TASK_PROMPT)  ?: return Result.failure()
         val label      = inputData.getString(KEY_TASK_LABEL)   ?: "Scheduled task"
+        val cron       = inputData.getString(KEY_TASK_CRON)
+
+        // Day-of-week gate: a 24h WorkManager period can't express
+        // "weekdays only" (0 8 * * 1-5), so the filter is enforced here.
+        if (cron != null && !CronTiming.shouldRunNow(cron)) {
+            Timber.d("ScheduledTaskWorker: '$label' skipped — day-of-week filter ($cron)")
+            return Result.success()
+        }
 
         Timber.d("ScheduledTaskWorker: running '$label'")
 
@@ -54,13 +64,18 @@ class ScheduledTaskWorker @AssistedInject constructor(
             // Create a throw-away conversation for this run.
             val convId = conversationRepository.createConversation(label)
 
-            // Collect the full streamed reply.
-            val sb = StringBuilder()
+            // Collect the streamed reply; Complete carries the final
+            // persisted message, tokens are the fallback if it never arrives.
+            val tokens = StringBuilder()
+            var finalText: String? = null
             chatRepository.sendMessage(convId, prompt).collect { event ->
-                val text = event.extractText()
-                if (text != null) sb.append(text)
+                when (event) {
+                    is ChatStreamEvent.Token -> tokens.append(event.text)
+                    is ChatStreamEvent.Complete -> finalText = event.message.content
+                    is ChatStreamEvent.Error -> throw event.throwable
+                }
             }
-            val result = sb.toString().take(200).ifBlank { "Task completed." }
+            val result = (finalText ?: tokens.toString()).take(200).ifBlank { "Task completed." }
 
             cronRepository.recordRun(taskId, result)
             postNotification(label, result)
@@ -98,5 +113,3 @@ class ScheduledTaskWorker @AssistedInject constructor(
         nm.notify(label.hashCode(), notification)
     }
 }
-
-private fun Any.extractText(): String? = null // placeholder — ViewModel handles streaming
