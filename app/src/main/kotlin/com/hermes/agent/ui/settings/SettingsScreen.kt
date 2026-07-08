@@ -49,8 +49,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import com.hermes.agent.ui.components.SlimTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -93,13 +92,7 @@ fun SettingsScreen(
     Scaffold(
         modifier = Modifier.imePadding(),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.nav_settings)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-            )
+            SlimTopBar(title = stringResource(R.string.nav_settings))
         },
     ) { innerPadding ->
         Column(
@@ -110,6 +103,24 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // --- Cloud LLM (the core setup — first) ---
+            SectionHeader(text = stringResource(R.string.settings_section_cloud))
+            CloudSection(settings = settings, viewModel = viewModel)
+
+            // --- Chat ---
+            SectionHeader(text = "Chat")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    ToggleRow(
+                        title = "Show tool call details",
+                        subtitle = "See what the agent does mid-reply (web search, calendar, etc.) " +
+                            "instead of just the final answer",
+                        checked = settings.showToolCalls,
+                        onCheckedChange = viewModel::setShowToolCalls,
+                    )
+                }
+            }
+
             // --- Appearance ---
             SectionHeader(text = "Appearance")
             ThemePicker(
@@ -193,20 +204,6 @@ fun SettingsScreen(
                 }
             }
 
-            // --- Chat ---
-            SectionHeader(text = "Chat")
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    ToggleRow(
-                        title = "Show tool call details",
-                        subtitle = "See what the agent does mid-reply (web search, calendar, etc.) " +
-                            "instead of just the final answer",
-                        checked = settings.showToolCalls,
-                        onCheckedChange = viewModel::setShowToolCalls,
-                    )
-                }
-            }
-
             // --- Local API server ---
             SectionHeader(text = "Local API server")
             ApiServerSection(
@@ -227,139 +224,6 @@ fun SettingsScreen(
                 onPort = viewModel::setSshPort,
                 onUser = viewModel::setSshUser,
                 onPassword = viewModel::setSshPassword,
-            )
-
-            // --- Cloud ---
-            SectionHeader(text = stringResource(R.string.settings_section_cloud))
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ToggleRow(
-                        title = stringResource(R.string.settings_cloud_enabled),
-                        subtitle = stringResource(R.string.settings_cloud_enabled_subtitle),
-                        checked = settings.cloudEnabled,
-                        onCheckedChange = viewModel::setCloudEnabled,
-                    )
-                    HorizontalDivider()
-
-                    // Primary provider (complex / general tasks).
-                    Text(
-                        "Primary provider — general tasks",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                    var apiKey by remember(settings.cloudApiKey) { mutableStateOf(settings.cloudApiKey) }
-                    OutlinedTextField(
-                        value = apiKey,
-                        onValueChange = {
-                            apiKey = it
-                            viewModel.setCloudApiKey(it)
-                        },
-                        label = { Text(stringResource(R.string.settings_cloud_api_key)) },
-                        supportingText = {
-                            Text(stringResource(R.string.settings_cloud_api_key_subtitle))
-                        },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        colors = hermesFieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    var baseUrl by remember(settings.cloudBaseUrl) { mutableStateOf(settings.cloudBaseUrl) }
-                    OutlinedTextField(
-                        value = baseUrl,
-                        onValueChange = {
-                            baseUrl = it
-                            viewModel.setCloudBaseUrl(it)
-                        },
-                        label = { Text(stringResource(R.string.settings_cloud_base_url)) },
-                        singleLine = true,
-                        colors = hermesFieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    var model by remember(settings.cloudModel) { mutableStateOf(settings.cloudModel) }
-                    OutlinedTextField(
-                        value = model,
-                        onValueChange = {
-                            model = it
-                            viewModel.setCloudModel(it)
-                        },
-                        label = { Text(stringResource(R.string.settings_cloud_model)) },
-                        singleLine = true,
-                        colors = hermesFieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    HorizontalDivider()
-
-                    // Specialist provider (simpler / specialised tasks). The router
-                    // sends lighter requests here. URL + key are optional — leave
-                    // blank to reuse the primary provider's endpoint and key.
-                    Text(
-                        "Specialist provider — specialised tasks",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                    var specialisedModel by remember(settings.auxModel) { mutableStateOf(settings.auxModel) }
-                    OutlinedTextField(
-                        value = specialisedModel,
-                        onValueChange = {
-                            specialisedModel = it
-                            viewModel.setAuxModel(it)
-                        },
-                        label = { Text(stringResource(R.string.settings_specialised_model)) },
-                        supportingText = { Text(stringResource(R.string.settings_specialised_model_hint)) },
-                        singleLine = true,
-                        colors = hermesFieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    var auxBaseUrl by remember(settings.auxBaseUrl) { mutableStateOf(settings.auxBaseUrl) }
-                    OutlinedTextField(
-                        value = auxBaseUrl,
-                        onValueChange = {
-                            auxBaseUrl = it
-                            viewModel.setAuxBaseUrl(it)
-                        },
-                        label = { Text("Specialist base URL (optional)") },
-                        supportingText = { Text("Leave blank to use the primary provider's endpoint.") },
-                        singleLine = true,
-                        colors = hermesFieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    var auxApiKey by remember(settings.auxApiKey) { mutableStateOf(settings.auxApiKey) }
-                    OutlinedTextField(
-                        value = auxApiKey,
-                        onValueChange = {
-                            auxApiKey = it
-                            viewModel.setAuxApiKey(it)
-                        },
-                        label = { Text("Specialist API key (optional)") },
-                        supportingText = { Text("Leave blank to use the primary provider's key.") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        colors = hermesFieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            // --- OTA Update ---
-            SectionHeader(text = "Updates")
-            UpdateSection(
-                state = updateState,
-                canInstall = viewModel.canInstallPackages(),
-                onCheck = viewModel::checkForUpdate,
-                onDownload = viewModel::downloadAndInstall,
-                onManagePermission = viewModel::promptInstallPermission,
-                onOpenUrl = { url ->
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    viewModel.dismissUpdateState()
-                },
-                onDismiss = viewModel::dismissUpdateState,
             )
 
             // --- Backup & Restore ---
@@ -398,6 +262,21 @@ fun SettingsScreen(
                 onDismiss = viewModel::dismissExportState,
             )
 
+            // --- OTA Update ---
+            SectionHeader(text = "Updates")
+            UpdateSection(
+                state = updateState,
+                canInstall = viewModel.canInstallPackages(),
+                onCheck = viewModel::checkForUpdate,
+                onDownload = viewModel::downloadAndInstall,
+                onManagePermission = viewModel::promptInstallPermission,
+                onOpenUrl = { url ->
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    viewModel.dismissUpdateState()
+                },
+                onDismiss = viewModel::dismissUpdateState,
+            )
+
             // --- Security ---
             SectionHeader(text = stringResource(R.string.settings_section_security))
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -421,11 +300,135 @@ fun SettingsScreen(
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     InfoRow(title = "Application", value = "Hermes Agent")
-                    InfoRow(title = stringResource(R.string.settings_app_version), value = BuildConfig.VERSION_NAME)
+                    InfoRow(
+                        title = stringResource(R.string.settings_app_version),
+                        value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                    )
                     InfoRow(title = "Build type", value = BuildConfig.BUILD_TYPE)
-                    InfoRow(title = "Phase", value = "4 (Polish & Launch)")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CloudSection(
+    settings: com.hermes.agent.data.settings.UserSettings,
+    viewModel: SettingsViewModel,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ToggleRow(
+                title = stringResource(R.string.settings_cloud_enabled),
+                subtitle = stringResource(R.string.settings_cloud_enabled_subtitle),
+                checked = settings.cloudEnabled,
+                onCheckedChange = viewModel::setCloudEnabled,
+            )
+            HorizontalDivider()
+
+            // Primary provider (complex / general tasks).
+            Text(
+                "Primary provider — general tasks",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            var apiKey by remember(settings.cloudApiKey) { mutableStateOf(settings.cloudApiKey) }
+            OutlinedTextField(
+                value = apiKey,
+                onValueChange = {
+                    apiKey = it
+                    viewModel.setCloudApiKey(it)
+                },
+                label = { Text(stringResource(R.string.settings_cloud_api_key)) },
+                supportingText = {
+                    Text(stringResource(R.string.settings_cloud_api_key_subtitle))
+                },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            var baseUrl by remember(settings.cloudBaseUrl) { mutableStateOf(settings.cloudBaseUrl) }
+            OutlinedTextField(
+                value = baseUrl,
+                onValueChange = {
+                    baseUrl = it
+                    viewModel.setCloudBaseUrl(it)
+                },
+                label = { Text(stringResource(R.string.settings_cloud_base_url)) },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            var model by remember(settings.cloudModel) { mutableStateOf(settings.cloudModel) }
+            OutlinedTextField(
+                value = model,
+                onValueChange = {
+                    model = it
+                    viewModel.setCloudModel(it)
+                },
+                label = { Text(stringResource(R.string.settings_cloud_model)) },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            HorizontalDivider()
+
+            // Specialist provider (simpler / specialised tasks). The router
+            // sends lighter requests here. URL + key are optional — leave
+            // blank to reuse the primary provider's endpoint and key.
+            Text(
+                "Specialist provider — specialised tasks",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            var specialisedModel by remember(settings.auxModel) { mutableStateOf(settings.auxModel) }
+            OutlinedTextField(
+                value = specialisedModel,
+                onValueChange = {
+                    specialisedModel = it
+                    viewModel.setAuxModel(it)
+                },
+                label = { Text(stringResource(R.string.settings_specialised_model)) },
+                supportingText = { Text(stringResource(R.string.settings_specialised_model_hint)) },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            var auxBaseUrl by remember(settings.auxBaseUrl) { mutableStateOf(settings.auxBaseUrl) }
+            OutlinedTextField(
+                value = auxBaseUrl,
+                onValueChange = {
+                    auxBaseUrl = it
+                    viewModel.setAuxBaseUrl(it)
+                },
+                label = { Text("Specialist base URL (optional)") },
+                supportingText = { Text("Leave blank to use the primary provider's endpoint.") },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            var auxApiKey by remember(settings.auxApiKey) { mutableStateOf(settings.auxApiKey) }
+            OutlinedTextField(
+                value = auxApiKey,
+                onValueChange = {
+                    auxApiKey = it
+                    viewModel.setAuxApiKey(it)
+                },
+                label = { Text("Specialist API key (optional)") },
+                supportingText = { Text("Leave blank to use the primary provider's key.") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -979,9 +982,10 @@ private fun BackupSection(
                 Text("GitHub Gist Backup", style = MaterialTheme.typography.bodyLarge)
             }
             Text(
-                "Backs up Cloud LLM settings, memories, skills and cron jobs to a " +
-                    "private GitHub Gist. To restore on a new install, paste the same " +
-                    "PAT and Gist ID below, then tap Restore.",
+                "Backs up Cloud LLM settings (including your API keys), memories, " +
+                    "skills and cron jobs to a private GitHub Gist — keep the PAT and " +
+                    "gist safe. To restore on a new install, paste the same PAT and " +
+                    "Gist ID below, then tap Restore.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
