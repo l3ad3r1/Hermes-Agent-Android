@@ -63,8 +63,10 @@ class GithubBackupService @Inject constructor(
         withContext(Dispatchers.IO) {
             if (pat.isBlank()) return@withContext BackupResult.Failure("GitHub PAT is not configured.")
 
-            // Serialize current state.
-            val memories = runCatching { memoryRepository.searchMemories("", limit = 1000) }
+            // Serialize current state. observeMemories reads ALL rows —
+            // searchMemories("") ranked by similarity to an empty-string
+            // embedding and could silently omit memories (audit M1).
+            val memories = runCatching { memoryRepository.observeMemories().first() }
                 .getOrDefault(emptyList())
                 .map { MemoryBackup(it.content, it.createdAt) }
 

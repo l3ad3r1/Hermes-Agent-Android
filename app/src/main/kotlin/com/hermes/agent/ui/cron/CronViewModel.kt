@@ -9,6 +9,7 @@ import com.hermes.agent.work.CronScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,8 +39,10 @@ class CronViewModel @Inject constructor(
     fun toggle(taskId: String) {
         viewModelScope.launch {
             cronRepository.toggle(taskId)
-            val task = tasks.value.find { it.id == taskId } ?: return@launch
-            val toggled = task.copy(isEnabled = !task.isEnabled)
+            // Read back from the repository, not the UI StateFlow — `tasks` is
+            // WhileSubscribed and may not have emitted yet, which would flip
+            // the DB row but silently leave the WorkManager job unchanged.
+            val toggled = cronRepository.observe().first().find { it.id == taskId } ?: return@launch
             if (toggled.isEnabled) cronScheduler.schedule(toggled) else cronScheduler.cancel(taskId)
         }
     }
