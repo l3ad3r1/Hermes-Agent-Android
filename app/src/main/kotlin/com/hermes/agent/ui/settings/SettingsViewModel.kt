@@ -173,6 +173,11 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setGithubPat(pat)
     }
 
+    /** Lets the user paste a Gist ID manually — needed to restore on a fresh install. */
+    fun setGistId(gistId: String) = viewModelScope.launch {
+        settingsRepository.setGistId(gistId.trim())
+    }
+
     fun backupNow() {
         if (_backupState.value is BackupUiState.InProgress) return
         _backupState.value = BackupUiState.InProgress
@@ -198,10 +203,13 @@ class SettingsViewModel @Inject constructor(
             val s = settings.value
             val result = githubBackupService.restore(s.githubPat, s.gistId)
             _backupState.value = when (result) {
-                is GithubBackupService.RestoreResult.Success ->
+                is GithubBackupService.RestoreResult.Success -> {
+                    val settingsMsg = if (result.settingsRestored) "settings, " else ""
                     BackupUiState.Success(
-                        "Restored ${result.memoriesImported} memories and ${result.skillsImported} skills."
+                        "Restored $settingsMsg${result.memoriesImported} memories, " +
+                            "${result.skillsImported} skills, ${result.cronsImported} cron jobs."
                     )
+                }
                 is GithubBackupService.RestoreResult.Failure ->
                     BackupUiState.Error(result.message)
             }

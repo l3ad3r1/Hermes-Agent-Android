@@ -342,6 +342,7 @@ fun SettingsScreen(
                 lastBackupTimestamp = settings.lastBackupTimestamp,
                 state = backupState,
                 onPatChange = viewModel::setGithubPat,
+                onGistIdChange = viewModel::setGistId,
                 onBackup = viewModel::backupNow,
                 onRestore = viewModel::restoreBackup,
                 onDismiss = viewModel::dismissBackupState,
@@ -802,6 +803,7 @@ private fun BackupSection(
     lastBackupTimestamp: Long,
     state: BackupUiState,
     onPatChange: (String) -> Unit,
+    onGistIdChange: (String) -> Unit,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
     onDismiss: () -> Unit,
@@ -821,7 +823,9 @@ private fun BackupSection(
                 Text("GitHub Gist Backup", style = MaterialTheme.typography.bodyLarge)
             }
             Text(
-                "Backs up memories and skills to a private GitHub Gist.",
+                "Backs up Cloud LLM settings, memories, skills and cron jobs to a " +
+                    "private GitHub Gist. To restore on a new install, paste the same " +
+                    "PAT and Gist ID below, then tap Restore.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -847,25 +851,42 @@ private fun BackupSection(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (gistId.isNotBlank()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            // Editable Gist ID — always shown so a fresh install can paste the ID
+            // of an existing backup and restore from it. Filled automatically after
+            // the first "Backup now".
+            var gist by remember(gistId) { mutableStateOf(gistId) }
+            OutlinedTextField(
+                value = gist,
+                onValueChange = {
+                    gist = it
+                    onGistIdChange(it)
+                },
+                label = { Text("Gist ID") },
+                supportingText = {
                     Text(
-                        "Gist: ${gistId.take(8)}…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        "Auto-filled after your first backup. On a new install, paste " +
+                            "the Gist ID from your previous device (the id in the gist URL)."
                     )
-                    Text(
-                        "Clear",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.clickable(onClick = onClearGistId).padding(4.dp),
-                    )
-                }
-            }
+                },
+                singleLine = true,
+                trailingIcon = {
+                    if (gist.isNotBlank()) {
+                        Text(
+                            "Clear",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .clickable {
+                                    gist = ""
+                                    onClearGistId()
+                                }
+                                .padding(horizontal = 12.dp),
+                        )
+                    }
+                },
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             if (lastBackupTimestamp > 0L) {
                 Text(

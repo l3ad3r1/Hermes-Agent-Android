@@ -1,9 +1,14 @@
 package com.hermes.agent.data.backup
 
 import com.hermes.agent.BuildConfig
+import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.model.ScheduledTask
+import com.hermes.agent.domain.repository.CronRepository
 import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.domain.repository.SkillRepository
+import com.hermes.agent.work.CronScheduler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -33,6 +38,9 @@ class GithubBackupService @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val memoryRepository: MemoryRepository,
     private val skillRepository: SkillRepository,
+    private val settingsRepository: SettingsRepository,
+    private val cronRepository: CronRepository,
+    private val cronScheduler: CronScheduler,
     private val json: Json,
 ) {
 
@@ -42,7 +50,12 @@ class GithubBackupService @Inject constructor(
     }
 
     sealed class RestoreResult {
-        data class Success(val memoriesImported: Int, val skillsImported: Int) : RestoreResult()
+        data class Success(
+            val memoriesImported: Int,
+            val skillsImported: Int,
+            val settingsRestored: Boolean,
+            val cronsImported: Int,
+        ) : RestoreResult()
         data class Failure(val message: String) : RestoreResult()
     }
 
@@ -62,10 +75,40 @@ class GithubBackupService @Inject constructor(
                         it.category, it.tags, it.version, it.isBuiltIn)
                 }
 
+            val s = runCatching { settingsRepository.current() }.getOrNull()
+            val settingsBackup = s?.let {
+                SettingsBackup(
+                    cloudEnabled = it.cloudEnabled,
+                    cloudApiKey = it.cloudApiKey,
+                    cloudBaseUrl = it.cloudBaseUrl,
+                    cloudModel = it.cloudModel,
+                    reasoningEffort = it.reasoningEffort,
+                    auxModel = it.auxModel,
+                    auxBaseUrl = it.auxBaseUrl,
+                    auxApiKey = it.auxApiKey,
+                    appTheme = it.appTheme,
+                )
+            }
+
+            val crons = runCatching { cronRepository.observe().first() }
+                .getOrDefault(emptyList())
+                .map {
+                    CronBackup(
+                        id = it.id,
+                        label = it.label,
+                        prompt = it.prompt,
+                        cronExpression = it.cronExpression,
+                        isEnabled = it.isEnabled,
+                        createdAt = it.createdAt,
+                    )
+                }
+
             val backupData = BackupData(
                 exportedAt = System.currentTimeMillis(),
                 memories = memories,
                 skills = skills,
+                settings = settingsBackup,
+                crons = crons,
             )
 
             val payload = buildGistPayload(json.encodeToString(backupData))
@@ -151,8 +194,50 @@ class GithubBackupService @Inject constructor(
                     .onFailure { Timber.tag("GithubBackup").w(it, "import skill ${s.name}") }
             }
 
-            Timber.tag("GithubBackup").i("restored $memoriesImported memories, $skillsImported skills")
-            RestoreResult.Success(memoriesImported, skillsImported)
+            // Restore Cloud LLM + app settings. PAT/Gist ID are intentionally not
+            // touched — they're the credentials being used for this restore.
+            var settingsRestored = false
+            backupData.settings?.let { sb ->
+                runCatching {
+                    settingsRepository.setCloudEnabled(sb.cloudEnabled)
+                    settingsRepository.setCloudApiKey(sb.cloudApiKey)
+                    if (sb.cloudBaseUrl.isNotBlank()) settingsRepository.setCloudBaseUrl(sb.cloudBaseUrl)
+                    if (sb.cloudModel.isNotBlank()) settingsRepository.setCloudModel(sb.cloudModel)
+                    if (sb.reasoningEffort.isNotBlank()) settingsRepository.setReasoningEffort(sb.reasoningEffort)
+                    if (sb.auxModel.isNotBlank()) settingsRepository.setAuxModel(sb.auxModel)
+                    settingsRepository.setAuxBaseUrl(sb.auxBaseUrl)
+                    settingsRepository.setAuxApiKey(sb.auxApiKey)
+                    if (sb.appTheme.isNotBlank()) settingsRepository.setAppTheme(sb.appTheme)
+                }
+                    .onSuccess { settingsRestored = true }
+                    .onFailure { Timber.tag("GithubBackup").w(it, "restore settings") }
+            }
+
+            // Restore cron jobs. add() upserts by id, so restoring twice is idempotent.
+            var cronsImported = 0
+            for (c in backupData.crons) {
+                runCatching {
+                    val task = ScheduledTask(
+                        id = c.id,
+                        label = c.label,
+                        prompt = c.prompt,
+                        cronExpression = c.cronExpression,
+                        isEnabled = c.isEnabled,
+                        createdAt = c.createdAt,
+                    )
+                    cronRepository.add(task)
+                    // Re-enqueue the WorkManager job so restored jobs actually fire.
+                    if (task.isEnabled) cronScheduler.schedule(task)
+                }
+                    .onSuccess { cronsImported++ }
+                    .onFailure { Timber.tag("GithubBackup").w(it, "import cron ${c.label}") }
+            }
+
+            Timber.tag("GithubBackup").i(
+                "restored $memoriesImported memories, $skillsImported skills, " +
+                    "settings=$settingsRestored, $cronsImported crons",
+            )
+            RestoreResult.Success(memoriesImported, skillsImported, settingsRestored, cronsImported)
         }
 
     private fun createGist(pat: String, body: okhttp3.RequestBody, ts: Long): BackupResult {
