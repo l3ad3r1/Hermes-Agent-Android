@@ -1,6 +1,15 @@
 # Hermes Agent — Progress
 
-## Latest (2026-07-08): UI polish — top bar & bottom nav
+## RELEASED: v0.8.1 (2026-07-08)
+- GitHub release **v0.8.1** published & marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.1
+- Signed `app-release.apk` (11.9 MB) attached. Signer SHA-256 `99255c31…6d6f` — **verified identical to v0.8.0**, so it installs as an update over existing builds.
+- Keystore: `hermes-release.jks` now lives at the **project root** (the `hermes.local.properties` path was stale, pointing at the empty `Hermes Merged App/` dir — fixed). Alias `hermes-release`.
+- ⚠️ Note discovered during release: **v0.8.0 was tagged with build.gradle still at versionName 0.7.29 / versionCode 50** (the bump was skipped). Fixed now → 0.8.1 / 51. The installed 0.8.0 build therefore reports itself as 0.7.29.
+- Contents: SlimTopBar + black-bar fix, Search tab + persistent search bar, backup/restore of Cloud LLM settings + cron jobs (+ fresh-install Gist ID field), and the in-app OTA installer.
+
+---
+
+## UI polish — top bar & bottom nav
 
 **Done (commits 7b0cf4a, a3c26c8, f5d3f85):**
 - Added `ui/components/SlimTopBar.kt` — compact 52dp top bar (vs Material3's fixed 64dp) that keeps the status-bar inset.
