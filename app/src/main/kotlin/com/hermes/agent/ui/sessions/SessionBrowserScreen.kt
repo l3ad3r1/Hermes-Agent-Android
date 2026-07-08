@@ -200,69 +200,6 @@ fun SessionBrowserScreen(
         }
     }
 }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNewSession,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.chat_new_conversation))
-            }
-        },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            when (val state = uiState) {
-                is SessionBrowserUiState.Loading -> {
-                    // Could add loading indicator here
-                }
-                is SessionBrowserUiState.Success -> {
-                    if (state.sessions.isEmpty()) {
-                        EmptyState(
-                            modifier = Modifier.fillMaxSize(),
-                            isSearching = isSearching,
-                        )
-                    } else {
-                        val lazyListState = rememberLazyListState()
-                        
-                        LaunchedEffect(state.sessions.size) {
-                            if (state.sessions.isNotEmpty()) {
-                                lazyListState.scrollToItem(0)
-                            }
-                        }
-                        
-                        LazyColumn(
-                            state = lazyListState,
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(16.dp),
-                        ) {
-                            items(state.sessions, key = { it.session.id }) { item ->
-                                SessionRow(
-                                    item = item,
-                                    onClick = { onOpenSession(item.session.id) },
-                                    onDelete = { viewModel.deleteSession(item.session.id) },
-                                )
-                            }
-                        }
-                    }
-                }
-                is SessionBrowserUiState.Error -> {
-                    Text(
-                        text = "Error: ${state.message}",
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun SessionRow(
