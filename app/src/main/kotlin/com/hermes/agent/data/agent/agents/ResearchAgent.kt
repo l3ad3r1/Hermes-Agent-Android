@@ -31,7 +31,8 @@ class ResearchAgent @Inject constructor() : Agent {
             "- memory: recall or store facts about the user\n" +
             "- calculator: do math on data you find\n" +
             "- search_conversations: search past chats for relevant context\n" +
-            "- skill_manager: load specialized research skills from the skills library\n" +
+            "- skill_manager: load specialized research skills, or create one " +
+            "(action='create') when the user asks to save a skill\n" +
             "- web_fetch: read the full contents of a specific URL\n" +
             "- delegate: run several research subtasks in parallel via isolated subagents\n" +
             "- todo / clarify: track multi-part research; ask one question if the request is ambiguous\n\n" +

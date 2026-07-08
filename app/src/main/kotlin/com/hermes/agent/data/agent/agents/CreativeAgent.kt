@@ -27,7 +27,8 @@ class CreativeAgent @Inject constructor() : Agent {
             "and content generation.\n\n" +
             "Your capabilities:\n" +
             "- memory: recall personal context about the user for personalized writing\n" +
-            "- skill_manager: load specialized writing or creative skills\n" +
+            "- skill_manager: load specialized writing or creative skills, or create one " +
+            "(action='create') when the user asks to save a skill\n" +
             "- search_conversations: look up past chats for context\n" +
             "- generate_image: create an image from a text prompt and return its URL — use this " +
             "whenever the user asks you to draw, illustrate, design, or imagine a picture\n" +

@@ -21,8 +21,11 @@ import javax.inject.Singleton
  *
  * Mirrors the `skills_list` + `skill_view` tools from NousResearch/hermes-agent
  * using progressive disclosure:
- *   action="list"  → metadata only (name, description, version, category, tags)
- *   action="view"  → full SKILL.md content for a named skill
+ *   action="list"   → metadata only (name, description, version, category, tags)
+ *   action="view"   → full SKILL.md content for a named skill
+ *   action="create" → save a new user skill on request (SkillGuard-vetted,
+ *                     agentskills.io frontmatter; existing names are never
+ *                     overwritten — evolution owns updates)
  *
  * v0.7.23 additions ported from upstream:
  *   - Conditional activation ([SkillActivation]): skills gated by
@@ -43,20 +46,49 @@ class SkillManagerTool @Inject constructor(
 
     override val descriptor = ToolDescriptor(
         name = "skill_manager",
-        description = "Browse and load Hermes skills (reusable instruction sets). " +
+        description = "Browse, load, and create Hermes skills (reusable instruction sets). " +
             "Use action='list' to see available skills (name + description only, token-efficient). " +
-            "Use action='view' with a skill name to load the full instructions for that skill.",
+            "Use action='view' with a skill name to load the full instructions for that skill. " +
+            "Use action='create' when the user asks you to create/save a new skill — provide " +
+            "name, description, and content (the markdown instructions the skill should follow).",
         parameters = listOf(
             ToolParameter(
                 name = "action",
                 type = ToolParameterType.STRING,
-                description = "'list' to show all available skills, 'view' to load one skill's full content.",
-                enumValues = listOf("list", "view"),
+                description = "'list' to show all skills, 'view' to load one skill's full content, " +
+                    "'create' to save a new skill.",
+                enumValues = listOf("list", "view", "create"),
             ),
             ToolParameter(
                 name = "name",
                 type = ToolParameterType.STRING,
-                description = "Skill name (required when action='view').",
+                description = "Skill name (required for action='view' and action='create').",
+                required = false,
+            ),
+            ToolParameter(
+                name = "description",
+                type = ToolParameterType.STRING,
+                description = "One-sentence summary of what the skill does (required for action='create').",
+                required = false,
+            ),
+            ToolParameter(
+                name = "content",
+                type = ToolParameterType.STRING,
+                description = "Markdown instruction body for the skill: purpose, steps, example trigger " +
+                    "(required for action='create').",
+                required = false,
+            ),
+            ToolParameter(
+                name = "category",
+                type = ToolParameterType.STRING,
+                description = "Optional category: research, productivity, automation, devops, " +
+                    "software-development, or general (default).",
+                required = false,
+            ),
+            ToolParameter(
+                name = "tags",
+                type = ToolParameterType.STRING,
+                description = "Optional comma-separated tags, e.g. 'git,explainer'.",
                 required = false,
             ),
         ),
@@ -130,7 +162,82 @@ class SkillManagerTool @Inject constructor(
                 ToolResult.ok(output.trim(), System.currentTimeMillis() - start)
             }
 
-            else -> ToolResult.error("Unknown action '$action'. Use 'list' or 'view'.")
+            "create" -> {
+                val rawName = (arguments["name"] as? JsonPrimitive)?.contentOrNull
+                    ?: return ToolResult.error("action='create' requires parameter: name")
+                val description = (arguments["description"] as? JsonPrimitive)?.contentOrNull?.take(200)
+                    ?: return ToolResult.error("action='create' requires parameter: description")
+                val body = (arguments["content"] as? JsonPrimitive)?.contentOrNull?.trim()
+                    ?: return ToolResult.error("action='create' requires parameter: content")
+
+                val name = rawName.lowercase()
+                    .replace(Regex("[^a-z0-9]+"), "-")
+                    .trim('-')
+                    .take(50)
+                if (name.isBlank()) return ToolResult.error("Skill name must contain letters or digits.")
+                if (body.length < 50) {
+                    return ToolResult.error(
+                        "Skill content is too short — write real instructions (purpose, steps, example trigger).",
+                    )
+                }
+                skillRepository.getByName(name)?.let {
+                    return ToolResult.error(
+                        "A skill named '$name' already exists. View it with action='view' or pick a different name.",
+                    )
+                }
+
+                val category = (arguments["category"] as? JsonPrimitive)?.contentOrNull
+                    ?.lowercase()?.takeIf { it in VALID_CATEGORIES } ?: "general"
+                val tags = (arguments["tags"] as? JsonPrimitive)?.contentOrNull
+                    ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+
+                // Full agentskills.io-compatible document (same shape as
+                // AutonomousSkillCreator writes).
+                val content = buildString {
+                    appendLine("---")
+                    appendLine("name: $name")
+                    appendLine("description: $description")
+                    appendLine("version: 1.0.0")
+                    appendLine("category: $category")
+                    appendLine("tags: [${tags.joinToString(", ")}]")
+                    appendLine("author: user")
+                    appendLine("---")
+                    appendLine()
+                    appendLine(body)
+                }
+
+                // Skills Guard: never persist content carrying injection/
+                // exfiltration/destructive instructions.
+                val guard = com.hermes.agent.domain.skill.SkillGuard.vet(content)
+                if (!guard.ok) {
+                    return ToolResult.error(
+                        "Skill rejected by Skills Guard (${guard.flags.joinToString()}). " +
+                            "Rewrite the content without those instructions.",
+                    )
+                }
+
+                skillRepository.upsert(
+                    name = name,
+                    description = description,
+                    content = content,
+                    category = category,
+                    tags = tags,
+                    version = "1.0.0",
+                )
+                ToolResult.ok(
+                    "Created skill '$name' (v1.0.0, $category). It will auto-load on matching " +
+                        "requests and can be viewed with skill_manager(action='view', name='$name').",
+                    System.currentTimeMillis() - start,
+                )
+            }
+
+            else -> ToolResult.error("Unknown action '$action'. Use 'list', 'view', or 'create'.")
         }
+    }
+
+    private companion object {
+        val VALID_CATEGORIES = setOf(
+            "research", "productivity", "automation", "devops", "general", "software-development",
+        )
     }
 }

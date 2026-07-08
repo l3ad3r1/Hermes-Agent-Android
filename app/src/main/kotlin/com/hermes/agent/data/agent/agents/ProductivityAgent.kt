@@ -29,6 +29,8 @@ class ProductivityAgent @Inject constructor() : Agent {
             "use this when the user says 'every day', 'every week', 'remind me every morning', etc.\n" +
             "- memory: store user preferences and context between sessions\n" +
             "- notes: quick text storage\n" +
+            "- skill_manager: browse, load, or create reusable skills " +
+            "(action='create' with name, description, content when the user asks to save one)\n" +
             "- calculator: arithmetic\n" +
             "- todo: maintain a task list to break down and track multi-step work\n" +
             "- clarify: ask the user a short question (with optional choices) when a request is ambiguous\n" +

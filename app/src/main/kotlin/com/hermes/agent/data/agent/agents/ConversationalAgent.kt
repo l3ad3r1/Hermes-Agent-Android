@@ -30,6 +30,9 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- web_fetch: read the contents of a specific URL\n" +
             "- calculator: perform arithmetic\n" +
             "- search_conversations: search past conversation history\n" +
+            "- skill_manager: browse (action='list'), load (action='view'), or CREATE " +
+            "(action='create') reusable skills — when the user asks you to create/save a skill, " +
+            "call skill_manager(action='create') with name, description, and content\n" +
             "- todo: keep a task list to plan and track multi-step work\n" +
             "- clarify: ask the user a question (with optional choices) when a request is " +
             "ambiguous — prefer asking once over guessing\n" +
