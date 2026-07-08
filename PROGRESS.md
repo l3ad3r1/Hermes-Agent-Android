@@ -19,9 +19,15 @@
 - Extracted `work/CronScheduler.kt` (shared by CronViewModel + restore) so restored enabled crons are re-enqueued with WorkManager instead of sitting idle.
 - All verified: `./gradlew :app:compileDebugKotlin` → BUILD SUCCESSFUL.
 
+**In-app OTA updater (commit 86d24bf):**
+- OTA updater no longer opens the browser. `OtaUpdateChecker` now extracts the `.apk` asset URL from the release JSON; new `OtaInstaller` streams the APK to app-specific external storage (with progress) and launches the system installer via `FileProvider`.
+- Settings → Updates: "Download & install" + live progress bar; "Allow installs" shortcut for the Android 8+ install-unknown-apps permission; browser fallback only when a release has no APK asset.
+- Manifest: `REQUEST_INSTALL_PACKAGES` + `FileProvider` (`res/xml/file_paths.xml`). Update notification opens the app instead of a browser.
+
 **Next steps / not yet done:**
-- None of this is visually verified on a device/emulator — compile-only. Worth a run to confirm: black strip gone, top-bar height, search bar behaviour, and a real fresh-install backup→restore round-trip.
+- None of this is visually verified on a device/emulator — compile-only. Worth a run to confirm: black strip gone, top-bar height, search bar behaviour, a real fresh-install backup→restore round-trip, and an actual OTA download→install (needs a release that has an .apk asset attached).
 - Note: Cloud LLM API keys are now stored inside the (private) gist — acceptable per request, but worth a heads-up in release notes.
+- OTA install requires releases to attach the `.apk` as an asset (the release rule already does this).
 
 ---
 
