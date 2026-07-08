@@ -1,6 +1,13 @@
 # Hermes Agent — Progress
 
-## Self-evolution integration (2026-07-08, unreleased)
+## RELEASED: v0.8.3 (2026-07-08)
+- GitHub release **v0.8.3** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.3 (versionCode 53). Signer verified identical to 0.8.0–0.8.2.
+- Ships the self-evolution integration below, plus: the weekly `SkillImprovementWorker` now **prefers trace-grounded refinement** (via `ReflectiveSkillRefiner`) and only falls back to the blind text-only rewrite when a skill has no relevant usage traces.
+- Compile + unit-tested; **not device-verified** (refiner LLM behavior + trace collection need a live key and usage history to exercise).
+
+---
+
+## Self-evolution integration (shipped in v0.8.3)
 Adapting NousResearch/hermes-agent-self-evolution (Python DSPy+GEPA offline tool) to the Android app.
 
 **1. Session export adapter** (`data/export/SessionExporter.kt`): dumps on-device conversations as `{id}.json` (`{session_id, title, messages:[{role,content}]}`) matching the tool's `HermesSessionImporter` (`~/.hermes/sessions/`), zipped + shared from Settings → Self-Evolution. Unzip on desktop → run evolver `--eval-source sessiondb` to mine real device traces. FileProvider path `session-export/` added.
