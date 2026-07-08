@@ -33,8 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.R
 import com.hermes.agent.data.local.entity.SessionWithMessageCount
+import com.hermes.agent.ui.components.SlimTopBar
 import java.text.DateFormat
 import java.util.Date
 
@@ -77,10 +76,9 @@ fun SessionBrowserScreen(
     val listState = rememberLazyListState()
     
     Scaffold(
-        // Tighter, flatter top bar design
         topBar = {
-            TopAppBar(
-                title = {
+            SlimTopBar(
+                titleContent = {
                     if (isSearching) {
                         OutlinedTextField(
                             value = searchQuery,
@@ -88,7 +86,7 @@ fun SessionBrowserScreen(
                                 searchQuery = query
                                 viewModel.searchSessions(query)
                             },
-                            modifier = Modifier.fillMaxWidth().padding(4.dp), // Added small padding for better touch target feel
+                            modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Search sessions (by phrase or keyword)...") },
                             singleLine = true,
                             leadingIcon = {
@@ -116,7 +114,10 @@ fun SessionBrowserScreen(
                             },
                         )
                     } else {
-                        Text("Sessions")
+                        Text(
+                            text = "Sessions",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
                     }
                 },
                 actions = {
@@ -129,12 +130,6 @@ fun SessionBrowserScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface, // Keeping default surface color for modern look
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-                // Using a modifier to slightly reduce the effective height without changing core composable properties:
-                modifier = Modifier.padding(top = 4.dp) 
             )
         },
         floatingActionButton = {
@@ -149,8 +144,6 @@ fun SessionBrowserScreen(
     ) { innerPadding ->
         Box(
             modifier = Modifier
-                // Applied the standard inner padding here. The "black bar" issue is corrected by ensuring all scrollable content respects 
-                // this padding, which leaves space above where the system keyboard might pop up.
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {

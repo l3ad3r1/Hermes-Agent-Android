@@ -4,12 +4,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Stars
 import androidx.compose.material.icons.outlined.ViewColumn
@@ -21,7 +21,7 @@ enum class TopLevelDestination(
     val icon: ImageVector,
 ) {
     HOME(         route = "home",                 label = "Home",       icon = Icons.Outlined.Home),
-    CONVERSATIONS(route = "conversations",         label = "Chats",      icon = Icons.Outlined.Forum),
+    CONVERSATIONS(route = "conversations",         label = "Search",     icon = Icons.Outlined.Search),
     CHAT(         route = "chat/{conversationId}", label = "Chat",       icon = Icons.Outlined.Chat),
     DOCUMENTS(    route = "documents",             label = "Artifacts",      icon = Icons.Outlined.Description),
     SKILLS(       route = "skills",               label = "Skills & Tools", icon = Icons.Outlined.Stars),
