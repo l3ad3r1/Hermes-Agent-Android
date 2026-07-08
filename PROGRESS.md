@@ -1,5 +1,14 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.8.9 (2026-07-09)
+- GitHub release **v0.8.9** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.9 (versionCode 59). Signer verified. **Closes out ALL findings in docs/CODE-AUDIT-2026-07-08.md.**
+- **Audit L1–L5**: LIKE wildcard escaping (`util/SqlLike` + ESCAPE in MessageDao/MemoryDao); flagged skills accrue no usage signal; blind weekly rewrite gated by SkillConstraints; backup card discloses API keys in gist; update notification deep-links to Settings via `OtaUpdateWorker.EXTRA_OPEN_UPDATES` → `HermesNavGraph(startAtSettings)`.
+- **Terminal (Termux) detection fixed**: probe was skipped without RUN_COMMAND permission and inconclusive results clobbered the persisted "installed" flag. Now tri-state (OK/NO/inconclusive-keeps-prior), status row with Check action (requests permission), install button hides once verified.
+- **Settings reorganized**: Cloud LLM → Chat → Appearance → Features → API server → Remote shell → Backup → Self-Evolution → Updates → Security → About. Cloud extracted to `CloudSection`; SlimTopBar; stale "Phase 4" About row removed (now shows versionCode). All controls verified wired.
+- Compile + full unit suite green; not device-verified.
+
+---
+
 ## RELEASED: v0.8.8 (2026-07-08)
 - GitHub release **v0.8.8** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.8 (versionCode 58). Signer verified.
 - **Audit M2 fixed**: new `work/CronTiming.kt` parses simple `M H * * DOW` crons → period (hourly/daily/weekly) + `setInitialDelay` to the next real fire time + runtime weekday gate in `ScheduledTaskWorker` (24h period can't express "weekdays only"). Morning/evening presets no longer identical. Unparseable exprs fall back to old behavior. 9 unit tests.
