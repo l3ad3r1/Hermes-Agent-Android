@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.hermes.agent.data.evolution.EvolutionNotifier
 import com.hermes.agent.data.evolution.ReflectiveSkillRefiner
 import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.data.llm.LlmMessage
@@ -53,6 +54,7 @@ class SkillImprovementWorker @AssistedInject constructor(
     private val skillRepository: SkillRepository,
     private val llmProvider: CloudLlmProvider,
     private val refiner: ReflectiveSkillRefiner,
+    private val notifier: EvolutionNotifier,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -74,7 +76,7 @@ class SkillImprovementWorker @AssistedInject constructor(
         }
 
         // Phase 2: LLM improvement — evolution effort goes where usage is.
-        var improved = 0
+        val improvedNames = mutableListOf<String>()
         try {
             val skills = skillRepository.getAll()
                 .filter { !it.isBuiltIn && it.lifecycleState == SkillLifecycle.ACTIVE }
@@ -91,7 +93,7 @@ class SkillImprovementWorker @AssistedInject constructor(
                         is ReflectiveSkillRefiner.Outcome.Ready -> {
                             if (outcome.proposal.constraintsPass) {
                                 refiner.apply(outcome.proposal)
-                                improved++
+                                improvedNames += skill.name
                                 Timber.tag("SkillImprove").i("trace-refined skill: ${skill.name}")
                             } else {
                                 Timber.tag("SkillImprove").d("trace refinement of '${skill.name}' failed gates")
@@ -125,7 +127,7 @@ class SkillImprovementWorker @AssistedInject constructor(
                             requiresTools = skill.requiresTools,
                             fallbackForTools = skill.fallbackForTools,
                         )
-                        improved++
+                        improvedNames += skill.name
                         Timber.tag("SkillImprove").i("improved skill: ${skill.name}")
                     }
                 } catch (e: Exception) {
@@ -136,7 +138,12 @@ class SkillImprovementWorker @AssistedInject constructor(
             Timber.tag("SkillImprove").w(t, "improvement pass failed")
         }
 
-        Timber.tag("SkillImprove").i("done — improved $improved skills")
+        // Self-modification is never invisible: summarize what changed.
+        if (improvedNames.isNotEmpty()) {
+            runCatching { notifier.notifySkillsImproved(improvedNames) }
+        }
+
+        Timber.tag("SkillImprove").i("done — improved ${improvedNames.size} skills")
         return Result.success()
     }
 

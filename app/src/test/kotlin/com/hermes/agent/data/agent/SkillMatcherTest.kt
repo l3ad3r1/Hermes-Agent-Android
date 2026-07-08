@@ -39,7 +39,7 @@ class SkillMatcherTest {
         every { registry.descriptors() } returns tools.map {
             ToolDescriptor(name = it, description = "", parameters = emptyList())
         }
-        return SkillMatcher(repo, registry)
+        return SkillMatcher(repo, registry, mockk(relaxed = true))
     }
 
     @Test

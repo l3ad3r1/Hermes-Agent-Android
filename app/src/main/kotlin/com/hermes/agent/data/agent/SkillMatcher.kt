@@ -1,5 +1,6 @@
 package com.hermes.agent.data.agent
 
+import com.hermes.agent.data.evolution.SkillRefineScheduler
 import com.hermes.agent.domain.model.Skill
 import com.hermes.agent.domain.repository.SkillRepository
 import com.hermes.agent.domain.skill.SkillActivation
@@ -38,6 +39,7 @@ import javax.inject.Singleton
 class SkillMatcher @Inject constructor(
     private val skillRepository: SkillRepository,
     private val toolRegistry: ToolRegistry,
+    private val refineScheduler: SkillRefineScheduler,
 ) {
 
     /** Returns the best-matching usable skill for [prompt], or null. */
@@ -66,6 +68,8 @@ class SkillMatcher @Inject constructor(
             skill.name, s.total, s.distinctHits, prompt.take(60),
         )
         runCatching { skillRepository.recordUse(skill.name) }
+        // Event-driven evolution: every Nth use schedules a trace-grounded refinement.
+        runCatching { refineScheduler.onSkillUsed(skill.name) }
         return skill
     }
 

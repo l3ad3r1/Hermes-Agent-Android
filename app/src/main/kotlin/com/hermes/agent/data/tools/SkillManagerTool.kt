@@ -1,5 +1,6 @@
 package com.hermes.agent.data.tools
 
+import com.hermes.agent.data.evolution.SkillRefineScheduler
 import com.hermes.agent.domain.model.SkillLifecycle
 import com.hermes.agent.domain.repository.SkillRepository
 import com.hermes.agent.domain.skill.SkillActivation
@@ -37,6 +38,7 @@ class SkillManagerTool @Inject constructor(
     // ToolRegistry at startup (ToolsModule); the registry is only dereferenced
     // at execute() time, long after wiring completes.
     private val toolRegistry: dagger.Lazy<ToolRegistry>,
+    private val refineScheduler: SkillRefineScheduler,
 ) : Tool {
 
     override val descriptor = ToolDescriptor(
@@ -108,6 +110,8 @@ class SkillManagerTool @Inject constructor(
                 // Curator signal: loading a skill counts as using it and
                 // revives STALE/ARCHIVED skills.
                 runCatching { skillRepository.recordUse(name) }
+                // Event-driven evolution: every Nth use schedules a trace-grounded refinement.
+                runCatching { refineScheduler.onSkillUsed(name) }
                 val verdict = com.hermes.agent.domain.skill.SkillGuard.vet(skill.content)
                 val output = buildString {
                     if (!verdict.ok) {
