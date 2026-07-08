@@ -1,5 +1,14 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.8.5 (2026-07-08)
+- GitHub release **v0.8.5** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.5 (versionCode 55). Signer verified.
+- **Smoke-test finding fixed**: user asked Hermes to create a "Git Explainer" skill → agent said "I don't have the capability" — correctly, because `skill_manager` only had `list`/`view` and no agent prompt mentioned skills.
+- Added `skill_manager` **action='create'** (name/description/content/category/tags): kebab-cased name, agentskills.io frontmatter, SkillGuard-vetted, never overwrites existing. All four agent prompts updated to advertise it (register+grant+prompt rule). Subagents still blocked from skill_manager via DelegateTool.
+- Unit tests: `SkillManagerToolTest` (create/normalize/no-overwrite/stub-rejection). Full suite green.
+- **User retest pending** on device: create the skill, then check auto-load in a fresh chat.
+
+---
+
 ## RELEASED: v0.8.4 (2026-07-08)
 - GitHub release **v0.8.4** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.4 (versionCode 54). Signer verified identical to prior releases.
 - **Event-driven refinement**: `SkillRefineScheduler` (hooked after both `recordUse` call sites — SkillMatcher auto-load + skill_manager view) enqueues one-off `SkillRefineWorker` every **5th use** of a user skill (network-constrained, `KEEP` policy dedupes). Skill evolution now: create → use → auto-refine every 5 uses + weekly pass → notify.
