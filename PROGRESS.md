@@ -1,5 +1,14 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.8.8 (2026-07-08)
+- GitHub release **v0.8.8** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.8 (versionCode 58). Signer verified.
+- **Audit M2 fixed**: new `work/CronTiming.kt` parses simple `M H * * DOW` crons → period (hourly/daily/weekly) + `setInitialDelay` to the next real fire time + runtime weekday gate in `ScheduledTaskWorker` (24h period can't express "weekdays only"). Morning/evening presets no longer identical. Unparseable exprs fall back to old behavior. 9 unit tests.
+- **Bonus bug fixed**: `ScheduledTaskWorker.extractText()` was a placeholder returning null — every cron run recorded "Task completed." instead of the model's reply. Now consumes `ChatStreamEvent` (Complete/Token/Error) properly.
+- Note: existing jobs keep old timing until toggled off/on (re-schedule).
+- **v0.8.7 notify path DEVICE-VERIFIED** by user (test message reached the channel). Audit remaining: L1–L5 only.
+
+---
+
 ## RELEASED: v0.8.7 (2026-07-08)
 - GitHub release **v0.8.7** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.7 (versionCode 57). Signer verified.
 - Fixes from **docs/CODE-AUDIT-2026-07-08.md** (audit for the smoke-test bug class):
