@@ -5,7 +5,7 @@
 - **Smoke test round 2 finding fixed**: the created git-explainer skill never auto-loaded for "explain git rebase" — SkillMatcher required exact token equality (explain ≠ explainer ≠ explains → only 'git' hit, 3.0 < MIN_SCORE 5.0, 1 < 2 distinct hits). Reply came from the plain model.
 - SkillMatcher: light suffix stemming (ers/ing/ion/es/ed/er/s) + stem-prefix matching. renderSkillBlock now demands EXACT compliance with declared output-format constraints. skill_manager create asks for an `## Example Trigger` section (2× weight).
 - Regression tests: exact smoke-test scenario + no-false-match guard. Full suite green.
-- **User retest pending**: new chat → "explain git rebase" should auto-load git-explainer and answer in exactly two sentences.
+- ✅ **DEVICE-VERIFIED (2026-07-08)**: user retested on device — "explain git rebase" in a new chat auto-loaded git-explainer and answered in exactly two sentences with an analogy. Full skills chain confirmed working end-to-end: create via chat (v0.8.5) → auto-load with morphology matching → format constraint obeyed (v0.8.6).
 
 ---
 
@@ -14,7 +14,7 @@
 - **Smoke-test finding fixed**: user asked Hermes to create a "Git Explainer" skill → agent said "I don't have the capability" — correctly, because `skill_manager` only had `list`/`view` and no agent prompt mentioned skills.
 - Added `skill_manager` **action='create'** (name/description/content/category/tags): kebab-cased name, agentskills.io frontmatter, SkillGuard-vetted, never overwrites existing. All four agent prompts updated to advertise it (register+grant+prompt rule). Subagents still blocked from skill_manager via DelegateTool.
 - Unit tests: `SkillManagerToolTest` (create/normalize/no-overwrite/stub-rejection). Full suite green.
-- **User retest pending** on device: create the skill, then check auto-load in a fresh chat.
+- ✅ Device-verified: skill creation worked on retest; auto-load needed the v0.8.6 matcher fix.
 
 ---
 
