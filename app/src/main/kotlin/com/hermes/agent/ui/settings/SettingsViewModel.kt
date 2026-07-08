@@ -7,9 +7,11 @@ import com.hermes.agent.data.security.KeystoreManager
 import com.hermes.agent.data.security.KnoxSecurityManager
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.data.export.SessionExporter
 import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +42,14 @@ sealed class BackupUiState {
     data class Error(val message: String) : BackupUiState()
 }
 
+sealed class ExportUiState {
+    object Idle : ExportUiState()
+    object InProgress : ExportUiState()
+    /** Export finished; [zipFile] is ready to share. */
+    data class Ready(val zipFile: File, val sessionCount: Int, val messageCount: Int) : ExportUiState()
+    data class Error(val message: String) : ExportUiState()
+}
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
@@ -48,6 +58,7 @@ class SettingsViewModel @Inject constructor(
     private val otaUpdateChecker: OtaUpdateChecker,
     private val otaInstaller: OtaInstaller,
     private val githubBackupService: GithubBackupService,
+    private val sessionExporter: SessionExporter,
 ) : ViewModel() {
 
     val settings: StateFlow<UserSettings> = settingsRepository.observe()
@@ -62,6 +73,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _backupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
     val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
+
+    private val _exportState = MutableStateFlow<ExportUiState>(ExportUiState.Idle)
+    val exportState: StateFlow<ExportUiState> = _exportState.asStateFlow()
 
     val isKnoxAvailable: Boolean get() = knox.isKnoxAvailable
 
@@ -261,5 +275,29 @@ class SettingsViewModel @Inject constructor(
 
     fun dismissBackupState() {
         _backupState.value = BackupUiState.Idle
+    }
+
+    // --- Session export (for offline self-evolution) ---
+
+    fun exportSessions() {
+        if (_exportState.value is ExportUiState.InProgress) return
+        _exportState.value = ExportUiState.InProgress
+        viewModelScope.launch {
+            val result = runCatching { sessionExporter.exportAll() }
+            _exportState.value = result.fold(
+                onSuccess = {
+                    if (it.sessionCount == 0) {
+                        ExportUiState.Error("No conversations to export yet.")
+                    } else {
+                        ExportUiState.Ready(it.zipFile, it.sessionCount, it.messageCount)
+                    }
+                },
+                onFailure = { ExportUiState.Error(it.message ?: "Export failed") },
+            )
+        }
+    }
+
+    fun dismissExportState() {
+        _exportState.value = ExportUiState.Idle
     }
 }

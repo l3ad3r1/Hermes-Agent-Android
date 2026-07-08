@@ -2,4 +2,6 @@
 <paths>
     <!-- App-specific external files dir where the OTA updater stages the APK. -->
     <external-files-path name="updates" path="updates/" />
+    <!-- Session export archive for the offline self-evolution tool. -->
+    <external-files-path name="session-export" path="session-export/" />
 </paths>
