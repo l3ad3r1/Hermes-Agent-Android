@@ -522,20 +522,39 @@ private fun TerminalPanel() {
     // null = not yet known. Seed from the persisted flag for an immediate correct
     // UI, then re-verify by probing Termux for the `hermes` CLI in the background.
     var hermesInstalled by remember { mutableStateOf<Boolean?>(null) }
+    var probing by remember { mutableStateOf(false) }
+
+    // Tri-state probe: only a definitive answer updates state + the persisted
+    // flag. A timeout / plugin error / missing permission is INCONCLUSIVE and
+    // must not clobber a previous "installed" verdict (that's why the install
+    // button used to reappear even after a successful install).
+    suspend fun probeHermes() {
+        if (probing || !runner.isTermuxInstalled()) return
+        probing = true
+        val result = runner.run(
+            "command -v hermes >/dev/null 2>&1 && echo __HERMES_OK__ || echo __HERMES_NO__",
+            timeoutMs = 20_000,
+        )
+        when {
+            result.contains("__HERMES_OK__") -> {
+                hermesInstalled = true
+                settings.setTermuxHermesInstalled(true)
+            }
+            result.contains("__HERMES_NO__") -> {
+                hermesInstalled = false
+                settings.setTermuxHermesInstalled(false)
+            }
+            else -> Unit // inconclusive — keep the previous verdict
+        }
+        probing = false
+    }
+
     LaunchedEffect(Unit) {
         hermesInstalled = settings.current().termuxHermesInstalled
         val permGranted = androidx.core.content.ContextCompat.checkSelfPermission(
             context, runner.runCommandPermission,
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (runner.isTermuxInstalled() && permGranted) {
-            val result = runner.run(
-                "command -v hermes >/dev/null 2>&1 && echo __HERMES_OK__ || echo __HERMES_NO__",
-                timeoutMs = 20_000,
-            )
-            val detected = result.contains("__HERMES_OK__")
-            hermesInstalled = detected
-            settings.setTermuxHermesInstalled(detected)
-        }
+        if (permGranted) probeHermes()
     }
     fun toast(msg: String) =
         android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
@@ -544,6 +563,8 @@ private fun TerminalPanel() {
         runner.launchSession(command)?.let { toast(it) }
     }
 
+    // Pending action while the RUN_COMMAND permission dialog is up:
+    // a command to launch, or "" meaning re-run the install probe.
     var pendingCommand by remember { mutableStateOf<String?>(null) }
     val permLauncher = rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
@@ -552,8 +573,25 @@ private fun TerminalPanel() {
         pendingCommand = null
         when {
             cmd == null -> Unit
-            granted -> doLaunch(cmd)
-            else -> toast("Termux permission denied. Grant \"Run commands in Termux\" to continue.")
+            !granted -> toast("Termux permission denied. Grant \"Run commands in Termux\" to continue.")
+            cmd.isEmpty() -> scope.launch { probeHermes() }
+            else -> doLaunch(cmd)
+        }
+    }
+
+    fun checkInstallation() {
+        if (!runner.isTermuxInstalled()) {
+            toast("Termux not found. Install Termux from F-Droid (not the Play Store build).")
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, runner.runCommandPermission,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            scope.launch { probeHermes() }
+        } else {
+            pendingCommand = "" // sentinel: probe after grant
+            permLauncher.launch(runner.runCommandPermission)
         }
     }
 
@@ -609,9 +647,37 @@ private fun TerminalPanel() {
             style = MaterialTheme.typography.bodyMedium,
             color = scheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(16.dp))
-        // The installer button disappears once the Hermes CLI is detected in
-        // Termux (or was on a previous visit).
+        Spacer(Modifier.height(12.dp))
+        // Installation status: verified by probing Termux for the hermes CLI.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val (statusText, statusColor) = when {
+                probing -> "Hermes CLI: checking…" to scheme.onSurfaceVariant
+                hermesInstalled == true -> "Hermes CLI: installed ✓" to scheme.tertiary
+                hermesInstalled == false -> "Hermes CLI: not installed" to scheme.onSurfaceVariant
+                else -> "Hermes CLI: unknown" to scheme.onSurfaceVariant
+            }
+            Text(
+                statusText,
+                fontFamily = GeistMono,
+                fontSize = 12.sp,
+                color = statusColor,
+            )
+            Spacer(Modifier.weight(1f))
+            if (!probing) {
+                Text(
+                    "Check",
+                    fontFamily = GeistMono,
+                    fontSize = 12.sp,
+                    color = scheme.primary,
+                    modifier = Modifier
+                        .clickable { checkInstallation() }
+                        .padding(4.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        // The installer button disappears once the Hermes CLI is verified
+        // installed; a "Reinstall" affordance remains at the bottom.
         if (hermesInstalled != true) {
             androidx.compose.material3.Button(
                 onClick = { installHermes() },
