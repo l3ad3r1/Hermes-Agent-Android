@@ -1,5 +1,13 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.8.2 (2026-07-08)
+- GitHub release **v0.8.2** published & marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.2 (versionCode 52). Signer verified identical to 0.8.0/0.8.1.
+- **Fix: chat crash `FOREIGN KEY constraint failed (787)`** — new-chat navigated to `chat/{uuid}` with a client id but never created the ConversationEntity, so the first `addMessage` failed the message→conversation FK. Added `ConversationRepository.ensureConversation(id)` (insert-if-absent), called before the first message in both send paths. Regression tests added.
+- **Fix: top-bar gap + bottom black bar (the real cause).** Nested-Scaffold **double window-insets** — outer nav Scaffold padded by system bars, inner screen Scaffolds padded again. Fixed with `consumeWindowInsets(innerPadding)` on the NavHost. (0.8.1's SlimTopBar change was the wrong layer — that's why the user still saw it.)
+- ⚠️ Released on user instruction without their on-device confirmation of the visual fix (a debug APK was provided but not verified back). If the bars still look off, the next thing to check is per-screen Scaffold `contentWindowInsets`.
+
+---
+
 ## RELEASED: v0.8.1 (2026-07-08)
 - GitHub release **v0.8.1** published & marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.1
 - Signed `app-release.apk` (11.9 MB) attached. Signer SHA-256 `99255c31…6d6f` — **verified identical to v0.8.0**, so it installs as an update over existing builds.
