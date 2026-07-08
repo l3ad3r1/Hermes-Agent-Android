@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.hermes.agent.data.evolution.ReflectiveSkillRefiner
 import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.data.llm.LlmMessage
 import com.hermes.agent.domain.model.Skill
@@ -27,9 +28,11 @@ import timber.log.Timber
  *     skill index.
  *  2. **Improvement pass** (LLM cost): for the most-used ACTIVE skills
  *     (top [MAX_IMPROVEMENTS_PER_RUN] by useCount — evolution effort goes
- *     where usage is), asks the LLM: "Can this skill be improved? If yes,
- *     rewrite the body only." Body-only rewrite preserves name/description/
- *     category/tags/activation metadata.
+ *     where usage is). Prefers **trace-grounded** refinement via
+ *     [ReflectiveSkillRefiner] (reflect on how the skill was actually used on
+ *     real device traces); falls back to a **blind** text-only rewrite only
+ *     when a skill has no relevant usage traces. Both are body-only, so
+ *     name/description/category/tags/activation metadata are preserved.
  *
  * This closes the third part of the self-improvement loop:
  *   1. [ConversationLearner]   — facts extracted per conversation
@@ -49,6 +52,7 @@ class SkillImprovementWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val skillRepository: SkillRepository,
     private val llmProvider: CloudLlmProvider,
+    private val refiner: ReflectiveSkillRefiner,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -80,6 +84,28 @@ class SkillImprovementWorker @AssistedInject constructor(
 
             for (skill in skills) {
                 try {
+                    // Trace-grounded refinement first: reflect on how the skill
+                    // was actually used on-device. Only falls back to the blind
+                    // text-only rewrite when there are no relevant usage traces.
+                    when (val outcome = refiner.refine(skill.name)) {
+                        is ReflectiveSkillRefiner.Outcome.Ready -> {
+                            if (outcome.proposal.constraintsPass) {
+                                refiner.apply(outcome.proposal)
+                                improved++
+                                Timber.tag("SkillImprove").i("trace-refined skill: ${skill.name}")
+                            } else {
+                                Timber.tag("SkillImprove").d("trace refinement of '${skill.name}' failed gates")
+                            }
+                            continue
+                        }
+                        // LLM error / Skills Guard rejection — skip; don't also
+                        // burn a second call on the blind path.
+                        is ReflectiveSkillRefiner.Outcome.Failed -> continue
+                        // No relevant traces (or nothing to change from them) —
+                        // fall through to the blind, text-only rewrite.
+                        is ReflectiveSkillRefiner.Outcome.NoChange -> Unit
+                    }
+
                     val improved_ = improveSkill(skill.content)
                     // Skills Guard: a rewrite that introduces flagged
                     // instructions is discarded — the previous body stays.
