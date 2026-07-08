@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
@@ -72,65 +71,10 @@ fun SessionBrowserScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var isSearching by rememberSaveable { mutableStateOf(false) } // State for search mode detection
-    val listState = rememberLazyListState()
-    
+
     Scaffold(
         topBar = {
-            SlimTopBar(
-                titleContent = {
-                    if (isSearching) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { query ->
-                                searchQuery = query
-                                viewModel.searchSessions(query)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Search sessions (by phrase or keyword)...") },
-                            singleLine = true,
-                            leadingIcon = {
-                                Icon(
-                                    Icons.AutoMirrored.Outlined.ArrowBack,
-                                    contentDescription = "Back",
-                                    modifier = Modifier.clickable {
-                                        isSearching = false
-                                        searchQuery = ""
-                                        viewModel.browseRecent()
-                                    },
-                                )
-                            },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    Icon(
-                                        Icons.Outlined.Close,
-                                        contentDescription = "Clear",
-                                        modifier = Modifier.clickable {
-                                            searchQuery = ""
-                                            viewModel.browseRecent()
-                                        },
-                                    )
-                                }
-                            },
-                        )
-                    } else {
-                        Text(
-                            text = "Sessions",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
-                },
-                actions = {
-                    if (!isSearching) {
-                        IconButton(onClick = { isSearching = true }) {
-                            Icon(
-                                Icons.Outlined.Search,
-                                contentDescription = "Search",
-                            )
-                        }
-                    }
-                },
-            )
+            SlimTopBar(title = "Search")
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -142,52 +86,81 @@ fun SessionBrowserScreen(
             }
         },
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            when (val state = uiState) {
-                is SessionBrowserUiState.Loading -> {
-                    // Loading content here...
-                }
-                is SessionBrowserUiState.Success -> {
-                    if (state.sessions.isEmpty()) {
-                        EmptyState(
-                            modifier = Modifier.fillMaxSize(),
-                            isSearching = isSearching,
-                        )
-                    } else {
-                        val lazyListState = rememberLazyListState()
-                        
-                        LaunchedEffect(state.sessions.size) {
-                            if (state.sessions.isNotEmpty()) {
-                                lazyListState.scrollToItem(0)
-                            }
+            // Persistent search bar — always visible so you can search chats any time.
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { query ->
+                    searchQuery = query
+                    viewModel.searchSessions(query)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text("Search chats (by phrase or keyword)…") },
+                singleLine = true,
+                leadingIcon = {
+                    Icon(Icons.Outlined.Search, contentDescription = null)
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            viewModel.browseRecent()
+                        }) {
+                            Icon(Icons.Outlined.Close, contentDescription = "Clear")
                         }
-                        
-                        LazyColumn(
-                            state = lazyListState,
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(16.dp), // Standard padding for list content
-                        ) {
-                            items(state.sessions, key = { it.session.id }) { item ->
-                                SessionRow(
-                                    item = item,
-                                    onClick = { onOpenSession(item.session.id) },
-                                    onDelete = { viewModel.deleteSession(item.session.id) },
-                                )
+                    }
+                },
+            )
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (val state = uiState) {
+                    is SessionBrowserUiState.Loading -> {
+                        // Loading content here...
+                    }
+                    is SessionBrowserUiState.Success -> {
+                        if (state.sessions.isEmpty()) {
+                            EmptyState(
+                                modifier = Modifier.fillMaxSize(),
+                                isSearching = searchQuery.isNotBlank(),
+                            )
+                        } else {
+                            val lazyListState = rememberLazyListState()
+
+                            LaunchedEffect(state.sessions.size) {
+                                if (state.sessions.isNotEmpty()) {
+                                    lazyListState.scrollToItem(0)
+                                }
+                            }
+
+                            LazyColumn(
+                                state = lazyListState,
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(16.dp), // Standard padding for list content
+                            ) {
+                                items(state.sessions, key = { it.session.id }) { item ->
+                                    SessionRow(
+                                        item = item,
+                                        onClick = { onOpenSession(item.session.id) },
+                                        onDelete = { viewModel.deleteSession(item.session.id) },
+                                    )
+                                }
                             }
                         }
                     }
-                }
-                is SessionBrowserUiState.Error -> {
-                    Text(
-                        text = "Error: ${state.message}",
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    is SessionBrowserUiState.Error -> {
+                        Text(
+                            text = "Error: ${state.message}",
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
                 }
             }
         }
