@@ -44,10 +44,15 @@ private val bottomNavDestinations = listOf(
 )
 
 @Composable
-fun HermesNavGraph() {
+fun HermesNavGraph(startAtSettings: Boolean = false) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    // Update-notification deep link: land on Settings (Updates section).
+    androidx.compose.runtime.LaunchedEffect(startAtSettings) {
+        if (startAtSettings) navController.navigate(TopLevelDestination.SETTINGS.route)
+    }
 
     val showBottomBar = currentRoute in bottomNavDestinations.map { it.route }.toSet()
 

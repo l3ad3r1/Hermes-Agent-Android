@@ -15,6 +15,7 @@ import com.hermes.agent.ui.navigation.HermesNavGraph
 import com.hermes.agent.ui.onboarding.OnboardingScreen
 import com.hermes.agent.ui.theme.AppTheme
 import com.hermes.agent.ui.theme.HermesTheme
+import com.hermes.agent.work.OtaUpdateWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -60,7 +61,12 @@ class MainActivity : ComponentActivity() {
                                 onboardingState.value = true
                             },
                         )
-                        true -> HermesNavGraph()
+                        true -> HermesNavGraph(
+                            // Update notification deep-links to Settings → Updates.
+                            startAtSettings = intent?.getBooleanExtra(
+                                OtaUpdateWorker.EXTRA_OPEN_UPDATES, false,
+                            ) == true,
+                        )
                     }
                 }
             }

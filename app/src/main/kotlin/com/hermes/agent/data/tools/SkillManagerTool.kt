@@ -141,12 +141,15 @@ class SkillManagerTool @Inject constructor(
                     ?: return ToolResult.error("action='view' requires parameter: name")
                 val skill = skillRepository.getByName(name)
                     ?: return ToolResult.error("Skill '$name' not found. Use action='list' to see available skills.")
-                // Curator signal: loading a skill counts as using it and
-                // revives STALE/ARCHIVED skills.
-                runCatching { skillRepository.recordUse(name) }
-                // Event-driven evolution: every Nth use schedules a trace-grounded refinement.
-                runCatching { refineScheduler.onSkillUsed(name) }
                 val verdict = com.hermes.agent.domain.skill.SkillGuard.vet(skill.content)
+                // Curator signal: loading a skill counts as using it and revives
+                // STALE/ARCHIVED skills — but flagged skills accrue no usage
+                // signal, so they never climb the improvement queue (audit L2).
+                if (verdict.ok) {
+                    runCatching { skillRepository.recordUse(name) }
+                    // Event-driven evolution: every Nth use schedules a trace-grounded refinement.
+                    runCatching { refineScheduler.onSkillUsed(name) }
+                }
                 val output = buildString {
                     if (!verdict.ok) {
                         appendLine(

@@ -52,7 +52,11 @@ class OtaUpdateWorker @AssistedInject constructor(
         // release page only if the launch intent can't be resolved.
         val launchIntent = appContext.packageManager
             .getLaunchIntentForPackage(appContext.packageName)
-            ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            ?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // Deep-link straight to Settings (Updates section) — audit L5.
+                putExtra(EXTRA_OPEN_UPDATES, true)
+            }
             ?: Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl))
 
         val openIntent = PendingIntent.getActivity(
@@ -77,6 +81,10 @@ class OtaUpdateWorker @AssistedInject constructor(
 
     companion object {
         const val UNIQUE_NAME = "hermes.ota_update_check"
+
+        /** Launch-intent extra: open Settings (Updates section) on start. */
+        const val EXTRA_OPEN_UPDATES = "com.hermes.agent.OPEN_UPDATES"
+
         private const val CHANNEL_ID = "hermes_updates"
         private const val NOTIFICATION_ID = 9001
     }

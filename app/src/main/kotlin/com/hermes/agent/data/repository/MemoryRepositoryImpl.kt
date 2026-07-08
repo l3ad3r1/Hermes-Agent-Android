@@ -106,7 +106,8 @@ class MemoryRepositoryImpl @Inject constructor(
 
     private suspend fun keywordFallback(query: String, limit: Int): List<Memory> {
         Timber.tag("MemoryRepo").d("vector store empty — keyword fallback")
-        return memoryDao.keywordSearch(query, limit).map { it.toDomain() }
+        return memoryDao.keywordSearch(com.hermes.agent.util.SqlLike.escape(query), limit)
+            .map { it.toDomain() }
     }
 }
 

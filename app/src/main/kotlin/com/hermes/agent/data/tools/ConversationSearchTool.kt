@@ -64,7 +64,10 @@ class ConversationSearchTool @Inject constructor(
             ?: return ToolResult.error("missing required parameter: query")
         val limit = (arguments["limit"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: 10
 
-        val matches = messageDao.searchAll(query, limit = limit.coerceIn(1, 30))
+        val matches = messageDao.searchAll(
+            com.hermes.agent.util.SqlLike.escape(query),
+            limit = limit.coerceIn(1, 30),
+        )
 
         if (matches.isEmpty()) {
             return ToolResult.ok(

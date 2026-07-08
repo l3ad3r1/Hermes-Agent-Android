@@ -33,7 +33,7 @@ interface MemoryDao {
     @Query(
         """
         SELECT * FROM memories
-        WHERE content LIKE '%' || :query || '%'
+        WHERE content LIKE '%' || :query || '%' ESCAPE '\'
         ORDER BY relevance_score DESC, last_accessed_at DESC
         LIMIT :limit
         """

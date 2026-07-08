@@ -48,7 +48,7 @@ interface MessageDao {
     @Query(
         """
         SELECT * FROM messages
-        WHERE content LIKE '%' || :query || '%'
+        WHERE content LIKE '%' || :query || '%' ESCAPE '\'
         ORDER BY timestamp DESC
         LIMIT :limit
         """
