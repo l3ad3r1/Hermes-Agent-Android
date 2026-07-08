@@ -9,9 +9,19 @@
 - Bottom nav: "Chats" tab relabelled to "Search" with a search icon (it already routes to the search-capable SessionBrowserScreen).
 - Verified: `./gradlew :app:compileDebugKotlin` → BUILD SUCCESSFUL.
 
+**Search screen (commit 39a3bb0):**
+- SessionBrowserScreen now has a **persistent search bar** (always visible) instead of the icon-toggle; empty query falls back to recent sessions.
+
+**Backup/restore fix (commit 942aedd):**
+- Two bugs made restore useless on a fresh install:
+  1. `BackupData` only held memories + skills → Cloud LLM settings and cron jobs were never saved. Extended schema to **v2** (backward-compatible) with `SettingsBackup` + `CronBackup`; backup serializes them, restore re-applies settings and re-adds cron jobs.
+  2. Gist ID field only showed *after* a local backup existed → fresh install couldn't target an existing gist. Made Gist ID an **editable field** (`setGistId`) so you can paste PAT + Gist ID and Restore.
+- Extracted `work/CronScheduler.kt` (shared by CronViewModel + restore) so restored enabled crons are re-enqueued with WorkManager instead of sitting idle.
+- All verified: `./gradlew :app:compileDebugKotlin` → BUILD SUCCESSFUL.
+
 **Next steps / not yet done:**
-- Not visually verified on a device/emulator — build only. Worth a run to confirm the black strip is gone and top bar height feels right.
-- Optional: make the Search tab open SessionBrowserScreen directly in search mode (currently opens browse list with a search icon).
+- None of this is visually verified on a device/emulator — compile-only. Worth a run to confirm: black strip gone, top-bar height, search bar behaviour, and a real fresh-install backup→restore round-trip.
+- Note: Cloud LLM API keys are now stored inside the (private) gist — acceptable per request, but worth a heads-up in release notes.
 
 ---
 
