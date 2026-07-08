@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,9 +36,8 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +62,7 @@ import com.hermes.agent.ui.chat.components.ChatInputBar
 import com.hermes.agent.ui.chat.components.MessageBubble
 import com.hermes.agent.ui.chat.components.StreamingBubble
 import com.hermes.agent.ui.components.PulsingDot
+import com.hermes.agent.ui.components.SlimTopBar
 import com.hermes.agent.ui.theme.GeistMono
 
 /**
@@ -113,16 +114,9 @@ fun ChatScreen(
         drawerState = rememberDrawerState(planDrawerOpen),
     ) {
         Scaffold(
-            modifier = Modifier.imePadding(),
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = uiState.title,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
+                SlimTopBar(
+                    title = uiState.title,
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(
@@ -141,33 +135,43 @@ fun ChatScreen(
                             }
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
-                androidx.compose.foundation.layout.Column {
-                    uiState.pendingClarification?.let { req ->
-                        ClarificationCard(
-                            request = req,
-                            onAnswer = viewModel::answerClarification,
+                // Wrapped in a Surface so the bar's colour fills edge-to-edge
+                // behind the transparent system navigation bar (no black strip),
+                // while navigationBarsPadding lifts the input above the nav bar.
+                // imePadding here (not on the Scaffold) consumes the nav-bar inset
+                // first, so keyboard + nav insets don't double-count.
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp,
+                ) {
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .imePadding(),
+                    ) {
+                        uiState.pendingClarification?.let { req ->
+                            ClarificationCard(
+                                request = req,
+                                onAnswer = viewModel::answerClarification,
+                            )
+                        }
+                        ChatInputBar(
+                            isSending = uiState.isSending,
+                            isListening = uiState.isListening,
+                            onSend = viewModel::sendMessage,
+                            onCancel = viewModel::cancel,
+                            onMicToggle = viewModel::toggleVoiceInput,
+                            prefillText = uiState.inputPrefill,
+                        )
+                        ChatStatusBar(
+                            estimatedTokens = uiState.estimatedTokens,
+                            activeModel = uiState.activeModel,
                         )
                     }
-                    ChatInputBar(
-                        isSending = uiState.isSending,
-                        isListening = uiState.isListening,
-                        onSend = viewModel::sendMessage,
-                        onCancel = viewModel::cancel,
-                        onMicToggle = viewModel::toggleVoiceInput,
-                        prefillText = uiState.inputPrefill,
-                    )
-                    ChatStatusBar(
-                        estimatedTokens = uiState.estimatedTokens,
-                        activeModel = uiState.activeModel,
-                    )
                 }
             },
         ) { innerPadding ->
