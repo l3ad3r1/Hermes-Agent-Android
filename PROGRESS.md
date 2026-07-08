@@ -1,5 +1,21 @@
 # Hermes Agent — Progress
 
+## Self-evolution integration (2026-07-08, unreleased)
+Adapting NousResearch/hermes-agent-self-evolution (Python DSPy+GEPA offline tool) to the Android app.
+
+**1. Session export adapter** (`data/export/SessionExporter.kt`): dumps on-device conversations as `{id}.json` (`{session_id, title, messages:[{role,content}]}`) matching the tool's `HermesSessionImporter` (`~/.hermes/sessions/`), zipped + shared from Settings → Self-Evolution. Unzip on desktop → run evolver `--eval-source sessiondb` to mine real device traces. FileProvider path `session-export/` added.
+
+**2. On-device reflective refiner** (`data/evolution/`): the GEPA insight in ONE reflective LLM pass (not a genetic loop).
+- `SkillTraceCollector` mines recent user→assistant pairs relevant to a skill from Room (`TraceHeuristics`: relevance + secret regex ported from the Python importer).
+- `ReflectiveSkillRefiner` shows the model real traces → proposes an improved body → gates via `SkillGuard` + `SkillConstraints` (size ≤15KB / growth ≤1.5× / non-empty / structure, ported from `constraints.py`). Human-in-loop: `refine()` proposes, `apply()` persists as patch bump.
+- UI: Settings → Features → "Refine skills" (`ui/evolution/RefineSkillScreen`, route `refine_skills`).
+- Shared `domain/skill/SkillDoc` (extract/replace body, bumpPatch) — `SkillImprovementWorker` refactored to reuse it (that worker does the same rewrite but BLIND; the refiner is trace-grounded).
+- Unit tests: `SkillConstraintsTest`, `TraceHeuristicsTest`, both green.
+
+Compile-verified only (no device run). Not yet released.
+
+---
+
 ## RELEASED: v0.8.2 (2026-07-08)
 - GitHub release **v0.8.2** published & marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.2 (versionCode 52). Signer verified identical to 0.8.0/0.8.1.
 - **Fix: chat crash `FOREIGN KEY constraint failed (787)`** — new-chat navigated to `chat/{uuid}` with a client id but never created the ConversationEntity, so the first `addMessage` failed the message→conversation FK. Added `ConversationRepository.ensureConversation(id)` (insert-if-absent), called before the first message in both send paths. Regression tests added.
