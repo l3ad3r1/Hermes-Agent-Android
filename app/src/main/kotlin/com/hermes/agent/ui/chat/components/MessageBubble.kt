@@ -132,7 +132,7 @@ fun StreamingBubble(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             if (item.text.isBlank()) {
-                TypingIndicator()
+                ThinkingOrb()
             } else {
                 Column {
                     SelectionContainer {
@@ -142,7 +142,7 @@ fun StreamingBubble(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-                    TypingIndicator(modifier = Modifier.padding(top = 4.dp))
+                    ThinkingOrb(modifier = Modifier.padding(top = 6.dp))
                 }
             }
         }
