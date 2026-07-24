@@ -7,8 +7,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
+import com.hermes.agent.core.theme.HermesDark
+import com.hermes.agent.core.theme.HermesLight
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -62,14 +65,17 @@ class ThinkingOrbRenderTest {
 
     @Test
     fun rendersOrbitSweepOnDarkAndLightSurfaces() {
-        // Material 3 baseline surfaceVariant + primary/tertiary, both schemes.
-        val darkSurface = Color(0xFF49454F)
-        val darkPrimary = Color(0xFFD0BCFF)
-        val darkTertiary = Color(0xFFEFB8C8)
+        // Hermes's own schemes, taken from HermesColorSchemes. These must not be
+        // swapped for the Material 3 baseline: the app is a deliberately
+        // monochrome OLED palette, so the baseline purple renders a far more
+        // colourful orb than any user ever sees.
+        val darkSurface = HermesDark.surfaceVariant
+        val darkPrimary = HermesDark.primary
+        val darkTertiary = HermesDark.tertiary
 
-        val lightSurface = Color(0xFFE7E0EC)
-        val lightPrimary = Color(0xFF6750A4)
-        val lightTertiary = Color(0xFF7D5260)
+        val lightSurface = HermesLight.surfaceVariant
+        val lightPrimary = HermesLight.primary
+        val lightTertiary = HermesLight.tertiary
 
         // Quarter-turns through one full orbit, with breath swinging alongside.
         val phases = listOf(
@@ -122,15 +128,15 @@ class ThinkingOrbRenderTest {
 
     @Test
     fun orbActuallyPaintsAndAnimates() {
-        val surface = Color(0xFF49454F)
-        val primary = Color(0xFFD0BCFF)
-        val tertiary = Color(0xFFEFB8C8)
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+        val tertiary = HermesDark.tertiary
 
         val a = render(0.00f, 0.0f, surface, primary, tertiary)
         val b = render(0.50f, 1.0f, surface, primary, tertiary)
 
         // Centre pixel must differ from the bare surface, or nothing was drawn.
-        val surfaceArgb = surface.value.toLong().let { android.graphics.Color.rgb(0x49, 0x45, 0x4F) }
+        val surfaceArgb = surface.toArgb()
         assertTrue(
             "orb did not paint over the surface",
             a.getPixel(a.width / 2, a.height / 2) != surfaceArgb,
