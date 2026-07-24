@@ -6,7 +6,7 @@ import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
 import com.hermes.agent.MainActivity
 
-class JeevesVoiceInteractionSession(context: Context) : VoiceInteractionSession(context) {
+class HermesVoiceInteractionSession(context: Context) : VoiceInteractionSession(context) {
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)

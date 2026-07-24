@@ -210,7 +210,7 @@ fun ChatScreen(
             title = { Text("Approve Action") },
             text = {
                 Column {
-                    Text("Jeeves wants to run the following tool:")
+                    Text("Hermes wants to run the following tool:")
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = pending.call.name,
@@ -358,7 +358,7 @@ private fun ClarificationCard(
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
-                text = "Jeeves needs a quick answer",
+                text = "Hermes needs a quick answer",
                 style = MaterialTheme.typography.labelSmall,
                 fontFamily = GeistMono,
                 color = scheme.onPrimaryContainer.copy(alpha = 0.7f),

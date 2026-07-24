@@ -67,7 +67,7 @@ class AgentLoopRunner @Inject constructor(
         )
     } ?: AgentLoopOutcome.Failed(
         AgentLoopFailureReason.TIMED_OUT,
-        "Jeeves stopped because this task took too long. Try again or split it into smaller steps.",
+        "Hermes stopped because this task took too long. Try again or split it into smaller steps.",
         emptyList(),
     )
 
@@ -126,7 +126,7 @@ class AgentLoopRunner @Inject constructor(
             if (guardSession.observeRound(observations) == ExecutionStopReason.REPEATED_NO_PROGRESS) {
                 return AgentLoopOutcome.Failed(
                     AgentLoopFailureReason.REPEATED_NO_PROGRESS,
-                    "Jeeves stopped because the same tool actions repeated without making progress. Try rephrasing the request or changing the inputs.",
+                    "Hermes stopped because the same tool actions repeated without making progress. Try rephrasing the request or changing the inputs.",
                     toolsInvoked,
                 )
             }
@@ -134,7 +134,7 @@ class AgentLoopRunner @Inject constructor(
 
         return AgentLoopOutcome.Failed(
             AgentLoopFailureReason.ROUND_LIMIT_REACHED,
-            "Jeeves reached the tool-step limit before finishing. Try splitting the request into smaller steps.",
+            "Hermes reached the tool-step limit before finishing. Try splitting the request into smaller steps.",
             toolsInvoked,
         )
     }

@@ -35,7 +35,7 @@ class AgentBootReconciliationWorker @AssistedInject constructor(
     }
 
     companion object {
-        const val UNIQUE_NAME = "jeeves.boot.reconciliation"
+        const val UNIQUE_NAME = "hermes.boot.reconciliation"
         private const val MAX_RETRIES = 3
     }
 }

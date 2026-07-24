@@ -8,7 +8,7 @@
         android:shortcutLongLabel="@string/shortcut_new_note_long">
         <intent
             android:action="com.hermes.agent.action.NEW_NOTE"
-            android:targetPackage="com.jeeves.app"
+            android:targetPackage="com.hermes.app"
             android:targetClass="com.hermes.agent.MainActivity" />
         <categories android:name="android.shortcut.conversation" />
     </shortcut>
@@ -21,19 +21,19 @@
         android:shortcutLongLabel="@string/shortcut_set_alarm_long">
         <intent
             android:action="com.hermes.agent.action.SET_ALARM"
-            android:targetPackage="com.jeeves.app"
+            android:targetPackage="com.hermes.app"
             android:targetClass="com.hermes.agent.MainActivity" />
     </shortcut>
 
     <shortcut
-        android:shortcutId="shortcut_ask_jeeves"
+        android:shortcutId="shortcut_ask_hermes"
         android:enabled="true"
         android:icon="@mipmap/ic_launcher"
-        android:shortcutShortLabel="@string/shortcut_ask_jeeves_short"
-        android:shortcutLongLabel="@string/shortcut_ask_jeeves_long">
+        android:shortcutShortLabel="@string/shortcut_ask_hermes_short"
+        android:shortcutLongLabel="@string/shortcut_ask_hermes_long">
         <intent
-            android:action="com.hermes.agent.action.ASK_JEEVES"
-            android:targetPackage="com.jeeves.app"
+            android:action="com.hermes.agent.action.ASK_HERMES"
+            android:targetPackage="com.hermes.app"
             android:targetClass="com.hermes.agent.MainActivity" />
     </shortcut>
 
@@ -45,7 +45,7 @@
         android:shortcutLongLabel="@string/shortcut_briefing_long">
         <intent
             android:action="com.hermes.agent.action.PLAY_BRIEFING"
-            android:targetPackage="com.jeeves.app"
+            android:targetPackage="com.hermes.app"
             android:targetClass="com.hermes.agent.MainActivity" />
     </shortcut>
 </shortcuts>

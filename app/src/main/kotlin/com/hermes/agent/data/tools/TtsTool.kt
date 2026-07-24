@@ -7,7 +7,6 @@ import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolParameter
 import com.hermes.agent.domain.tool.ToolParameterType
 import com.hermes.agent.domain.tool.ToolResult
-import com.sassybutler.alarm.ButlerSpeech
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
@@ -21,20 +20,13 @@ import kotlin.coroutines.resume
  * Speak text aloud. Ported from hermes-agent's `tts_tool.py`; the model sends text and the
  * phone speaks it. `action="stop"` halts any in-progress speech.
  *
- * Two engines, in preference order:
- *  1. [ButlerSpeech] — Sassy Butler's on-device Kokoro/ONNX voice from `:feature:butler`.
- *     Far more natural than the platform engine. Its ~92 MB model loads lazily on first use,
- *     so the very first spoken reply takes a few seconds.
- *  2. [VoiceOutputManager] — the platform `android.speech.tts.TextToSpeech`, used when the
- *     ONNX model is unavailable (assets stripped from the build, session failed to create) or
- *     when the caller explicitly asks for `voice='system'`.
- *
- * Both are shared singletons; neither spins up a second engine instance.
+ * Speech goes through [VoiceOutputManager], the platform
+ * `android.speech.tts.TextToSpeech` engine, as a shared singleton — this never spins up a
+ * second engine instance.
  */
 @Singleton
 class TtsTool @Inject constructor(
     private val voiceOutput: VoiceOutputManager,
-    private val butlerSpeech: ButlerSpeech,
 ) : Tool {
 
     override val descriptor = ToolDescriptor(
@@ -57,14 +49,6 @@ class TtsTool @Inject constructor(
                 description = "The text to speak. Required for action='speak'.",
                 required = false,
             ),
-            ToolParameter(
-                name = "voice",
-                type = ToolParameterType.STRING,
-                description = "Which engine to speak with. 'butler' (default) uses the natural " +
-                    "on-device Kokoro voice; 'system' uses the platform text-to-speech engine.",
-                required = false,
-                enumValues = listOf("butler", "system"),
-            ),
         ),
         category = "communication",
     )
@@ -74,8 +58,7 @@ class TtsTool @Inject constructor(
         val action = arguments["action"].str()?.trim()?.lowercase() ?: "speak"
 
         if (action == "stop") {
-            // Either engine may be mid-utterance; stopping both is idempotent.
-            butlerSpeech.stop()
+            // Idempotent: safe to call with nothing in flight.
             voiceOutput.stop()
             return ToolResult.ok("Stopped speech.", System.currentTimeMillis() - start)
         }
@@ -83,21 +66,6 @@ class TtsTool @Inject constructor(
         val text = arguments["text"].str()?.trim()
         if (text.isNullOrEmpty()) {
             return ToolResult.error("missing required parameter: text", System.currentTimeMillis() - start)
-        }
-
-        // Butler's ONNX voice first, unless the caller asked for the platform engine.
-        // speak() suspends until playback finishes. Only UNAVAILABLE falls through to the
-        // platform engine — STOPPED means the user silenced this utterance mid-flight, and
-        // re-speaking it with another engine is exactly what they asked us not to do.
-        val requested = arguments["voice"].str()?.trim()?.lowercase() ?: "butler"
-        if (requested != "system") {
-            when (butlerSpeech.speak(text)) {
-                ButlerSpeech.SpeakResult.SPOKEN ->
-                    return ToolResult.ok("Spoke aloud in Butler's voice: \"$text\"", System.currentTimeMillis() - start)
-                ButlerSpeech.SpeakResult.STOPPED ->
-                    return ToolResult.ok("Speech was stopped before completion.", System.currentTimeMillis() - start)
-                ButlerSpeech.SpeakResult.UNAVAILABLE -> Unit // fall through to the platform engine
-            }
         }
 
         if (!ensureReady()) {

@@ -24,7 +24,7 @@ class ResearchAgent @Inject constructor() : Agent {
     override val role: AgentRole = AgentRole.RESEARCH
 
     override val systemPrompt: String =
-        "You are the Jeeves Research Agent. Your job is to find, synthesize, " +
+        "You are the Hermes Research Agent. Your job is to find, synthesize, " +
             "and summarize information.\n\n" +
             "Your capabilities:\n" +
             "- web_search: search the internet for current information\n" +

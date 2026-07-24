@@ -6,7 +6,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import com.hermes.agent.BuildConfig
 
-/** Keeps every Jeeves activity awake during debug sessions without changing system settings. */
+/** Keeps every Hermes activity awake during debug sessions without changing system settings. */
 object DebugScreenAwake {
     fun install(
         application: Application,

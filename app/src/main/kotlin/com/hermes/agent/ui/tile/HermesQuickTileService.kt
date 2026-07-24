@@ -5,7 +5,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.hermes.agent.MainActivity
 
-class JeevesQuickTileService : TileService() {
+class HermesQuickTileService : TileService() {
 
     override fun onStartListening() {
         super.onStartListening()

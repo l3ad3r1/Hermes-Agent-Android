@@ -13,8 +13,6 @@ import com.hermes.agent.data.export.SessionExporter
 import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
 import com.hermes.agent.core.settings.HermesSettings
-import com.sassybutler.alarm.TtsEngine
-import com.sassybutler.alarm.VoiceCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -29,30 +27,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import retrofit2.HttpException
-
-/**
- * The alarm settings, mirrored from the one settings store. Butler's own preferences sheet
- * writes the same keys through `ButlerPrefs`, so both surfaces stay in sync automatically.
- */
-data class AlarmSettings(
-    val honorific: String = HermesSettings.DEFAULT_HONORIFIC,
-    val sassLevel: Int = HermesSettings.DEFAULT_SASS_LEVEL,
-    val snoozeMinutes: Int = HermesSettings.DEFAULT_SNOOZE_MINUTES,
-    val voiceEnabled: Boolean = true,
-    val birdsIntro: Boolean = true,
-    val snoozeCommentary: Boolean = true,
-    val haptics: Boolean = false,
-    val voiceName: String = TtsEngine.DEFAULT_VOICE,
-    val briefingCalendar: Boolean = true,
-    val briefingWeather: Boolean = true,
-    val briefingTodos: Boolean = true,
-    val briefingNotes: Boolean = true,
-    val briefingHeadlines: Boolean = true,
-) {
-    val voiceLabel: String
-        get() = VoiceCatalog.VOICES.firstOrNull { it.name == voiceName }?.label ?: voiceName
-}
-
 sealed class UpdateUiState {
     object Idle : UpdateUiState()
     object Checking : UpdateUiState()
@@ -104,9 +78,9 @@ class SettingsViewModel @Inject constructor(
     private val localLlmManager: com.hermes.agent.data.llm.LocalLlmManager,
 ) : ViewModel() {
 
-    // ─── Unified settings (shared with Jotter and Butler) ───────────────────
+    // ─── Appearance settings ────────────────────────────────────────────────
 
-    /** App-wide light/dark/system mode. Drives Hermes' own theme and Jotter's. */
+    /** App-wide light/dark/system mode. */
     val themeMode: StateFlow<String> = HermesSettings.themeModeFlow(appContext)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.THEME_SYSTEM)
 
@@ -125,45 +99,6 @@ class SettingsViewModel @Inject constructor(
     fun setFontFamily(family: String) = HermesSettings.setFontFamily(appContext, family)
 
     fun setFontScalePercent(percent: Int) = HermesSettings.setFontScalePercent(appContext, percent)
-
-    /** Butler's preferences, editable here as well as in Butler's own sheet. */
-    private val _alarmSettings = MutableStateFlow(readAlarmSettings())
-    val alarmSettings: StateFlow<AlarmSettings> = _alarmSettings.asStateFlow()
-
-    val voiceOptions: List<VoiceCatalog.Voice> = VoiceCatalog.VOICES
-
-    private fun readAlarmSettings() = AlarmSettings(
-        honorific = HermesSettings.honorific(appContext),
-        sassLevel = HermesSettings.sassLevel(appContext),
-        snoozeMinutes = HermesSettings.snoozeMinutes(appContext),
-        voiceEnabled = HermesSettings.voiceEnabled(appContext),
-        birdsIntro = HermesSettings.birdsIntro(appContext),
-        snoozeCommentary = HermesSettings.snoozeCommentary(appContext),
-        haptics = HermesSettings.haptics(appContext),
-        voiceName = HermesSettings.voiceName(appContext, TtsEngine.DEFAULT_VOICE),
-        briefingCalendar = HermesSettings.briefingCalendar(appContext),
-        briefingWeather = HermesSettings.briefingWeather(appContext),
-        briefingTodos = HermesSettings.briefingTodos(appContext),
-        briefingNotes = HermesSettings.briefingNotes(appContext),
-        briefingHeadlines = HermesSettings.briefingHeadlines(appContext),
-    )
-
-    /** Re-read after every write so this screen and Butler's sheet never drift apart. */
-    private fun refreshAlarmSettings() { _alarmSettings.value = readAlarmSettings() }
-
-    fun setHonorific(value: String) { HermesSettings.setHonorific(appContext, value); refreshAlarmSettings() }
-    fun setSassLevel(value: Int) { HermesSettings.setSassLevel(appContext, value); refreshAlarmSettings() }
-    fun setSnoozeMinutes(value: Int) { HermesSettings.setSnoozeMinutes(appContext, value); refreshAlarmSettings() }
-    fun setVoiceEnabled(value: Boolean) { HermesSettings.setVoiceEnabled(appContext, value); refreshAlarmSettings() }
-    fun setBirdsIntro(value: Boolean) { HermesSettings.setBirdsIntro(appContext, value); refreshAlarmSettings() }
-    fun setSnoozeCommentary(value: Boolean) { HermesSettings.setSnoozeCommentary(appContext, value); refreshAlarmSettings() }
-    fun setHaptics(value: Boolean) { HermesSettings.setHaptics(appContext, value); refreshAlarmSettings() }
-    fun setVoiceName(value: String) { HermesSettings.setVoiceName(appContext, value); refreshAlarmSettings() }
-    fun setBriefingCalendar(value: Boolean) { HermesSettings.setBriefingCalendar(appContext, value); refreshAlarmSettings() }
-    fun setBriefingWeather(value: Boolean) { HermesSettings.setBriefingWeather(appContext, value); refreshAlarmSettings() }
-    fun setBriefingTodos(value: Boolean) { HermesSettings.setBriefingTodos(appContext, value); refreshAlarmSettings() }
-    fun setBriefingNotes(value: Boolean) { HermesSettings.setBriefingNotes(appContext, value); refreshAlarmSettings() }
-    fun setBriefingHeadlines(value: Boolean) { HermesSettings.setBriefingHeadlines(appContext, value); refreshAlarmSettings() }
 
     val settings: StateFlow<UserSettings> = settingsRepository.observe()
         .stateIn(
@@ -507,8 +442,7 @@ class SettingsViewModel @Inject constructor(
                     val settingsMsg = if (result.settingsRestored) "settings, " else ""
                     BackupUiState.Success(
                         "Restored $settingsMsg${result.memoriesImported} memories, " +
-                            "${result.skillsImported} skills, ${result.cronsImported} cron jobs, " +
-                            "${result.notesImported} notes, and ${result.alarmsImported} alarms."
+                            "${result.skillsImported} skills, and ${result.cronsImported} cron jobs."
                     )
                 }
                 is GithubBackupService.RestoreResult.Failure ->

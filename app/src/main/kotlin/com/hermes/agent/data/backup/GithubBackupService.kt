@@ -8,9 +8,6 @@ import com.hermes.agent.domain.repository.CronRepository
 import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.domain.repository.SkillRepository
 import com.hermes.agent.work.CronScheduler
-import com.l3ad3r1.octojotter.data.repository.NoteRepository
-import com.sassybutler.alarm.Alarm
-import com.sassybutler.alarm.AlarmStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -46,7 +43,6 @@ class GithubBackupService @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val cronRepository: CronRepository,
     private val cronScheduler: CronScheduler,
-    private val noteRepository: NoteRepository,
     @ApplicationContext private val context: Context,
     private val json: Json,
 ) {
@@ -62,8 +58,6 @@ class GithubBackupService @Inject constructor(
             val skillsImported: Int,
             val settingsRestored: Boolean,
             val cronsImported: Int,
-            val notesImported: Int,
-            val alarmsImported: Int,
         ) : RestoreResult()
         data class Failure(val message: String) : RestoreResult()
     }
@@ -112,31 +106,12 @@ class GithubBackupService @Inject constructor(
                     )
                 }
 
-            val notes = runCatching { noteRepository.getAllNotes() }
-                .getOrDefault(emptyList())
-                .mapNotNull { it.toBackupOrNull() }
-
-            val alarms = runCatching { AlarmStore.all(context) }
-                .getOrDefault(emptyList())
-                .map {
-                    AlarmBackup(
-                        id = it.id,
-                        hour = it.hour,
-                        minute = it.minute,
-                        label = it.label,
-                        enabled = it.enabled,
-                        days = it.days,
-                    )
-                }
-
             val backupData = BackupData(
                 exportedAt = System.currentTimeMillis(),
                 memories = memories,
                 skills = skills,
                 settings = settingsBackup,
                 crons = crons,
-                notes = notes,
-                alarms = alarms,
             )
 
             val payload = buildGistPayload(json.encodeToString(backupData))
@@ -190,8 +165,6 @@ class GithubBackupService @Inject constructor(
 
             var memoriesImported = 0
             var skillsImported = 0
-            var notesImported = 0
-            var alarmsImported = 0
 
             val existingMemories = runCatching { memoryRepository.observeMemories().first() }.getOrDefault(emptyList())
             val existingMemoryContents = existingMemories.map { it.content }.toSet()
@@ -272,66 +245,11 @@ class GithubBackupService @Inject constructor(
                     .onFailure { Timber.tag("GithubBackup").w(it, "import cron ${c.label}") }
             }
 
-            // NoteEntity ids auto-generate, so a blind insert duplicates every note
-            // each time Restore is tapped. Skip notes that already exist (matched by
-            // gistId when present, else exact title+content).
-            val existingNotes = runCatching { noteRepository.getAllNotes() }
-                .getOrDefault(emptyList())
-                .toMutableList()
-            for (n in backupData.notes) {
-                val alreadyPresent = existingNotes.any {
-                    (n.gistId != null && it.gistId == n.gistId) ||
-                        (n.repository != null && n.path != null &&
-                            it.repository == n.repository && it.path == n.path) ||
-                        (n.gistId == null && n.repository == null &&
-                            it.gistId == null && it.repository == null &&
-                            it.title == n.title && it.content == n.content &&
-                            it.deletedAt == n.deletedAt)
-                }
-                if (alreadyPresent) continue
-                val entity = n.toRestoredEntity()
-                runCatching {
-                    noteRepository.insertNote(entity)
-                }
-                    .onSuccess {
-                        notesImported++
-                        existingNotes += entity
-                    }
-                    .onFailure { Timber.tag("GithubBackup").w(it, "import note ${n.title}") }
-            }
-
-            // Persist AND schedule, mirroring the cron loop above and Butler's own
-            // AddAlarmSheet. AlarmStore.upsert alone leaves restored alarms silent
-            // until the next reboot (AlarmReceiver re-registers stored alarms then).
-            val alarmScheduler = com.sassybutler.alarm.AlarmScheduler(context)
-            for (a in backupData.alarms) {
-                runCatching {
-                    val alarm = Alarm(
-                        id = a.id,
-                        hour = a.hour,
-                        minute = a.minute,
-                        label = a.label,
-                        enabled = a.enabled,
-                        days = a.days,
-                    )
-                    AlarmStore.upsert(context, alarm)
-                    if (alarm.enabled) alarmScheduler.schedule(alarm)
-                    
-                    // L5: Mirror restored alarms to calendar if permission is granted
-                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.WRITE_CALENDAR) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                        com.sassybutler.alarm.CalendarSyncManager.syncAlarmToCalendar(context, alarm)
-                    }
-                }
-                    .onSuccess { alarmsImported++ }
-                    .onFailure { Timber.tag("GithubBackup").w(it, "import alarm ${a.label}") }
-            }
-
             Timber.tag("GithubBackup").i(
                 "restored $memoriesImported memories, $skillsImported skills, " +
-                    "settings=$settingsRestored, $cronsImported crons, " +
-                    "$notesImported notes, $alarmsImported alarms",
+                    "settings=$settingsRestored, $cronsImported crons",
             )
-            RestoreResult.Success(memoriesImported, skillsImported, settingsRestored, cronsImported, notesImported, alarmsImported)
+            RestoreResult.Success(memoriesImported, skillsImported, settingsRestored, cronsImported)
         }
 
     private fun createGist(pat: String, body: okhttp3.RequestBody, ts: Long): BackupResult {
@@ -408,7 +326,7 @@ class GithubBackupService @Inject constructor(
 
     private fun buildGistPayload(jsonContent: String): String = buildString {
         append("{")
-        append("\"description\":\"Jeeves backup\",")
+        append("\"description\":\"Hermes backup\",")
         append("\"public\":false,")
         append("\"files\":{\"$GIST_FILENAME\":{\"content\":")
         // JSONObject.quote() correctly escapes the content string.

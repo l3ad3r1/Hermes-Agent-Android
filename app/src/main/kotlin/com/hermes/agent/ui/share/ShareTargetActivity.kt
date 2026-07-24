@@ -46,7 +46,7 @@ class ShareTargetActivity : ComponentActivity() {
                             .padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(text = "Share to Jeeves", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+                        Text(text = "Share to Hermes", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
                         Text(text = sharedText, maxLines = 3, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
                         
                         Button(onClick = { handleAction("summarize") }, modifier = Modifier.fillMaxWidth()) {
@@ -67,7 +67,7 @@ class ShareTargetActivity : ComponentActivity() {
     private fun handleAction(action: String) {
         // We can send this intent to MainActivity or create a background service call.
         val intent = Intent(this, com.hermes.agent.MainActivity::class.java).apply {
-            this.action = "com.hermes.agent.action.SHARE_TO_JEEVES"
+            this.action = "com.hermes.agent.action.SHARE_TO_HERMES"
             putExtra("EXTRA_SHARE_ACTION", action)
             putExtra("EXTRA_SHARE_TEXT", sharedText)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)

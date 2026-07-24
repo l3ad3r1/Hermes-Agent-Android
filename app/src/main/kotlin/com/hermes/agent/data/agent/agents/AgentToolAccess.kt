@@ -31,13 +31,11 @@ internal object AgentToolAccess {
             "get_current_datetime", "memory", "notes", "search_conversations",
             "skill_manager", "scheduler", "web_search", "web_fetch", "calculator",
             "shell", "termux", "delegate", "speak", "generate_image", "notify",
-            "create_note", "set_alarm", "search_notes",
         ),
         com.hermes.agent.domain.model.AgentRole.PRODUCTIVITY to COMMON + setOf(
             "get_current_datetime", "calendar_add_event", "memory", "notes",
             "search_conversations", "skill_manager", "scheduler", "calculator",
             "web_search", "web_fetch", "delegate", "notify",
-            "create_note", "set_alarm", "search_notes",
         ),
         com.hermes.agent.domain.model.AgentRole.RESEARCH to COMMON + setOf(
             "web_search", "web_fetch", "search_conversations", "memory", "notes",

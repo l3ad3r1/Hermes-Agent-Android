@@ -16,7 +16,6 @@ import com.hermes.agent.data.log.LogManager
 import com.hermes.agent.data.performance.MemoryPressureMonitor
 import com.hermes.agent.debug.DebugScreenAwake
 import com.hermes.agent.core.settings.HermesSettings
-import com.l3ad3r1.octojotter.data.local.ThemePreferences
 import com.hermes.agent.domain.repository.ExecutionPlanRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -52,9 +51,6 @@ class HermesApp : Application(), Configuration.Provider {
     lateinit var logManager: LogManager
 
     @Inject
-    lateinit var noteIndexerProvider: Provider<com.hermes.agent.data.rag.NoteIndexer>
-
-    @Inject
     lateinit var executionPlanRepositoryProvider: Provider<ExecutionPlanRepository>
 
     private val applicationScope = CoroutineScope(Dispatchers.Default)
@@ -69,13 +65,6 @@ class HermesApp : Application(), Configuration.Provider {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Constructing NoteIndexer also constructs Jotter's encrypted token store and
-        // database. Keep that work off the application injection/startup path so an
-        // unavailable optional integration cannot prevent the rest of Jeeves starting.
-        applicationScope.launch {
-            runCatching { noteIndexerProvider.get().start(applicationScope) }
-                .onFailure { Timber.tag("NoteIndexer").w(it, "note indexing unavailable") }
-        }
         applicationScope.launch {
             runCatching { executionPlanRepositoryProvider.get().reconcileInterruptedSteps() }
                 .onSuccess { count ->
@@ -88,27 +77,21 @@ class HermesApp : Application(), Configuration.Provider {
         // initializer already started it via Hilt EntryPoint, this is a
         // no-op; otherwise we start it now that Hilt is initialized.
         memoryPressureMonitor.start()
-        migrateLegacyThemeSetting()
+        warmUpSettingsStore()
         scheduleMemoryConsolidation()
         scheduleSkillImprovement()
         scheduleOtaUpdateCheck()
     }
 
     /**
-     * Jotter's theme used to live in its own `theme_settings` DataStore. It now lives in
-     * HermesSettings with everything else, but DataStore has no synchronous read, so — unlike
-     * Butler's SharedPreferences — it cannot migrate on first touch. Do it here, off the main
-     * thread, before any Activity can observe the theme. It is a no-op once migrated.
+     * Touch the settings store off the main thread, so its one-time SharedPreferences
+     * migration (which commit()s) does not land on whichever caller gets there first —
+     * MainActivity reads the theme during composition. No-op once warm.
      */
-    private fun migrateLegacyThemeSetting() {
+    private fun warmUpSettingsStore() {
         CoroutineScope(Dispatchers.IO).launch {
-            // Touch the store here first so its one-time SharedPreferences migration (which
-            // commit()s) runs off the main thread rather than on whichever caller gets there
-            // first — MainActivity reads the theme during composition.
             runCatching { HermesSettings.prefs(this@HermesApp) }
                 .onFailure { Timber.tag("Migration").w(it, "settings store warm-up failed") }
-            runCatching { ThemePreferences(this@HermesApp).migrateLegacyTheme() }
-                .onFailure { Timber.tag("Migration").w(it, "legacy theme migration failed") }
         }
     }
 
@@ -119,12 +102,10 @@ class HermesApp : Application(), Configuration.Provider {
             .build()
 
     private fun scheduleOtaUpdateCheck() {
-        // JX-01 (docs/UX_AUDIT.md): the OTA checker targets the STANDALONE
-        // Hermes-Agent-Android release channel — the wrong channel for this
-        // applicationId; "updating" would install a second, separate app.
-        // Cancel rather than merely skip: earlier Jeeves builds already enqueued
-        // this unique work with ExistingPeriodicWorkPolicy.KEEP, so on updated
-        // installs it would otherwise keep running daily forever.
+        // The OTA channel is configurable via `hermes.updateRepo`. A blank value
+        // disables updates entirely; cancel rather than merely skip, since this
+        // unique work is enqueued with ExistingPeriodicWorkPolicy.KEEP and would
+        // otherwise keep running daily on installs that already scheduled it.
         if (!BuildConfig.OTA_ENABLED) {
             WorkManager.getInstance(this).cancelUniqueWork(OtaUpdateWorker.UNIQUE_NAME)
             return

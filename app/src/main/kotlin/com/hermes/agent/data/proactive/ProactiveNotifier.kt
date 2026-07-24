@@ -87,7 +87,7 @@ class ProactiveNotifier @Inject constructor(
                     CHANNEL_ID,
                     "Proactive updates",
                     NotificationManager.IMPORTANCE_DEFAULT,
-                ).apply { description = "Scheduled tasks, digests, and nudges from Jeeves" },
+                ).apply { description = "Scheduled tasks, digests, and nudges from Hermes" },
             )
         }
 
@@ -115,6 +115,6 @@ class ProactiveNotifier @Inject constructor(
     }
 
     companion object {
-        const val CHANNEL_ID = "jeeves_proactive"
+        const val CHANNEL_ID = "hermes_proactive"
     }
 }

@@ -102,14 +102,14 @@ fun LogScreen(
 
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("Jeeves logs", text))
+    clipboard.setPrimaryClip(ClipData.newPlainText("Hermes logs", text))
     Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
 }
 
 private fun shareLogs(context: Context, text: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "Jeeves logs")
+        putExtra(Intent.EXTRA_SUBJECT, "Hermes logs")
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(intent, "Share logs"))

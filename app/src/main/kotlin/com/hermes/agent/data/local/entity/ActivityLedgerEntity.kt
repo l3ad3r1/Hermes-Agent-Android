@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 import com.hermes.agent.domain.model.ActivityEntry
 import com.hermes.agent.domain.model.ActivityKind
 
-/** Room row backing the "What Jeeves did" activity ledger. */
+/** Room row backing the "What Hermes did" activity ledger. */
 @Entity(
     tableName = "activity_ledger",
     indices = [Index(value = ["timestamp"])],

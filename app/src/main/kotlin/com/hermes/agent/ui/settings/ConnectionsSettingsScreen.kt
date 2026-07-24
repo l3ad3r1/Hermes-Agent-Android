@@ -108,7 +108,7 @@ private fun ApiServerSection(
             ToggleRow(
                 title = "Run local API server",
                 subtitle = "Expose an OpenAI-compatible endpoint so other apps (Open WebUI, " +
-                    "LobeChat, scripts) can use Jeeves as a backend.",
+                    "LobeChat, scripts) can use Hermes as a backend.",
                 checked = settings.apiServerEnabled,
                 onCheckedChange = onToggle,
             )
@@ -156,7 +156,7 @@ private fun ApiServerSection(
                     OutlinedButton(
                         onClick = {
                             clipboard?.setPrimaryClip(
-                                android.content.ClipData.newPlainText("Jeeves API key", settings.apiServerKey),
+                                android.content.ClipData.newPlainText("Hermes API key", settings.apiServerKey),
                             )
                         },
                         modifier = Modifier.weight(1f),

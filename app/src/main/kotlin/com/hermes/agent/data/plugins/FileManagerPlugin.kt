@@ -83,7 +83,7 @@ class FileManagerPlugin @Inject constructor(
         displayName = "File Manager",
         versionCode = 1,
         versionName = "1.0.0",
-        author = "Jeeves Team",
+        author = "Hermes Team",
         signatureFingerprint = "(in-process, no signature required)",
         capabilities = listOf(
             PluginCapability(

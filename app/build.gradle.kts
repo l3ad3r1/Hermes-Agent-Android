@@ -39,8 +39,9 @@ android {
         applicationId = "com.hermes.agent"
         minSdk = 29          // Android 10 — covers ~95% of active devices
         targetSdk = 36       // Android 16
-        versionCode = 59
-        versionName = "0.8.9"
+        // Single source of truth in gradle.properties.
+        versionCode = (project.findProperty("hermes.versionCode") as String?)?.toInt() ?: 60
+        versionName = project.findProperty("hermes.versionName") as String? ?: "0.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -50,6 +51,13 @@ android {
         buildConfigField("String", "CLOUD_MODEL", "\"${project.findProperty("hermes.cloudModel") ?: "gpt-4o-mini"}\"")
         // API key is read from local properties only — never committed.
         buildConfigField("String", "CLOUD_API_KEY", "\"${localProps.getProperty("hermes.cloudApiKey") ?: ""}\"")
+
+        // The in-app OTA update channel: an "owner/repo" that publishes signed
+        // Hermes APKs as GitHub releases. Blank disables the updater entirely
+        // (UI hidden, background check cancelled).
+        val updateRepo = (project.findProperty("hermes.updateRepo") as String?).orEmpty().trim()
+        buildConfigField("String", "UPDATE_REPO", "\"$updateRepo\"")
+        buildConfigField("boolean", "OTA_ENABLED", updateRepo.isNotBlank().toString())
     }
 
     buildTypes {

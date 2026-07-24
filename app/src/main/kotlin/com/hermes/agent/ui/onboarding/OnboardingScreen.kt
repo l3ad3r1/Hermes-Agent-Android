@@ -136,7 +136,7 @@ private fun WelcomeStep() {
         )
         Spacer(Modifier.height(14.dp))
         Text(
-            "A few details, the permissions Jeeves needs, and a quick look at your phone — " +
+            "A few details, the permissions Hermes needs, and a quick look at your phone — " +
                 "all saved to memory so the agent knows you and your device.",
             style = MaterialTheme.typography.bodyLarge,
             color = scheme.onSurfaceVariant,
@@ -149,7 +149,7 @@ private fun WelcomeStep() {
 @Composable
 private fun ProfileStep(viewModel: OnboardingViewModel) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
-    StepHeader("About you", "Jeeves commits these to memory so it can act on your behalf.")
+    StepHeader("About you", "Hermes commits these to memory so it can act on your behalf.")
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -169,7 +169,7 @@ private fun ProfileStep(viewModel: OnboardingViewModel) {
                 Field("Sleep time (e.g. 23:00)", profile.sleepTime) { v -> viewModel.update { it.copy(sleepTime = v) } }
             }
         }
-        Field("Anything else Jeeves should know", profile.notes, singleLine = false) { v ->
+        Field("Anything else Hermes should know", profile.notes, singleLine = false) { v ->
             viewModel.update { it.copy(notes = v) }
         }
         Spacer(Modifier.height(8.dp))
@@ -185,7 +185,7 @@ private fun DeviceStep(viewModel: OnboardingViewModel) {
     val scanning by viewModel.scanning.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
-    StepHeader("Your device", "Jeeves checks your phone's capabilities so it can tailor its features to your device.")
+    StepHeader("Your device", "Hermes checks your phone's capabilities so it can tailor its features to your device.")
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -308,7 +308,7 @@ private fun PermissionRow(title: String, why: String, permission: String) {
 private fun PermissionsStep() {
     val scheme = MaterialTheme.colorScheme
 
-    StepHeader("Permissions", "Grant what Jeeves needs to help — you can change these later in system settings.")
+    StepHeader("Permissions", "Grant what Hermes needs to help — you can change these later in system settings.")
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -324,7 +324,7 @@ private fun PermissionsStep() {
         PermissionRow("Contacts", "Look up and message people you name", Manifest.permission.READ_CONTACTS)
         PermissionRow("Calendar", "Read and schedule events", Manifest.permission.READ_CALENDAR)
         PermissionRow("Camera", "Capture and analyze images on request", Manifest.permission.CAMERA)
-        PermissionRow("Termux Commands", "Let Jeeves run the full agent in Termux", "com.termux.permission.RUN_COMMAND")
+        PermissionRow("Termux Commands", "Let Hermes run the full agent in Termux", "com.termux.permission.RUN_COMMAND")
         Spacer(Modifier.height(6.dp))
         Text(
             "Each is requested separately — approve the ones you're comfortable with.",

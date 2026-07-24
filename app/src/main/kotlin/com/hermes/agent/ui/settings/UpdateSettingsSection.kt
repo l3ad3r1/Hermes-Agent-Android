@@ -102,14 +102,14 @@ internal fun UpdateSection(
                 }
                 is UpdateUiState.UpdateAvailable -> {
                     Text(
-                        "Jeeves ${state.version} is available!",
+                        "Hermes ${state.version} is available!",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
                     if (state.apkUrl.isNotBlank()) {
                         if (!canInstall) {
                             Text(
-                                "Allow \"install unknown apps\" for Jeeves so it can " +
+                                "Allow \"install unknown apps\" for Hermes so it can " +
                                     "install the update directly.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -135,7 +135,7 @@ internal fun UpdateSection(
                 }
                 is UpdateUiState.Downloading -> {
                     Text(
-                        "Downloading Jeeves ${state.version}… ${state.percent}%",
+                        "Downloading Hermes ${state.version}… ${state.percent}%",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

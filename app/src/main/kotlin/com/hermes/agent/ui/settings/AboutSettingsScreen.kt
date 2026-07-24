@@ -82,7 +82,7 @@ fun AboutSettingsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    InfoRow(title = "Application", value = "Jeeves")
+                    InfoRow(title = "Application", value = "Hermes")
                     InfoRow(
                         title = stringResource(R.string.settings_app_version),
                         value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",

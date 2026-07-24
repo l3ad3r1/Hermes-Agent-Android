@@ -116,7 +116,7 @@
              user grants notification access in system settings AND enables the
              in-app switch (Settings -> Proactive). -->
         <service
-            android:name=".service.JeevesNotificationListener"
+            android:name=".service.HermesNotificationListener"
             android:exported="false"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
@@ -152,7 +152,7 @@
 
         <receiver android:name=".data.proactive.LessOfThisReceiver" android:exported="false">
             <intent-filter>
-                <action android:name="com.jeeves.app.action.LESS_OF_THIS" />
+                <action android:name="com.hermes.agent.action.LESS_OF_THIS" />
             </intent-filter>
         </receiver>
 
@@ -171,7 +171,7 @@
 
         <!-- Quick Settings Tile -->
         <service
-            android:name=".ui.tile.JeevesQuickTileService"
+            android:name=".ui.tile.HermesQuickTileService"
             android:exported="true"
             android:label="@string/app_name"
             android:icon="@mipmap/ic_launcher"
@@ -182,7 +182,7 @@
         </service>
 
         <service
-            android:name=".service.JeevesVoiceInteractionService"
+            android:name=".service.HermesVoiceInteractionService"
             android:permission="android.permission.BIND_VOICE_INTERACTION"
             android:exported="true">
             <meta-data
@@ -195,7 +195,7 @@
         </service>
 
         <service
-            android:name=".service.JeevesVoiceInteractionSessionService"
+            android:name=".service.HermesVoiceInteractionSessionService"
             android:permission="android.permission.BIND_VOICE_INTERACTION"
             android:exported="true" />
 

@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.hermes.agent.data.butler.BriefingComposer
+import com.hermes.agent.data.agent.TodoStore
 import com.hermes.agent.data.proactive.NotificationCaptureStore
 import com.hermes.agent.data.proactive.ProactiveNotifier
 import com.hermes.agent.domain.proactive.ProactiveSource
@@ -13,23 +13,23 @@ import dagger.assisted.AssistedInject
 import timber.log.Timber
 
 /**
- * Daily digest ping (roadmap v0.12): reuses the briefing composer's
- * weather/calendar/todos context as the digest body and routes it through
- * the proactive gate, so consent, DND, quiet hours, and the annoyance
- * budget all apply. Opt-in only — [ProactiveSource.DIGEST] defaults off.
+ * Daily digest ping (roadmap v0.12): summarises open todos and captured
+ * notifications, routed through the proactive gate so consent, DND, quiet
+ * hours, and the annoyance budget all apply. Opt-in only —
+ * [ProactiveSource.DIGEST] defaults off.
  */
 @HiltWorker
 class DailyDigestWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val briefingComposer: BriefingComposer,
+    private val todoStore: TodoStore,
     private val proactiveNotifier: ProactiveNotifier,
     private val captureStore: NotificationCaptureStore,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = try {
         val body = buildString {
-            append(briefingComposer.composeContext(applicationContext).trim())
+            append(todoSection())
             append(notificationSection())
         }.trim().ifBlank { "Nothing on the radar today." }.take(1_500)
         proactiveNotifier.post(ProactiveSource.DIGEST, "Your daily digest", body)
@@ -37,6 +37,15 @@ class DailyDigestWorker @AssistedInject constructor(
     } catch (e: Exception) {
         Timber.tag("DailyDigest").w(e, "digest composition failed")
         Result.retry()
+    }
+
+    /** Open todos, the agent's own work-in-flight. */
+    private fun todoSection(): String {
+        val open = todoStore.snapshot().filter { !it.status.equals("completed", ignoreCase = true) }
+        if (open.isEmpty()) return ""
+        val lines = open.take(MAX_DIGEST_TODOS).joinToString("\n") { "- ${it.content}" }
+        val more = (open.size - MAX_DIGEST_TODOS).coerceAtLeast(0)
+        return "Open todos:\n$lines" + if (more > 0) "\n- and $more more" else ""
     }
 
     /**
@@ -62,5 +71,6 @@ class DailyDigestWorker @AssistedInject constructor(
         const val UNIQUE_NAME = "proactive_daily_digest"
         const val CAPTURE_WINDOW_MS = 24L * 60 * 60 * 1000
         const val MAX_DIGEST_NOTIFICATIONS = 8
+        const val MAX_DIGEST_TODOS = 8
     }
 }

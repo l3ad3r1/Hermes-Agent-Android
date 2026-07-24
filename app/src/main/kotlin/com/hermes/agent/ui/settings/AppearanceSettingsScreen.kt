@@ -143,7 +143,7 @@ fun AppearanceSettingsScreen(
             AppearanceCard {
                 Text("Font", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Choose the typeface used across Jeeves",
+                    "Choose the typeface used across Hermes",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

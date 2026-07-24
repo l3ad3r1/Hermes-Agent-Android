@@ -43,7 +43,7 @@ class ExecutionPlanRepositoryImpl @Inject constructor(
 
     override suspend fun reconcileInterruptedSteps(): Int = dao.blockInterruptedSteps(
         finishedAt = System.currentTimeMillis(),
-        reason = "Execution was interrupted when Jeeves stopped. Retry this step to continue.",
+        reason = "Execution was interrupted when Hermes stopped. Retry this step to continue.",
     )
 
     companion object {

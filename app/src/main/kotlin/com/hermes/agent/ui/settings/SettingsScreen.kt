@@ -11,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Build
@@ -74,13 +73,6 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
-                        icon = Icons.Outlined.Alarm,
-                        title = "Daybook",
-                        subtitle = "Wake-ups, weather & calendar",
-                        onClick = { onNavigate("settings_alarms") },
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    NavRow(
                         icon = Icons.Outlined.SettingsEthernet,
                         title = "Connections",
                         subtitle = "Local API server and remote shell",
@@ -103,7 +95,7 @@ fun SettingsScreen(
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
                         icon = Icons.Outlined.History,
-                        title = "What Jeeves did",
+                        title = "What Hermes did",
                         subtitle = "Activity ledger: tool runs and delegated tasks",
                         onClick = { onNavigate("activity_ledger") },
                     )

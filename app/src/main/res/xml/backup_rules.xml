@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Jeeves has an explicit, user-triggered Gist backup. Android Auto Backup is
+<!-- Hermes has an explicit, user-triggered Gist backup. Android Auto Backup is
      disabled in the manifest; these exclusions are defense-in-depth for OEMs. -->
 <full-backup-content>
     <exclude domain="database" path="." />

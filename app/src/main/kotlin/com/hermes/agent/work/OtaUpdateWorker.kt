@@ -49,7 +49,7 @@ class OtaUpdateWorker @AssistedInject constructor(
                 CHANNEL_ID,
                 "App Updates",
                 NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = "Jeeves update availability notifications" }
+            ).apply { description = "Hermes update availability notifications" }
             nm.createNotificationChannel(channel)
         }
 
@@ -74,10 +74,10 @@ class OtaUpdateWorker @AssistedInject constructor(
 
         val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Jeeves ${update.version} available")
-            .setContentText("Tap to open Jeeves and install the update.")
+            .setContentTitle("Hermes ${update.version} available")
+            .setContentText("Tap to open Hermes and install the update.")
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(update.releaseNotes.ifBlank { "Tap to open Jeeves and install the update." }))
+                .bigText(update.releaseNotes.ifBlank { "Tap to open Hermes and install the update." }))
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .build()

@@ -56,7 +56,7 @@ class ChatRepositoryImpl @Inject constructor(
     companion object {
         const val CONTEXT_WINDOW_MESSAGES = 20
         const val SYSTEM_PROMPT =
-            "You are Jeeves, a privacy-first AI agent for Android. " +
+            "You are Hermes, a privacy-first AI agent for Android. " +
                 "Be concise, helpful, and privacy-conscious. " +
                 "When asked about device features, check what is available on this device."
     }
@@ -258,7 +258,7 @@ class ChatRepositoryImpl @Inject constructor(
             You are a summarization assistant. 
             Summarize the following conversation into a concise 1-2 sentence overview of what was discussed, 
             focusing on the user's intent, the context, and any key facts or outcomes. 
-            Write the summary in the third person (e.g. "The user asked for...", "Jeeves explained...").
+            Write the summary in the third person (e.g. "The user asked for...", "Hermes explained...").
             Do not include pleasantries.
         """.trimIndent()
 

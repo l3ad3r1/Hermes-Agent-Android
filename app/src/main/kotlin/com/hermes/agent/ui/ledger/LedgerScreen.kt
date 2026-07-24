@@ -32,7 +32,7 @@ import java.text.DateFormat
 import java.util.Date
 
 /**
- * Settings → "What Jeeves did". The persisted activity ledger: every tool
+ * Settings → "What Hermes did". The persisted activity ledger: every tool
  * execution and delegated background task, newest first (roadmap v0.13,
  * accountability).
  */
@@ -47,7 +47,7 @@ fun LedgerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("What Jeeves did") },
+                title = { Text("What Hermes did") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")

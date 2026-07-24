@@ -217,7 +217,7 @@ class DelegateTool @Inject constructor(
         const val CHILD_TOOL_OUTPUT_CAP = 2000
 
         const val SUBAGENT_SYSTEM_PROMPT =
-            "You are a focused Jeeves subagent. You have been given a single, self-contained task " +
+            "You are a focused Hermes subagent. You have been given a single, self-contained task " +
                 "by a parent agent. You have a limited set of read/research tools (web search and " +
                 "fetch, calculator, current date/time, conversation search) and cannot ask follow-up " +
                 "questions, so make reasonable assumptions where needed. Use tools only when they " +

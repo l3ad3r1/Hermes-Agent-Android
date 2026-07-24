@@ -110,12 +110,12 @@ class WebhookTool @Inject constructor(
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             nm.createNotificationChannel(
-                android.app.NotificationChannel("jeeves_notify", "Jeeves Notifications", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+                android.app.NotificationChannel("hermes_notify", "Hermes Notifications", android.app.NotificationManager.IMPORTANCE_DEFAULT)
             )
         }
 
         val remoteInput = androidx.core.app.RemoteInput.Builder("KEY_REPLY")
-            .setLabel("Reply to Jeeves...")
+            .setLabel("Reply to Hermes...")
             .build()
 
         val replyIntent = android.content.Intent(context, com.hermes.agent.receiver.NotificationReplyReceiver::class.java).apply {
@@ -134,9 +134,9 @@ class WebhookTool @Inject constructor(
             replyPendingIntent
         ).addRemoteInput(remoteInput).build()
 
-        val notification = androidx.core.app.NotificationCompat.Builder(context, "jeeves_notify")
+        val notification = androidx.core.app.NotificationCompat.Builder(context, "hermes_notify")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Jeeves")
+            .setContentTitle("Hermes")
             .setContentText(message)
             .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(message))
             .addAction(action)

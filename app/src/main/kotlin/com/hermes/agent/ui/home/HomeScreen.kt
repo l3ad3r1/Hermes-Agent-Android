@@ -159,41 +159,6 @@ fun HomeScreen(
 
         Spacer(Modifier.height(20.dp))
 
-        // Bundled apps. Jotter and Butler each keep their own Activity rather than being
-        // embedded in this nav graph: Jotter's is a FragmentActivity (BiometricPrompt
-        // needs one) and Butler's UI is View-based, not Compose. Both live in feature
-        // modules of this same APK, so a plain Intent starts them.
-        SectionLabel("Apps")
-        Spacer(Modifier.height(11.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            QuickAction(
-                title = "AI Notes",
-                subtitle = "Capture & summarize",
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    val intent = Intent(context, com.l3ad3r1.octojotter.MainActivity::class.java).apply {
-                        putExtra("EXTRA_EMBEDDED", true)
-                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                    }
-                    context.startActivity(intent)
-                },
-            )
-            QuickAction(
-                title = "Daybook",
-                subtitle = "Alarms, weather & calendar",
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    val intent = Intent(context, com.sassybutler.alarm.MainAlarmSetupActivity::class.java).apply {
-                        putExtra("EXTRA_EMBEDDED", true)
-                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                    }
-                    context.startActivity(intent)
-                },
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
         // Recent threads
         SectionHeader("Recent threads", action = "Open", onAction = onOpenConversations)
         Spacer(Modifier.height(11.dp))

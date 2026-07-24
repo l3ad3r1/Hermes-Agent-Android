@@ -66,10 +66,10 @@ fun ProactiveSettingsScreen(
                 .padding(16.dp),
         ) {
             Text(
-                text = "Jeeves only pings when a capability below is on, outside quiet hours " +
+                text = "Hermes only pings when a capability below is on, outside quiet hours " +
                     "(${state.quietLabel}), within ${state.dailyCap} pings a day, and never " +
                     "during Do Not Disturb. Every ping — sent or suppressed — is listed under " +
-                    "\"What Jeeves did\".",
+                    "\"What Hermes did\".",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -128,7 +128,7 @@ fun ProactiveSettingsScreen(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     Text(
-                        text = "Also needs notification access granted to Jeeves in system " +
+                        text = "Also needs notification access granted to Hermes in system " +
                             "settings. Captured text appears only in your digest — it is " +
                             "never shown to the AI. Turning this off deletes captured data.",
                         style = MaterialTheme.typography.bodySmall,

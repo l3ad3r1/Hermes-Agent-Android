@@ -8,7 +8,7 @@ enum class ActivityKind {
 }
 
 /**
- * One row of the "What Jeeves did" ledger: a tool execution or a delegated
+ * One row of the "What Hermes did" ledger: a tool execution or a delegated
  * background task, with enough detail to audit what happened without
  * reconstructing the whole conversation.
  */

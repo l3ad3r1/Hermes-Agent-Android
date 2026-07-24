@@ -21,7 +21,7 @@ class BriefingWidgetProvider : AppWidgetProvider() {
         
         // Tap to chat intent
         val chatIntent = Intent(context, MainActivity::class.java).apply {
-            action = "com.hermes.agent.action.ASK_JEEVES"
+            action = "com.hermes.agent.action.ASK_HERMES"
         }
         val chatPendingIntent = PendingIntent.getActivity(
             context, 0, chatIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

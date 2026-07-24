@@ -25,7 +25,7 @@ enum class AppTheme {
     HERMES_BLUE,
 }
 
-/** Root Jeeves theme: shared monochrome light or OLED-black surfaces and typography. */
+/** Root Hermes theme: shared monochrome light or OLED-black surfaces and typography. */
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun HermesTheme(

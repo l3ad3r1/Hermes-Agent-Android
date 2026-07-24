@@ -42,9 +42,9 @@ import javax.inject.Inject
  * logs a `GATE:` line so the driver script can assert outcomes from logcat.
  *
  * Examples:
- *   adb shell am broadcast -a com.jeeves.debug.PROACTIVE_PING --es title T --es text X
- *   adb shell am broadcast -a com.jeeves.debug.SET_QUIET --ei start 10800 --ei end 10860
- *   adb shell am broadcast -a com.jeeves.debug.SET_CONSENT --es source DIGEST --ez granted true
+ *   adb shell am broadcast -a com.hermes.agent.debug.PROACTIVE_PING --es title T --es text X
+ *   adb shell am broadcast -a com.hermes.agent.debug.SET_QUIET --ei start 10800 --ei end 10860
+ *   adb shell am broadcast -a com.hermes.agent.debug.SET_CONSENT --es source DIGEST --ez granted true
  */
 @AndroidEntryPoint
 class ProactiveTestReceiver : BroadcastReceiver() {
@@ -64,7 +64,7 @@ class ProactiveTestReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) = runBlocking {
         when (intent.action) {
-            "com.jeeves.debug.PROACTIVE_PING" -> {
+            "com.hermes.agent.debug.PROACTIVE_PING" -> {
                 val source = sourceOf(intent)
                 val posted = notifier.post(
                     source,
@@ -73,33 +73,33 @@ class ProactiveTestReceiver : BroadcastReceiver() {
                 )
                 gate("GATE:PING source=%s posted=%s", source.name, posted)
             }
-            "com.jeeves.debug.RUN_DIGEST" -> {
+            "com.hermes.agent.debug.RUN_DIGEST" -> {
                 WorkManager.getInstance(context)
                     .enqueue(OneTimeWorkRequestBuilder<DailyDigestWorker>().build())
                 gate("GATE:DIGEST_ENQUEUED")
             }
-            "com.jeeves.debug.RUN_NUDGE" -> {
+            "com.hermes.agent.debug.RUN_NUDGE" -> {
                 WorkManager.getInstance(context)
                     .enqueue(OneTimeWorkRequestBuilder<CommitmentNudgeWorker>().build())
                 gate("GATE:NUDGE_ENQUEUED")
             }
-            "com.jeeves.debug.LESS_OF_THIS" -> {
+            "com.hermes.agent.debug.LESS_OF_THIS" -> {
                 val source = sourceOf(intent)
                 store.recordLessOfThis(source)
                 gate("GATE:LESS source=%s count=%d", source.name, store.lessOfThisCount(source))
             }
-            "com.jeeves.debug.RESET_LESS" -> {
+            "com.hermes.agent.debug.RESET_LESS" -> {
                 val source = sourceOf(intent)
                 store.resetLessOfThis(source)
                 gate("GATE:RESET_LESS source=%s", source.name)
             }
-            "com.jeeves.debug.SET_CONSENT" -> {
+            "com.hermes.agent.debug.SET_CONSENT" -> {
                 val source = sourceOf(intent)
                 val granted = intent.getBooleanExtra("granted", false)
                 store.setConsent(source, granted)
                 gate("GATE:CONSENT source=%s granted=%s", source.name, granted)
             }
-            "com.jeeves.debug.SET_QUIET" -> {
+            "com.hermes.agent.debug.SET_QUIET" -> {
                 val start = intent.getIntExtra("start", 22 * 3600)
                 val end = intent.getIntExtra("end", 7 * 3600)
                 store.setQuietHours(
@@ -108,17 +108,17 @@ class ProactiveTestReceiver : BroadcastReceiver() {
                 )
                 gate("GATE:QUIET start=%s end=%s", store.quietStart, store.quietEnd)
             }
-            "com.jeeves.debug.SET_CAPTURE" -> {
+            "com.hermes.agent.debug.SET_CAPTURE" -> {
                 captureStore.captureEnabled = intent.getBooleanExtra("enabled", false)
                 if (!captureStore.captureEnabled) captureStore.clear()
                 gate("GATE:CAPTURE enabled=%s", captureStore.captureEnabled)
             }
-            "com.jeeves.debug.ADD_COMMITMENT" -> {
+            "com.hermes.agent.debug.ADD_COMMITMENT" -> {
                 val text = intent.getStringExtra("text") ?: "test the gates tonight"
                 val id = memoryRepository.addMemory("Commitment: $text")
                 gate("GATE:COMMITMENT id=%s", id)
             }
-            "com.jeeves.debug.RUN_DELEGATION" -> {
+            "com.hermes.agent.debug.RUN_DELEGATION" -> {
                 // Real delegation lifecycle: repository persists the task AND
                 // schedules AgentTaskWorker (L-005), which runs the full
                 // BACKGROUND-origin orchestrator and posts a notification.
@@ -126,7 +126,7 @@ class ProactiveTestReceiver : BroadcastReceiver() {
                 val task = agentTaskRepository.add(prompt.take(40), prompt)
                 gate("GATE:DELEGATION_QUEUED id=%s label=%s", task.id, task.label)
             }
-            "com.jeeves.debug.TEST_BG_SHELL" -> {
+            "com.hermes.agent.debug.TEST_BG_SHELL" -> {
                 // Real AgentLoopRunner + real ToolExecutionPolicy singleton on
                 // device: a BACKGROUND turn that requests shell must be denied
                 // with actionable text. The LLM is a canned provider so the
@@ -147,7 +147,7 @@ class ProactiveTestReceiver : BroadcastReceiver() {
                 }
                 gate("GATE:BG_SHELL outcome=%s", outcome::class.simpleName)
             }
-            "com.jeeves.debug.TEST_REPETITION" -> {
+            "com.hermes.agent.debug.TEST_REPETITION" -> {
                 // Real RepeatedExecutionGuard on device: a provider that emits
                 // the same unauthorized call every round produces identical
                 // results, so the guard must stop with the recovery message.
@@ -163,7 +163,7 @@ class ProactiveTestReceiver : BroadcastReceiver() {
                 val msg = (outcome as? AgentLoopOutcome.Failed)?.userMessage
                 gate("GATE:REPETITION reason=%s msg=%s", reason, msg)
             }
-            "com.jeeves.debug.TEST_SWITCH" -> {
+            "com.hermes.agent.debug.TEST_SWITCH" -> {
                 // Reproduces the UI switch: re-select the current custom model,
                 // which unloads (cleanUp) then persists — the reported crash path.
                 gate("GATE:SWITCH_START")
@@ -177,7 +177,7 @@ class ProactiveTestReceiver : BroadcastReceiver() {
                 }.onFailure { gate("GATE:SWITCH_ERR %s", it.toString()) }
                 gate("GATE:SWITCH_DONE")
             }
-            "com.jeeves.debug.TEST_LOCAL_GEN" -> {
+            "com.hermes.agent.debug.TEST_LOCAL_GEN" -> {
                 // Reproduces the local-model load+inference path (the SAF fd
                 // lifetime bug): loads the configured custom model and pulls a
                 // few tokens. A native SIGBUS/SIGSEGV surfaces in logcat.
@@ -193,7 +193,7 @@ class ProactiveTestReceiver : BroadcastReceiver() {
                 }.onFailure { gate("GATE:LOCAL_GEN_END err=%s", it.message) }
                 gate("GATE:LOCAL_GEN_DONE")
             }
-            "com.jeeves.debug.DUMP_LEDGER" -> {
+            "com.hermes.agent.debug.DUMP_LEDGER" -> {
                 ledger.observeRecent(10).first().forEach { e ->
                     gate(
                         "GATE:LEDGER kind=%s title=%s success=%s detail=%s",

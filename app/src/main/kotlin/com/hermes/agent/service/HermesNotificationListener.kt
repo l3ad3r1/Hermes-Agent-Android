@@ -17,7 +17,7 @@ import javax.inject.Inject
  * the human-facing digest — never in an LLM prompt.
  */
 @AndroidEntryPoint
-class JeevesNotificationListener : NotificationListenerService() {
+class HermesNotificationListener : NotificationListenerService() {
 
     @Inject lateinit var store: NotificationCaptureStore
 

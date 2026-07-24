@@ -96,31 +96,11 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: android.content.Intent?) {
         if (intent == null) return
         when (intent.action) {
-            "com.hermes.agent.action.NEW_NOTE" -> {
-                val i = android.content.Intent(this, com.l3ad3r1.octojotter.MainActivity::class.java).apply {
-                    putExtra("EXTRA_EMBEDDED", true)
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                }
-                startActivity(i)
-                finish()
-            }
-            "com.hermes.agent.action.SET_ALARM" -> {
-                val i = android.content.Intent(this, com.sassybutler.alarm.MainAlarmSetupActivity::class.java).apply {
-                    putExtra("EXTRA_EMBEDDED", true)
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                }
-                startActivity(i)
-                finish()
-            }
-            "com.hermes.agent.action.ASK_JEEVES" -> {
+            "com.hermes.agent.action.ASK_HERMES" -> {
                 // To open chat directly, we should start the ChatScreen, but it's handled via nav graph.
                 // For now, doing nothing leaves it in the MainActivity which opens to the nav graph.
             }
-            "com.hermes.agent.action.PLAY_BRIEFING" -> {
-                // Trigger the briefing. The briefing is handled by ButlerSpeech / AlarmForegroundService.
-                // Start the briefing directly using ButlerSpeech. We might need a component to do it.
-            }
-            "com.hermes.agent.action.SHARE_TO_JEEVES" -> {
+            "com.hermes.agent.action.SHARE_TO_HERMES" -> {
                 val shareAction = intent.getStringExtra("EXTRA_SHARE_ACTION")
                 val shareText = intent.getStringExtra("EXTRA_SHARE_TEXT")
                 // TODO: Handle passing this to the agent / chat screen.

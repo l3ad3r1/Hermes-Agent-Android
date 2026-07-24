@@ -34,7 +34,7 @@ class LessOfThisReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val ACTION = "com.jeeves.app.action.LESS_OF_THIS"
+        const val ACTION = "com.hermes.agent.action.LESS_OF_THIS"
         const val EXTRA_SOURCE = "source"
     }
 }

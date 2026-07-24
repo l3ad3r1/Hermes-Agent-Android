@@ -361,7 +361,7 @@ private fun EmptyCronState(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Tap + to schedule a recurring prompt.\nJeeves will run it and notify you.",
+            text = "Tap + to schedule a recurring prompt.\nHermes will run it and notify you.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

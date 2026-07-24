@@ -151,7 +151,7 @@ class LocalLlmManager @Inject constructor(
     }
 
     companion object {
-        private const val DEFAULT_SYSTEM_PROMPT = "You are Jeeves, a helpful on-device assistant."
+        private const val DEFAULT_SYSTEM_PROMPT = "You are Hermes, a helpful on-device assistant."
 
         fun hasStorageAccess(context: Context): Boolean =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
