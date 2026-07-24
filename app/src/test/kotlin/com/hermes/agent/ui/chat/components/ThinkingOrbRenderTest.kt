@@ -34,11 +34,9 @@ class ThinkingOrbRenderTest {
     private val outputDir = File("build/orb-frames").apply { mkdirs() }
 
     private fun render(
-        orbit: Float,
-        breath: Float,
+        rotation: Float,
         background: Color,
         color: Color,
-        accent: Color,
         px: Int = 176,
         density: Float = 1f,
     ): Bitmap {
@@ -52,7 +50,7 @@ class ThinkingOrbRenderTest {
             // Stand in for the chat bubble's surfaceVariant, so the orb is
             // judged against the surface it actually sits on.
             drawRect(background)
-            drawOrb(orbit = orbit, breath = breath, color = color, accent = accent)
+            drawOrb(rotation = rotation, color = color)
         }
         return image.asAndroidBitmap()
     }
@@ -71,52 +69,33 @@ class ThinkingOrbRenderTest {
         // colourful orb than any user ever sees.
         val darkSurface = HermesDark.surfaceVariant
         val darkPrimary = HermesDark.primary
-        val darkTertiary = HermesDark.tertiary
 
         val lightSurface = HermesLight.surfaceVariant
         val lightPrimary = HermesLight.primary
-        val lightTertiary = HermesLight.tertiary
 
-        // Quarter-turns through one full orbit, with breath swinging alongside.
-        val phases = listOf(
-            0.00f to 0.0f,
-            0.25f to 0.5f,
-            0.50f to 1.0f,
-            0.75f to 0.5f,
-        )
-
-        phases.forEach { (orbit, breath) ->
-            val tag = "%03d".format((orbit * 100).toInt())
-            write(
-                "dark-$tag",
-                render(orbit, breath, darkSurface, darkPrimary, darkTertiary),
-            )
-            write(
-                "light-$tag",
-                render(orbit, breath, lightSurface, lightPrimary, lightTertiary),
-            )
+        // Eighth-turns, so the point bands can be checked for strobing — a
+        // rotating lattice can appear to jump backwards at some step sizes.
+        listOf(0.00f, 0.125f, 0.25f, 0.375f, 0.50f).forEach { rotation ->
+            val tag = "%03d".format((rotation * 1000).toInt())
+            write("dark-$tag", render(rotation, darkSurface, darkPrimary))
+            write("light-$tag", render(rotation, lightSurface, lightPrimary))
         }
 
         // The reduced-motion still frame is what users with animations off see.
-        write(
-            "dark-reduced-motion",
-            render(0.12f, 0.5f, darkSurface, darkPrimary, darkTertiary),
-        )
+        write("dark-reduced-motion", render(0.15f, darkSurface, darkPrimary))
 
         // Candidate sizes at Pixel-class density (~3), i.e. what a real phone
         // actually rasterises. Rendering these at density 1 understates the
-        // detail badly — 22dp is 66 physical px on such a device, not 22.
-        listOf(20, 22, 26, 30, 34).forEach { dp ->
-            val px = dp * 3
+        // detail badly — 28dp is 84 physical px on such a device, not 28.
+        // Point count has to survive this: too many dots at 28dp turn to mush.
+        listOf(22, 28, 34, 40).forEach { dp ->
             write(
                 "size-${dp}dp",
                 render(
-                    orbit = 0.25f,
-                    breath = 0.5f,
+                    rotation = 0.125f,
                     background = darkSurface,
                     color = darkPrimary,
-                    accent = darkTertiary,
-                    px = px,
+                    px = dp * 3,
                     density = 3f,
                 ),
             )
@@ -130,26 +109,29 @@ class ThinkingOrbRenderTest {
     fun orbActuallyPaintsAndAnimates() {
         val surface = HermesDark.surfaceVariant
         val primary = HermesDark.primary
-        val tertiary = HermesDark.tertiary
 
-        val a = render(0.00f, 0.0f, surface, primary, tertiary)
-        val b = render(0.50f, 1.0f, surface, primary, tertiary)
+        val a = render(0.00f, surface, primary)
+        val b = render(0.125f, surface, primary)
 
-        // Centre pixel must differ from the bare surface, or nothing was drawn.
+        // Something must have been painted over the bare surface.
         val surfaceArgb = surface.toArgb()
-        assertTrue(
-            "orb did not paint over the surface",
-            a.getPixel(a.width / 2, a.height / 2) != surfaceArgb,
-        )
+        var painted = 0
+        for (x in 0 until a.width step 2) {
+            for (y in 0 until a.height step 2) {
+                if (a.getPixel(x, y) != surfaceArgb) painted++
+            }
+        }
+        assertTrue("orb did not paint over the surface", painted > 50)
 
-        // Opposite orbit phases must produce visibly different frames, which is
-        // what proves the lobes are actually travelling.
+        // A partial turn must move the points. Checked at an eighth rather than
+        // a half turn: the point lattice is near-symmetric under 180 degrees,
+        // so a half turn can look deceptively similar and would weaken this.
         var differing = 0
-        for (x in 0 until a.width step 4) {
-            for (y in 0 until a.height step 4) {
+        for (x in 0 until a.width step 2) {
+            for (y in 0 until a.height step 2) {
                 if (a.getPixel(x, y) != b.getPixel(x, y)) differing++
             }
         }
-        assertTrue("frames identical across orbit phases", differing > 100)
+        assertTrue("frames identical across rotation", differing > 100)
     }
 }
