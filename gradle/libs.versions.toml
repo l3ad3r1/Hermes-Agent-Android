@@ -1,8 +1,9 @@
 [versions]
 # Build tooling
-agp = "8.13.2"
-kotlin = "2.0.21"
-ksp = "2.0.21-1.0.27"
+agp = "9.1.1"
+kotlin = "2.2.10"
+# KSP 2.3.x is the AGP-9-compatible line (registers generated sources via android.sourceSets).
+ksp = "2.3.5"
 
 # AndroidX core
 coreKtx = "1.13.1"
@@ -12,20 +13,20 @@ navigationCompose = "2.8.1"
 composeBom = "2024.09.02"
 hiltNavigationCompose = "1.2.0"
 datastorePreferences = "1.1.1"
-workRuntimeKtx = "2.9.1"
+workRuntimeKtx = "2.10.0"
 hiltWork = "1.2.0"
 
-# Hilt
-hilt = "2.52"
+# Hilt (2.52 fails on AGP 9: "Android BaseExtension not found")
+hilt = "2.60.1"
 
-# Room
-room = "2.7.0-alpha11"
+# Room — stable 2.7.0 (was 2.7.0-alpha11)
+room = "2.7.0"
 
 # SQLite with FTS5
 sqliteAndroid = "3.45.0"
 
 # Networking
-retrofit = "2.11.0"
+retrofit = "2.12.0"
 okhttp = "4.12.0"
 retrofitKotlinxSerialization = "1.0.0"
 nanohttpd = "2.3.1"
@@ -35,7 +36,7 @@ jsch = "0.2.20"
 kotlinxSerialization = "1.7.3"
 
 # Coroutines
-coroutines = "1.9.0"
+coroutines = "1.10.2"
 
 # Logging
 timber = "5.0.1"
@@ -45,8 +46,9 @@ junit = "4.13.2"
 junitExt = "1.2.1"
 mockk = "1.13.13"
 turbine = "1.1.0"
-coroutinesTest = "1.9.0"
+coroutinesTest = "1.10.2"
 robolectric = "4.13"
+mediapipe-tasks-genai = "0.10.14"
 archCoreTesting = "2.2.0"
 
 [libraries]
@@ -103,6 +105,9 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # Logging
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
+# MediaPipe / On-device ML
+mediapipe-tasks-genai = { group = "com.google.mediapipe", name = "tasks-genai", version.ref = "mediapipe-tasks-genai" }
+
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
@@ -111,6 +116,8 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 androidx-test-core = { group = "androidx.test", name = "core", version = "1.6.1" }
+# Instrumented tests: AndroidJUnitRunner is named in defaultConfig but the artifact was never declared.
+androidx-test-runner = { group = "androidx.test", name = "runner", version = "1.7.0" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 androidx-arch-core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "archCoreTesting" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
@@ -118,7 +125,7 @@ androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+# kotlin-android removed: AGP 9 has built-in Kotlin support and rejects that plugin.
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

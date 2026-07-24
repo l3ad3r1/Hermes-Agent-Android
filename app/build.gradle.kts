@@ -17,8 +17,8 @@
 import java.util.Properties
 
 plugins {
+    // AGP 9 provides built-in Kotlin support; the kotlin-android plugin must NOT be applied.
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -33,12 +33,12 @@ val localProps = Properties().apply {
 
 android {
     namespace = "com.hermes.agent"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.hermes.agent"
         minSdk = 29          // Android 10 — covers ~95% of active devices
-        targetSdk = 34       // Android 14 — matches the plan's target
+        targetSdk = 36       // Android 16
         versionCode = 59
         versionName = "0.8.9"
 
@@ -91,13 +91,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs += listOf(
-            "-Xjvm-default=all",
-            "-opt-in=kotlin.RequiresOptIn",
-        )
-    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -118,6 +111,17 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
+    }
+}
+
+// AGP 9 built-in Kotlin: replaces the old android { kotlinOptions { ... } } block.
+// jvmTarget is omitted on purpose — it defaults to android.compileOptions.targetCompatibility (17).
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll(
+            "-Xjvm-default=all",
+            "-opt-in=kotlin.RequiresOptIn",
+        )
     }
 }
 
