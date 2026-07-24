@@ -8,9 +8,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,16 +27,40 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.model.Connector
 import com.hermes.agent.domain.model.ConnectorType
-import com.hermes.agent.ui.theme.GeistMono
+import com.hermes.agent.ui.components.DestructiveActionDialog
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import com.hermes.agent.core.theme.GeistMono
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ConnectScreen(viewModel: ConnectViewModel = hiltViewModel()) {
+fun ConnectScreen(
+    viewModel: ConnectViewModel = hiltViewModel(),
+    onBack: () -> Unit = {},
+) {
     val connectors by viewModel.connectors.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text("Connect") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Navigate back"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                )
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAdd = true },
@@ -61,7 +88,7 @@ fun ConnectScreen(viewModel: ConnectViewModel = hiltViewModel()) {
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "One agent, one memory, every surface. Link a platform and Hermes shows up there.",
+                    "One agent, one memory, every surface. Link a platform and Jeeves shows up there.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -74,7 +101,7 @@ fun ConnectScreen(viewModel: ConnectViewModel = hiltViewModel()) {
                     ConnectorCard(
                         connector = connector,
                         onToggle = { viewModel.toggle(connector.id) },
-                        onDelete = { viewModel.delete(connector.id) },
+                        onDelete = { deleteTarget = connector.id },
                     )
                 }
             }
@@ -88,6 +115,19 @@ fun ConnectScreen(viewModel: ConnectViewModel = hiltViewModel()) {
                 viewModel.add(name, type, config)
                 showAdd = false
             },
+        )
+    }
+
+    if (deleteTarget != null) {
+        DestructiveActionDialog(
+            title = "Delete Integration",
+            message = "Are you sure you want to delete this integration?",
+            confirmLabel = "Delete",
+            onConfirm = {
+                deleteTarget?.let { viewModel.delete(it) }
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null }
         )
     }
 }
@@ -172,6 +212,8 @@ private fun AddConnectorDialog(
     var botToken by remember { mutableStateOf("") }
     var chatId by remember { mutableStateOf("") }
     var secret by remember { mutableStateOf("") }
+    var botTokenVisible by remember { mutableStateOf(false) }
+    var secretVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -208,12 +250,32 @@ private fun AddConnectorDialog(
                         OutlinedTextField(value = secret, onValueChange = { secret = it },
                             label = { Text("Signing secret (optional)") },
                             placeholder = { Text("HMAC-SHA256 shared secret") },
-                            singleLine = true, modifier = Modifier.fillMaxWidth())
+                            singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (secretVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { secretVisible = !secretVisible }) {
+                                    Icon(
+                                        if (secretVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                        contentDescription = "Toggle visibility"
+                                    )
+                                }
+                            }
+                        )
                     }
                     ConnectorType.TELEGRAM -> {
                         OutlinedTextField(value = botToken, onValueChange = { botToken = it },
                             label = { Text("Bot Token") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth())
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (botTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { botTokenVisible = !botTokenVisible }) {
+                                    Icon(
+                                        if (botTokenVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                        contentDescription = "Toggle visibility"
+                                    )
+                                }
+                            }
+                        )
                         OutlinedTextField(value = chatId, onValueChange = { chatId = it },
                             label = { Text("Chat ID") }, singleLine = true,
                             modifier = Modifier.fillMaxWidth())
@@ -239,7 +301,17 @@ private fun AddConnectorDialog(
                             modifier = Modifier.fillMaxWidth())
                         OutlinedTextField(value = botToken, onValueChange = { botToken = it },
                             label = { Text("Access Token") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth())
+                            modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = if (botTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { botTokenVisible = !botTokenVisible }) {
+                                    Icon(
+                                        if (botTokenVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                        contentDescription = "Toggle visibility"
+                                    )
+                                }
+                            }
+                        )
                         OutlinedTextField(value = url, onValueChange = { url = it },
                             label = { Text("Recipient number") },
                             placeholder = { Text("+15551234567") },

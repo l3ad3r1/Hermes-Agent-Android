@@ -85,15 +85,17 @@ data class PlanSummary(
 )
 
 data class PlanStepSummary(
+    val id: String,
     val description: String,
     val agentRole: AgentRole,
     val status: StepStatus,
 )
 
-enum class StepStatus { PENDING, RUNNING, SUCCEEDED, FAILED, SKIPPED }
+enum class StepStatus { PENDING, RUNNING, SUCCEEDED, FAILED, SKIPPED, BLOCKED, CANCELLED }
 
 /** Slimmed-down view of a [com.hermes.agent.data.llm.ToolCall] + result. */
 data class ToolCallSummary(
+    val callId: String,
     val name: String,
     val argumentsPreview: String,
     val status: ToolCallStatus,

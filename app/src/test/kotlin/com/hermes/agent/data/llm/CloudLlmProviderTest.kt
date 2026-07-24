@@ -26,6 +26,7 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.HttpException
 import retrofit2.Response
+import java.net.SocketException
 
 class CloudLlmProviderTest {
 
@@ -428,6 +429,47 @@ class CloudLlmProviderTest {
         provider.completeWithTools(listOf(LlmMessage("user", "hi")), emptyList())
     }
 
+    @Test
+    fun `completeWithTools retries a socket abort once then succeeds`() = runTest {
+        coEvery { settings.current() } returns defaultSettings
+        val success = """
+            {
+              "model": "gpt-4o-mini",
+              "choices": [{
+                "finish_reason": "stop",
+                "message": {"role": "assistant", "content": "recovered"}
+              }]
+            }
+        """.trimIndent().toResponseBody("application/json".toMediaType())
+        coEvery { api.completionRaw(any(), any(), any()) } throws
+            SocketException("Software caused connection abort") andThen success
+
+        val result = provider.completeWithTools(
+            listOf(LlmMessage("user", "hi")),
+            emptyList(),
+        )
+
+        assertEquals("recovered", result.content)
+        coVerify(exactly = 2) { api.completionRaw(any(), any(), any()) }
+    }
+
+    @Test
+    fun `completeWithTools replaces repeated socket abort with actionable error`() = runTest {
+        coEvery { settings.current() } returns defaultSettings
+        coEvery { api.completionRaw(any(), any(), any()) } throws
+            SocketException("Software caused connection abort")
+
+        val failure = runCatching {
+            provider.completeWithTools(listOf(LlmMessage("user", "hi")), emptyList())
+        }.exceptionOrNull()
+
+        assertTrue(failure is java.io.IOException)
+        assertEquals(
+            "The cloud connection was interrupted. Check the network or provider status and try again.",
+            failure?.message,
+        )
+        coVerify(exactly = 2) { api.completionRaw(any(), any(), any()) }
+    }
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private fun chatResponse(

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.Card
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.rag.Document
+import com.hermes.agent.ui.components.DestructiveActionDialog
 import java.text.DateFormat
 import java.util.Date
 
@@ -42,14 +44,24 @@ import java.util.Date
 @Composable
 fun DocumentsScreen(
     viewModel: DocumentsViewModel = hiltViewModel(),
+    onBack: () -> Unit = {},
 ) {
     val documents by viewModel.documents.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Artifacts") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Navigate back"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -87,7 +99,7 @@ fun DocumentsScreen(
                 items(documents, key = { it.id }) { doc ->
                     DocumentRow(
                         document = doc,
-                        onDelete = { viewModel.delete(doc.id) },
+                        onDelete = { deleteTarget = doc.id },
                     )
                 }
             }
@@ -101,6 +113,19 @@ fun DocumentsScreen(
                 viewModel.ingestText(title, content)
                 showAddDialog = false
             },
+        )
+    }
+
+    if (deleteTarget != null) {
+        DestructiveActionDialog(
+            title = "Delete Document",
+            message = "Are you sure you want to delete this document?",
+            confirmLabel = "Delete",
+            onConfirm = {
+                deleteTarget?.let { viewModel.delete(it) }
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null }
         )
     }
 }

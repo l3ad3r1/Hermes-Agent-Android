@@ -1,5 +1,6 @@
 package com.hermes.agent.ui.home
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -26,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,8 +38,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.model.Conversation
 import com.hermes.agent.ui.components.ExpressiveEyes
 import com.hermes.agent.ui.components.HermesDiamond
-import com.hermes.agent.ui.theme.GeistMono
-import com.hermes.agent.ui.theme.HermesAccentDeep
+import com.hermes.agent.core.theme.GeistMono
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 /**
  * Home dashboard — the app's landing surface: greeting, the active cloud model,
@@ -54,6 +61,7 @@ fun HomeScreen(
     val model by viewModel.modelName.collectAsStateWithLifecycle()
     val presence by viewModel.presence.collectAsStateWithLifecycle()
     val scheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -93,14 +101,20 @@ fun HomeScreen(
             }
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(48.dp)
                     .clip(RoundedCornerShape(percent = 50))
                     .background(scheme.surface)
                     .border(1.dp, scheme.outline.copy(alpha = 0.4f), RoundedCornerShape(percent = 50))
-                    .clickable(onClick = onOpenSettings),
+                    .clickable(onClick = onOpenSettings)
+                    .semantics { contentDescription = "Open settings" },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("A", fontWeight = FontWeight.SemiBold, color = scheme.onBackground)
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = null,
+                    tint = scheme.onBackground,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
 
@@ -109,17 +123,17 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.large)
-                .background(Brush.linearGradient(listOf(HermesAccentDeep, scheme.primary)))
+                .background(Brush.linearGradient(listOf(scheme.surfaceVariant, scheme.surfaceContainerHigh)))
                 .padding(18.dp),
         ) {
-            Text("Active model", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+            Text("Active model", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelSmall)
             Spacer(Modifier.height(4.dp))
             Text(
                 model.ifBlank { "not configured" },
                 fontFamily = GeistMono,
                 color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -145,6 +159,41 @@ fun HomeScreen(
 
         Spacer(Modifier.height(20.dp))
 
+        // Bundled apps. Jotter and Butler each keep their own Activity rather than being
+        // embedded in this nav graph: Jotter's is a FragmentActivity (BiometricPrompt
+        // needs one) and Butler's UI is View-based, not Compose. Both live in feature
+        // modules of this same APK, so a plain Intent starts them.
+        SectionLabel("Apps")
+        Spacer(Modifier.height(11.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickAction(
+                title = "AI Notes",
+                subtitle = "Capture & summarize",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    val intent = Intent(context, com.l3ad3r1.octojotter.MainActivity::class.java).apply {
+                        putExtra("EXTRA_EMBEDDED", true)
+                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    }
+                    context.startActivity(intent)
+                },
+            )
+            QuickAction(
+                title = "Daybook",
+                subtitle = "Alarms, weather & calendar",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    val intent = Intent(context, com.sassybutler.alarm.MainAlarmSetupActivity::class.java).apply {
+                        putExtra("EXTRA_EMBEDDED", true)
+                        addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    }
+                    context.startActivity(intent)
+                },
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+
         // Recent threads
         SectionHeader("Recent threads", action = "Open", onAction = onOpenConversations)
         Spacer(Modifier.height(11.dp))
@@ -152,7 +201,7 @@ fun HomeScreen(
             EmptyHint("No conversations yet — start a new chat.")
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                threads.forEach { ThreadRow(it, onClick = onOpenConversations) }
+                threads.forEach { thread -> ThreadRow(thread, onClick = { onNewChat(thread.id) }) }
             }
         }
     }
@@ -190,6 +239,18 @@ private fun QuickAction(
     }
 }
 
+/** Section heading without a trailing action link (cf. [SectionHeader]). */
+@Composable
+private fun SectionLabel(title: String) {
+    Text(
+        title.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 1.sp,
+        color = MaterialTheme.colorScheme.outline,
+    )
+}
+
 @Composable
 private fun SectionHeader(title: String, action: String, onAction: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
@@ -202,12 +263,13 @@ private fun SectionHeader(title: String, action: String, onAction: () -> Unit) {
             color = scheme.outline,
         )
         Spacer(Modifier.weight(1f))
-        Text(
-            action,
-            style = MaterialTheme.typography.labelLarge,
-            color = scheme.primary,
-            modifier = Modifier.clickable(onClick = onAction),
-        )
+        TextButton(onClick = onAction) {
+            Text(
+                action,
+                style = MaterialTheme.typography.labelLarge,
+                color = scheme.primary,
+            )
+        }
     }
 }
 

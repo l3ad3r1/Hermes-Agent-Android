@@ -35,18 +35,18 @@ enum class SecurityControl(
     ),
     BACKUP_EXCLUSION(
         title = "Backup exclusion",
-        description = "Conversations, memories, settings, and models excluded from cloud backup / device transfer.",
+        description = "Android Auto Backup/device transfer is disabled. User-triggered Gist backups exclude credentials and locked/encrypted notes.",
         status = ControlStatus.ENFORCED,
     ),
     NO_UNTRUSTED_CODE(
-        title = "No untrusted code execution",
-        description = "Only first-party plugins are loaded, in-process. There is no path to download or run third-party / remote plugin code.",
-        status = ControlStatus.ENFORCED,
+        title = "Sandboxed community plugins",
+        description = "User-installed community JavaScript runs in a Rhino sandbox with explicit capabilities and an instruction budget. Registry manifests are remote and not cryptographically signed.",
+        status = ControlStatus.PARTIAL,
     ),
     TOOL_CONFIRMATION_GATE(
         title = "Tool confirmation gate",
-        description = "Side-effecting tools (calendar, device settings) require explicit user approval before execution.",
-        status = ControlStatus.ENFORCED,
+        description = "Side-effecting tools require explicit approval and time out to deny. Concurrent requests still share one pending slot.",
+        status = ControlStatus.PARTIAL,
     ),
     NETWORK_ENCRYPTION(
         title = "TLS for all network traffic",
@@ -55,8 +55,8 @@ enum class SecurityControl(
     ),
     RAG_CONTENT_ISOLATION(
         title = "RAG content isolation",
-        description = "Ingested documents stay on-device; never sent to cloud unless explicitly requested by the user.",
-        status = ControlStatus.ENFORCED,
+        description = "Locked/encrypted documents are excluded and evicted. Retrieved content may be sent to the active cloud provider when cloud routing is enabled.",
+        status = ControlStatus.PARTIAL,
     ),
     MEMORY_PRESSURE_SHEDDING(
         title = "Memory pressure shedding",

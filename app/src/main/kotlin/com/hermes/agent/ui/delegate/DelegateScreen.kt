@@ -158,7 +158,7 @@ private fun EmptyDelegateState(modifier: Modifier = Modifier) {
         Text("No delegated tasks", style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(8.dp))
-        Text("Tap + to fire off a background task. Hermes will run it and report back.",
+        Text("Tap + to fire off a background task. Jeeves will run it and report back.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)

@@ -56,7 +56,7 @@ class TermuxCommandRunner @Inject constructor(
             putExtra(EXTRA_WORKDIR, "$TERMUX_FILES/home")
             putExtra(EXTRA_BACKGROUND, false) // foreground: visible Termux session
             putExtra(EXTRA_SESSION_ACTION, "0") // open Termux & switch to new session
-            putExtra(EXTRA_COMMAND_LABEL, "Hermes")
+            putExtra(EXTRA_COMMAND_LABEL, "Jeeves")
         }
         return try {
             ContextCompat.startForegroundService(context, service)
@@ -109,7 +109,7 @@ class TermuxCommandRunner @Inject constructor(
                     putExtra(EXTRA_WORKDIR, "$TERMUX_FILES/home")
                     putExtra(EXTRA_BACKGROUND, true)
                     putExtra(EXTRA_PENDING_INTENT, pendingIntent)
-                    putExtra(EXTRA_COMMAND_LABEL, "Hermes Agent")
+                    putExtra(EXTRA_COMMAND_LABEL, "Jeeves")
                 }
 
                 try {

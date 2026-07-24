@@ -17,6 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.hermes.agent.domain.model.Message
 import com.hermes.agent.domain.model.MessageRole
@@ -49,7 +51,10 @@ fun MessageBubble(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${if (isUser) "You" else "Assistant"} said: ${message.content}"
+            },
         horizontalAlignment = alignment,
     ) {
         if (!isUser && message.agentRole != null) {
@@ -97,7 +102,10 @@ fun StreamingBubble(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (item.text.isBlank()) "Assistant is typing" else "Assistant is responding: ${item.text}"
+            },
         horizontalAlignment = Alignment.Start,
     ) {
         item.agentRole?.let { role ->

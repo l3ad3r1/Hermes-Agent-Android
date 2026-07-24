@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -31,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,12 +44,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.R
 import com.hermes.agent.data.local.entity.SessionWithMessageCount
+import com.hermes.agent.ui.components.DestructiveActionDialog
 import com.hermes.agent.ui.components.SlimTopBar
 import java.text.DateFormat
 import java.util.Date
@@ -71,10 +78,11 @@ fun SessionBrowserScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var pendingDelete by remember { mutableStateOf<SessionWithMessageCount?>(null) }
 
     Scaffold(
         topBar = {
-            SlimTopBar(title = "Search")
+            SlimTopBar(title = "Chats")
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -96,7 +104,7 @@ fun SessionBrowserScreen(
                 value = searchQuery,
                 onValueChange = { query ->
                     searchQuery = query
-                    viewModel.searchSessions(query)
+                    viewModel.onSearchQueryChanged(query)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -121,7 +129,14 @@ fun SessionBrowserScreen(
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when (val state = uiState) {
                     is SessionBrowserUiState.Loading -> {
-                        // Loading content here...
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
                     is SessionBrowserUiState.Success -> {
                         if (state.sessions.isEmpty()) {
@@ -148,22 +163,54 @@ fun SessionBrowserScreen(
                                     SessionRow(
                                         item = item,
                                         onClick = { onOpenSession(item.session.id) },
-                                        onDelete = { viewModel.deleteSession(item.session.id) },
+                                        onDelete = { pendingDelete = item },
                                     )
                                 }
                             }
                         }
                     }
                     is SessionBrowserUiState.Error -> {
-                        Text(
-                            text = "Error: ${state.message}",
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(16.dp),
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "Error: ${state.message}",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { 
+                                if (searchQuery.isNotBlank()) {
+                                    viewModel.onSearchQueryChanged(searchQuery)
+                                } else {
+                                    viewModel.browseRecent()
+                                }
+                            }) {
+                                Text("Retry")
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    pendingDelete?.let { item ->
+        val name = item.session.title.ifBlank { "this conversation" }
+        DestructiveActionDialog(
+            title = "Delete \"$name\"?",
+            message = "This permanently removes the conversation and its messages. This action cannot be undone.",
+            confirmLabel = "Delete conversation",
+            onConfirm = {
+                viewModel.deleteSession(item.session.id)
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null },
+        )
     }
 }
 
@@ -246,7 +293,9 @@ private fun EmptyState(
     isSearching: Boolean = false,
 ) {
     Column(
-        modifier = modifier.padding(32.dp),
+        modifier = modifier
+            .padding(32.dp)
+            .semantics { contentDescription = if (isSearching) "No sessions match your search" else "No sessions yet" },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

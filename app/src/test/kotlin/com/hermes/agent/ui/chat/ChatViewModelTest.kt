@@ -11,14 +11,18 @@ import com.hermes.agent.data.voice.VoiceOutputManager
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.domain.model.Conversation
+import com.hermes.agent.domain.model.ExecutionPlan
+import com.hermes.agent.domain.model.ExecutionStep
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.ConversationRepository
+import com.hermes.agent.domain.repository.ExecutionPlanRepository
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
+import com.hermes.agent.domain.tool.ToolConfirmationService
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -77,7 +81,12 @@ class ChatViewModelTest {
         conversationId: String = "conv-1",
         chatRepo: ChatRepository = mockk(relaxed = true),
         settingsRepository: SettingsRepository = fakeSettingsRepository(),
-    ): ChatViewModel = ChatViewModel(
+        planRepository: ExecutionPlanRepository? = null,
+    ): ChatViewModel {
+        val plans = planRepository ?: mockk<ExecutionPlanRepository>(relaxed = true).also {
+            every { it.observeLatest(conversationId) } returns flowOf(null)
+        }
+        return ChatViewModel(
         savedStateHandle = SavedStateHandle(mapOf("conversationId" to conversationId)),
         conversationRepository = fakeConversationRepository(conversationId),
         chatRepository = chatRepo,
@@ -86,7 +95,10 @@ class ChatViewModelTest {
         clarificationBus = ClarificationBus(),
         todoStore = TodoStore(),
         settingsRepository = settingsRepository,
-    )
+        toolConfirmationService = mockk<ToolConfirmationService>(relaxed = true),
+        executionPlanRepository = plans,
+        )
+    }
 
     @Before
     fun setUp() {
@@ -99,11 +111,34 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `restores latest persisted plan with stable step ids`() = runTest {
+        val repository = mockk<ExecutionPlanRepository>()
+        every { repository.observeLatest("conv-1") } returns flowOf(
+            ExecutionPlan(
+                id = "plan",
+                conversationId = "conv-1",
+                userMessage = "test",
+                steps = listOf(
+                    ExecutionStep("step-a", AgentRole.RESEARCH, "Research"),
+                    ExecutionStep("step-b", AgentRole.CONVERSATIONAL, "Answer"),
+                ),
+                createdAt = 1,
+            ),
+        )
+        val vm = buildViewModel(planRepository = repository)
+        backgroundScope.launch { vm.uiState.collect { } }
+
+        advanceUntilIdle()
+
+        assertEquals(listOf("step-a", "step-b"), vm.uiState.value.currentPlan?.steps?.map { it.id })
+    }
+
+    @Test
     fun `sendMessage accumulates streamed tokens then clears on complete`() = runTest {
         val conversationId = "conv-1"
         val eventFlow = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 10)
         val chatRepo = mockk<ChatRepository>()
-        every { chatRepo.sendMessageOrchestrated(conversationId, any()) } returns eventFlow
+        every { chatRepo.sendMessageOrchestrated(conversationId, any(), any()) } returns eventFlow
 
         val vm = buildViewModel(conversationId, chatRepo)
         backgroundScope.launch { vm.uiState.collect { } }
@@ -138,7 +173,7 @@ class ChatViewModelTest {
         val conversationId = "conv-1"
         val eventFlow = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 10)
         val chatRepo = mockk<ChatRepository>()
-        every { chatRepo.sendMessageOrchestrated(conversationId, any()) } returns eventFlow
+        every { chatRepo.sendMessageOrchestrated(conversationId, any(), any()) } returns eventFlow
 
         val vm = buildViewModel(conversationId, chatRepo)
         backgroundScope.launch { vm.uiState.collect { } }
@@ -174,7 +209,7 @@ class ChatViewModelTest {
         val conversationId = "conv-1"
         val eventFlow = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 10)
         val chatRepo = mockk<ChatRepository>()
-        every { chatRepo.sendMessageOrchestrated(conversationId, any()) } returns eventFlow
+        every { chatRepo.sendMessageOrchestrated(conversationId, any(), any()) } returns eventFlow
 
         val vm = buildViewModel(conversationId, chatRepo)
         backgroundScope.launch { vm.uiState.collect { } }
@@ -201,7 +236,7 @@ class ChatViewModelTest {
         val conversationId = "conv-1"
         val eventFlow = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 10)
         val chatRepo = mockk<ChatRepository>()
-        every { chatRepo.sendMessageOrchestrated(conversationId, any()) } returns eventFlow
+        every { chatRepo.sendMessageOrchestrated(conversationId, any(), any()) } returns eventFlow
 
         val vm = buildViewModel(
             conversationId, chatRepo,
@@ -232,7 +267,7 @@ class ChatViewModelTest {
         val conversationId = "conv-1"
         val eventFlow = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 10)
         val chatRepo = mockk<ChatRepository>()
-        every { chatRepo.sendMessageOrchestrated(conversationId, any()) } returns eventFlow
+        every { chatRepo.sendMessageOrchestrated(conversationId, any(), any()) } returns eventFlow
 
         val vm = buildViewModel(
             conversationId, chatRepo,

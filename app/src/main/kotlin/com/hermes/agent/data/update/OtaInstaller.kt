@@ -51,70 +51,17 @@ class OtaInstaller @Inject constructor(
     }
 
     /**
-     * Downloads [apkUrl] (reporting 0..100 progress) and launches the installer.
-     * Returns failure if the download fails; a successful result means the
-     * system installer was launched.
+     * Starts the foreground service to download [apkUrl] and launch the installer.
      */
-    suspend fun downloadAndInstall(
-        apkUrl: String,
-        onProgress: (Int) -> Unit,
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            val file = download(apkUrl, onProgress)
-            launchInstaller(file)
-        }.onFailure { Timber.tag("OtaInstaller").w(it, "download/install failed") }
-    }
-
-    private fun download(url: String, onProgress: (Int) -> Unit): File {
-        if (url.isBlank()) throw IOException("No APK asset attached to this release.")
-
-        val request = Request.Builder()
-            .url(url)
-            .header("User-Agent", "Hermes-Agent-Android/${BuildConfig.VERSION_NAME}")
-            .build()
-
-        okHttpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Download failed (HTTP ${response.code}).")
-            val body = response.body ?: throw IOException("Empty download response.")
-            val total = body.contentLength()
-
-            val dir = File(context.getExternalFilesDir(null), "updates").apply { mkdirs() }
-            val file = File(dir, "hermes-update.apk")
-            // Clear any stale partial download.
-            if (file.exists()) file.delete()
-
-            body.byteStream().use { input ->
-                file.outputStream().use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var downloaded = 0L
-                    var lastPercent = -1
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        output.write(buffer, 0, read)
-                        downloaded += read
-                        if (total > 0) {
-                            val percent = ((downloaded * 100) / total).toInt()
-                            if (percent != lastPercent) {
-                                lastPercent = percent
-                                onProgress(percent)
-                            }
-                        }
-                    }
-                }
-            }
-            onProgress(100)
-            return file
+    fun startDownloadService(apkUrl: String) {
+        val intent = Intent(context, OtaDownloadService::class.java).apply {
+            action = OtaDownloadService.ACTION_START_DOWNLOAD
+            putExtra(OtaDownloadService.EXTRA_URL, apkUrl)
         }
-    }
-
-    private fun launchInstaller(file: File) {
-        val authority = "${context.packageName}.fileprovider"
-        val uri = FileProvider.getUriForFile(context, authority, file)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
         }
-        context.startActivity(intent)
     }
 }

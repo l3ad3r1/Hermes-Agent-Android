@@ -23,7 +23,7 @@ class CreativeAgent @Inject constructor() : Agent {
     override val role: AgentRole = AgentRole.CREATIVE
 
     override val systemPrompt: String =
-        "You are the Hermes Creative Agent. You help with writing, brainstorming, " +
+        "You are the Jeeves Creative Agent. You help with writing, brainstorming, " +
             "and content generation.\n\n" +
             "Your capabilities:\n" +
             "- memory: recall personal context about the user for personalized writing\n" +

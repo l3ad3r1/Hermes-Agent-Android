@@ -60,8 +60,9 @@ class UserModelService @Inject constructor(
      */
     suspend fun currentModel(): String? = withContext(dispatchers.io) {
         runCatching {
-            memoryRepository.searchMemories("", limit = 200)
-                .firstOrNull { it.content.startsWith(MODEL_PREFIX) }
+            // Direct prefix lookup — the old path embedded an empty query and
+            // vector-searched 200 memories per message just to find this row.
+            memoryRepository.newestMemoryWithPrefix(MODEL_PREFIX)
                 ?.content
                 ?.removePrefix(MODEL_PREFIX)
                 ?.trim()

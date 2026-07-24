@@ -1,20 +1,27 @@
 package com.hermes.agent.ui.chat.components
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,19 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.hermes.agent.R
 
-/**
- * Bottom input bar. Phase 3 adds a mic button (left of text field) for voice input.
- *
- * Calls [onSend] when the user taps the send button or presses the
- * Send IME action. Calls [onCancel] when the assistant is currently
- * streaming and the user taps the stop button.
- */
+/** Rounded, reference-style composer with quick actions, text, voice, and send controls. */
 @Composable
 fun ChatInputBar(
     isSending: Boolean,
@@ -47,78 +49,129 @@ fun ChatInputBar(
     prefillText: String = "",
 ) {
     var text by remember(prefillText) { mutableStateOf(prefillText) }
+    var quickActionsOpen by remember { mutableStateOf(false) }
 
-    Row(
+    fun submit() {
+        val message = text.trim()
+        if (message.isNotEmpty()) {
+            onSend(message)
+            text = ""
+        }
+    }
+
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        // Mic button.
-        IconButton(
-            onClick = onMicToggle,
-            modifier = Modifier.size(56.dp),
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.Bottom,
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Mic,
-                contentDescription = "Voice input",
-                tint = if (isListening) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                },
-            )
-        }
-
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 56.dp, max = 160.dp),
-            placeholder = { Text(stringResource(R.string.chat_placeholder)) },
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                imeAction = ImeAction.Send,
-            ),
-            shape = MaterialTheme.shapes.large,
-            textStyle = MaterialTheme.typography.bodyLarge,
-            maxLines = 6,
-        )
-
-        if (isSending) {
-            IconButton(
-                onClick = onCancel,
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Stop,
-                    contentDescription = "Stop generating",
-                    tint = MaterialTheme.colorScheme.error,
-                )
+            Box {
+                IconButton(
+                    onClick = { quickActionsOpen = true },
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(Icons.Outlined.Add, contentDescription = "Quick actions")
+                }
+                DropdownMenu(
+                    expanded = quickActionsOpen,
+                    onDismissRequest = { quickActionsOpen = false },
+                ) {
+                    listOf(
+                        "Plan my day" to "Help me plan my day",
+                        "Create a note" to "Create a note for me",
+                        "Look something up" to "Look something up for me",
+                    ).forEach { (label, prompt) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                text = prompt
+                                quickActionsOpen = false
+                            },
+                        )
+                    }
+                }
             }
-        } else {
-            val canSend = text.isNotBlank()
-            IconButton(
-                onClick = {
-                    if (canSend) {
-                        onSend(text)
-                        text = ""
+
+            BasicTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp, max = 144.dp)
+                    .padding(horizontal = 8.dp, vertical = 13.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Send,
+                ),
+                keyboardActions = KeyboardActions(onSend = { submit() }),
+                maxLines = 6,
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (text.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.chat_placeholder),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        innerTextField()
                     }
                 },
-                enabled = canSend,
-                modifier = Modifier.size(56.dp),
+            )
+
+            IconButton(
+                onClick = onMicToggle,
+                modifier = Modifier.size(44.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Send,
-                    contentDescription = stringResource(R.string.chat_send),
-                    tint = if (canSend) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    },
+                    imageVector = Icons.Outlined.Mic,
+                    contentDescription = stringResource(R.string.a11y_voice_input),
+                    tint = if (isListening) {
+                        MaterialTheme.colorScheme.error
+                    } else MaterialTheme.colorScheme.onSurface,
                 )
+            }
+
+            val actionColor = if (isSending) {
+                MaterialTheme.colorScheme.error
+            } else MaterialTheme.colorScheme.primary
+            Surface(
+                onClick = when {
+                    isSending -> onCancel
+                    text.isNotBlank() -> ::submit
+                    else -> onMicToggle
+                },
+                modifier = Modifier.size(48.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = actionColor,
+                contentColor = if (isSending) {
+                    MaterialTheme.colorScheme.onError
+                } else MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = when {
+                            isSending -> Icons.Outlined.Stop
+                            text.isNotBlank() -> Icons.Outlined.ArrowUpward
+                            else -> Icons.Outlined.GraphicEq
+                        },
+                        contentDescription = when {
+                            isSending -> stringResource(R.string.a11y_stop_generating)
+                            text.isNotBlank() -> stringResource(R.string.a11y_send_button)
+                            else -> stringResource(R.string.a11y_voice_input)
+                        },
+                        modifier = Modifier.size(25.dp),
+                    )
+                }
             }
         }
     }

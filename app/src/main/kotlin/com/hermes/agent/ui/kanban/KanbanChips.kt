@@ -1,9 +1,8 @@
 package com.hermes.agent.ui.kanban
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -29,14 +28,18 @@ fun PriorityChip(priority: TicketPriority, modifier: Modifier = Modifier) {
         TicketPriority.MEDIUM -> PriorityMedium to "Medium"
         TicketPriority.LOW -> PriorityLow to "Low"
     }
-    AssistChip(
-        onClick = { },
-        label = { Text(label, style = MaterialTheme.typography.labelSmall, color = color) },
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = modifier.padding(horizontal = 4.dp),
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    )
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
 }
 
 @Composable
@@ -49,12 +52,17 @@ fun StatusChip(status: KanbanStatus, modifier: Modifier = Modifier) {
         KanbanStatus.DONE -> KanbanDone to "Done"
         KanbanStatus.CANCELLED -> KanbanCancelled to "Cancelled"
     }
-    AssistChip(
-        onClick = { },
-        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = container.copy(alpha = 0.25f),
         modifier = modifier.padding(horizontal = 4.dp),
-        colors = AssistChipDefaults.assistChipColors(containerColor = container.copy(alpha = 0.25f)),
-    )
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
 }
 
 fun KanbanStatus.color() = when (this) {

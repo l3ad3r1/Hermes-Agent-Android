@@ -160,7 +160,7 @@ class AutonomousSkillCreator @Inject constructor(
             setOf("research", "productivity", "automation", "devops", "general", "software-development")
 
         private val SKILL_GEN_SYSTEM = """
-            You are a skill-authoring assistant for the Hermes AI agent.
+            You are a skill-authoring assistant for the Jeeves AI agent.
             When given a completed task, generate a reusable skill document so similar
             tasks can be done faster and better in the future.
 

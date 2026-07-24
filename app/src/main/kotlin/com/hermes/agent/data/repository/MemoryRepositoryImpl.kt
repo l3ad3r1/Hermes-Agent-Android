@@ -75,6 +75,11 @@ class MemoryRepositoryImpl @Inject constructor(
         Unit
     }
 
+    override suspend fun newestMemoryWithPrefix(prefix: String): Memory? =
+        withContext(dispatchers.io) {
+            memoryDao.newestWithPrefix(com.hermes.agent.util.SqlLike.escape(prefix))?.toDomain()
+        }
+
     /**
      * Hybrid search: vector similarity first, keyword LIKE as a fallback
      * when the vector store is empty (cold start) or returns no matches.

@@ -74,6 +74,10 @@ class KeystoreManager @Inject constructor() {
         private const val IV_SIZE = 12 // GCM standard IV length
 
         const val ALIAS_CLOUD_API_KEY = "hermes.cloud_api_key"
+        const val ALIAS_AUX_API_KEY = "hermes.aux_api_key"
+        const val ALIAS_GITHUB_PAT = "hermes.github_pat"
+        const val ALIAS_API_SERVER_KEY = "hermes.api_server_key"
+        const val ALIAS_SSH_PASSWORD = "hermes.ssh_password"
         const val ALIAS_DB_AT_REST = "hermes.db_at_rest"
     }
 }

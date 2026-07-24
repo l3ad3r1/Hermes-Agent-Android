@@ -35,36 +35,60 @@ class EncryptedSettingsRepository @Inject constructor(
     private val keystore: KeystoreManager,
 ) : SettingsRepository by delegate {
 
+    private fun decryptSecret(encrypted: String, alias: String): String {
+        if (encrypted.isBlank()) return encrypted
+        return runCatching {
+            val blob = android.util.Base64.decode(encrypted, android.util.Base64.NO_WRAP)
+            String(keystore.decrypt(alias, blob), Charsets.UTF_8)
+        }.getOrElse { encrypted }
+    }
+
+    private fun encryptSecret(plain: String, alias: String): String {
+        if (plain.isBlank()) return ""
+        val blob = keystore.encrypt(alias, plain.toByteArray(Charsets.UTF_8))
+        return android.util.Base64.encodeToString(blob, android.util.Base64.NO_WRAP)
+    }
+
     override suspend fun current(): UserSettings {
         val plain = delegate.current()
-        val encrypted = plain.cloudApiKey
-        if (encrypted.isBlank()) return plain
-        val decrypted = runCatching {
-            val blob = android.util.Base64.decode(encrypted, android.util.Base64.NO_WRAP)
-            String(keystore.decrypt(KeystoreManager.ALIAS_CLOUD_API_KEY, blob), Charsets.UTF_8)
-        }.getOrElse { encrypted }
-        return plain.copy(cloudApiKey = decrypted)
+        return plain.copy(
+            cloudApiKey = decryptSecret(plain.cloudApiKey, KeystoreManager.ALIAS_CLOUD_API_KEY),
+            auxApiKey = decryptSecret(plain.auxApiKey, KeystoreManager.ALIAS_AUX_API_KEY),
+            githubPat = decryptSecret(plain.githubPat, KeystoreManager.ALIAS_GITHUB_PAT),
+            apiServerKey = decryptSecret(plain.apiServerKey, KeystoreManager.ALIAS_API_SERVER_KEY),
+            sshPassword = decryptSecret(plain.sshPassword, KeystoreManager.ALIAS_SSH_PASSWORD)
+        )
     }
 
     override fun observe(): Flow<UserSettings> =
         delegate.observe().map { plain ->
-            val encrypted = plain.cloudApiKey
-            if (encrypted.isBlank()) return@map plain
-            val decrypted = runCatching {
-                val blob = android.util.Base64.decode(encrypted, android.util.Base64.NO_WRAP)
-                String(keystore.decrypt(KeystoreManager.ALIAS_CLOUD_API_KEY, blob), Charsets.UTF_8)
-            }.getOrElse { encrypted }
-            plain.copy(cloudApiKey = decrypted)
+            plain.copy(
+                cloudApiKey = decryptSecret(plain.cloudApiKey, KeystoreManager.ALIAS_CLOUD_API_KEY),
+                auxApiKey = decryptSecret(plain.auxApiKey, KeystoreManager.ALIAS_AUX_API_KEY),
+                githubPat = decryptSecret(plain.githubPat, KeystoreManager.ALIAS_GITHUB_PAT),
+                apiServerKey = decryptSecret(plain.apiServerKey, KeystoreManager.ALIAS_API_SERVER_KEY),
+                sshPassword = decryptSecret(plain.sshPassword, KeystoreManager.ALIAS_SSH_PASSWORD)
+            )
         }
 
     override suspend fun setCloudApiKey(key: String) {
-        if (key.isBlank()) {
-            delegate.setCloudApiKey("")
-            return
-        }
-        val blob = keystore.encrypt(KeystoreManager.ALIAS_CLOUD_API_KEY, key.toByteArray(Charsets.UTF_8))
-        val encoded = android.util.Base64.encodeToString(blob, android.util.Base64.NO_WRAP)
-        delegate.setCloudApiKey(encoded)
+        delegate.setCloudApiKey(encryptSecret(key, KeystoreManager.ALIAS_CLOUD_API_KEY))
+    }
+
+    override suspend fun setAuxApiKey(key: String) {
+        delegate.setAuxApiKey(encryptSecret(key, KeystoreManager.ALIAS_AUX_API_KEY))
+    }
+
+    override suspend fun setGithubPat(pat: String) {
+        delegate.setGithubPat(encryptSecret(pat, KeystoreManager.ALIAS_GITHUB_PAT))
+    }
+
+    override suspend fun setApiServerKey(key: String) {
+        delegate.setApiServerKey(encryptSecret(key, KeystoreManager.ALIAS_API_SERVER_KEY))
+    }
+
+    override suspend fun setSshPassword(password: String) {
+        delegate.setSshPassword(encryptSecret(password, KeystoreManager.ALIAS_SSH_PASSWORD))
     }
 
     /** Direct access to the encrypted blob (for export / backup flows). */

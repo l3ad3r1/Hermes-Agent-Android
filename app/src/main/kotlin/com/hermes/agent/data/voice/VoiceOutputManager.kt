@@ -93,10 +93,11 @@ class VoiceOutputManager @Inject constructor(
             }
         })
 
-        engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        engine.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
 
         awaitClose {
-            engine.stop()
+            // Do not stop the engine entirely here or it kills the whole queue.
+            // A dedicated stop() function handles interruption.
         }
     }
 

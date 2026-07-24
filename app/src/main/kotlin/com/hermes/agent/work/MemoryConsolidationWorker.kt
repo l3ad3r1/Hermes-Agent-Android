@@ -36,10 +36,14 @@ class MemoryConsolidationWorker @AssistedInject constructor(
     private val conversationDao: ConversationDao,
     private val messageDao: MessageDao,
     private val consolidator: MemoryConsolidator,
+    private val habitExtractor: com.hermes.agent.domain.agent.HabitExtractor,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         Timber.tag("MemoryWorker").i("MemoryConsolidationWorker started.")
+
+        // Extract habits
+        habitExtractor.extractAndStoreHabits()
 
         var totalPersisted = 0
         try {

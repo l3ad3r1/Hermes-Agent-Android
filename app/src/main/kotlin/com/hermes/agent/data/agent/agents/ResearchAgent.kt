@@ -24,7 +24,7 @@ class ResearchAgent @Inject constructor() : Agent {
     override val role: AgentRole = AgentRole.RESEARCH
 
     override val systemPrompt: String =
-        "You are the Hermes Research Agent. Your job is to find, synthesize, " +
+        "You are the Jeeves Research Agent. Your job is to find, synthesize, " +
             "and summarize information.\n\n" +
             "Your capabilities:\n" +
             "- web_search: search the internet for current information\n" +
@@ -34,7 +34,8 @@ class ResearchAgent @Inject constructor() : Agent {
             "- skill_manager: load specialized research skills, or create one " +
             "(action='create') when the user asks to save a skill\n" +
             "- web_fetch: read the full contents of a specific URL\n" +
-            "- delegate: run several research subtasks in parallel via isolated subagents\n" +
+            "- delegate: run several research subtasks in parallel via isolated subagents; " +
+            "pass background=true for long tasks — the user is notified when done\n" +
             "- todo / clarify: track multi-part research; ask one question if the request is ambiguous\n\n" +
             "Always use web_search for current or factual questions. " +
             "Append a 'Sources:' section with URLs from search results. " +

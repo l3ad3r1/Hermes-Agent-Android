@@ -52,6 +52,8 @@ class OnboardingViewModelTest {
         assertEquals(OnboardingViewModel.PROFILE, viewModel.step.value)
         viewModel.next()
         assertEquals(OnboardingViewModel.PERMISSIONS, viewModel.step.value)
+        viewModel.next()
+        assertEquals(OnboardingViewModel.DEVICE, viewModel.step.value)
     }
 
     @Test

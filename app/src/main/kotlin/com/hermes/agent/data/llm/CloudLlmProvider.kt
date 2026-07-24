@@ -15,10 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -28,6 +24,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import timber.log.Timber
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -72,6 +69,11 @@ class CloudLlmProvider @Inject constructor(
     private val json: Json,
     private val modelSource: CloudModelSource,
 ) : LlmProvider {
+
+    private companion object {
+        const val NETWORK_ATTEMPTS = 2
+        const val NETWORK_RETRY_DELAY_MS = 350L
+    }
 
     override val name: String =
         if (modelSource == CloudModelSource.AUX) "Hermes-Cloud-Specialised" else "Hermes-Cloud"
@@ -124,7 +126,9 @@ class CloudLlmProvider @Inject constructor(
         )
         val auth = "Bearer ${s.activeApiKey().cleaned()}"
         val resp = try {
-            api.completion(chatUrl(s.activeBaseUrl()), auth, request)
+            retryTransientNetwork {
+                api.completion(chatUrl(s.activeBaseUrl()), auth, request)
+            }
         } catch (t: Throwable) {
             Timber.tag("CloudLlm").w(t, "Cloud completion failed")
             throw t
@@ -162,11 +166,13 @@ class CloudLlmProvider @Inject constructor(
 
         val auth = "Bearer ${s.activeApiKey().cleaned()}"
         val rawJson: String = try {
-            api.completionRaw(
-                chatUrl(s.activeBaseUrl()),
-                auth,
-                requestJson.toRequestBody("application/json; charset=utf-8".toMediaType()),
-            ).string()
+            retryTransientNetwork {
+                api.completionRaw(
+                    chatUrl(s.activeBaseUrl()),
+                    auth,
+                    requestJson.toRequestBody("application/json; charset=utf-8".toMediaType()),
+                ).string()
+            }
         } catch (e: retrofit2.HttpException) {
             val errBody = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
             Timber.tag("CloudLlm").w(e, "completion-with-tools HTTP %d: %s", e.code(), errBody)
@@ -239,7 +245,7 @@ class CloudLlmProvider @Inject constructor(
             emit(LlmStreamChunk.Done)
         } catch (t: Throwable) {
             Timber.tag("CloudLlm").w(t, "SSE-with-tools stream failed")
-            emit(LlmStreamChunk.Error(t.message ?: "SSE stream failed"))
+            emit(LlmStreamChunk.Error(t.message ?: "SSE stream failed", t))
         }
     }.flowOn(dispatchers.io)
 
@@ -276,7 +282,7 @@ class CloudLlmProvider @Inject constructor(
         val response = try {
             complete(messages)
         } catch (t: Throwable) {
-            emit(LlmStreamChunk.Error(t.message ?: "Cloud completion failed"))
+            emit(LlmStreamChunk.Error(t.message ?: "Cloud completion failed", t))
             return@flow
         }
         val tokens = response.content.split(" ").map { if (it.endsWith('\n')) it else "$it " }
@@ -286,6 +292,33 @@ class CloudLlmProvider @Inject constructor(
         }
         emit(LlmStreamChunk.Done)
     }.flowOn(dispatchers.io)
+
+    /**
+     * Retry one transient transport failure. HTTP responses are deliberately
+     * excluded: authentication, rate-limit, and server errors must retain
+     * their existing handling instead of replaying a request blindly.
+     */
+    private suspend fun <T> retryTransientNetwork(block: suspend () -> T): T {
+        var lastFailure: IOException? = null
+        repeat(NETWORK_ATTEMPTS) { attempt ->
+            try {
+                return block()
+            } catch (failure: IOException) {
+                lastFailure = failure
+                Timber.tag("CloudLlm").w(
+                    failure,
+                    "Cloud transport failed (attempt %d/%d)",
+                    attempt + 1,
+                    NETWORK_ATTEMPTS,
+                )
+                if (attempt + 1 < NETWORK_ATTEMPTS) {
+                    delay(NETWORK_RETRY_DELAY_MS)
+                }
+            }
+        }
+        val failure = requireNotNull(lastFailure)
+        throw IOException(failure.toCloudFailureMessage(), failure)
+    }
 
     // --- helpers ---
 
@@ -335,7 +368,7 @@ class CloudLlmProvider @Inject constructor(
         // structured `tool_calls` field. When the structured field is empty,
         // try to recover them from the text so the tool loop still fires.
         val (finalContent, finalToolCalls) = if (structuredToolCalls.isEmpty()) {
-            extractTextToolCalls(content)
+            com.hermes.agent.data.llm.extractTextToolCalls(content, json)
         } else {
             content to structuredToolCalls
         }
@@ -349,57 +382,9 @@ class CloudLlmProvider @Inject constructor(
         )
     }
 
-    /**
-     * Recover tool calls a model emitted as text tags inside its reply content,
-     * e.g. `<tool_call>{"name":"x","arguments":{...}}</tool_call>` or
-     * `<TOOLCALL>[{...},{...}]</TOOLCALL>`. Returns the content with those tags
-     * stripped, plus the parsed calls. Tag name and case are both flexible;
-     * the inner payload may be a single object or an array, and `arguments`
-     * may be an object or a JSON-encoded string.
-     */
-    private fun extractTextToolCalls(content: String): Pair<String, List<ToolCall>> {
-        if (content.isBlank() || !content.contains("<tool", ignoreCase = true)) {
-            return content to emptyList()
-        }
-        val calls = mutableListOf<ToolCall>()
-        var idx = 0
-        TOOL_CALL_TAG.findAll(content).forEach { match ->
-            val inner = match.groupValues[1].trim()
-            val element = runCatching { json.parseToJsonElement(inner) }.getOrNull() ?: return@forEach
-            val objects = when (element) {
-                is JsonArray -> element.mapNotNull { it as? JsonObject }
-                is JsonObject -> listOf(element)
-                else -> emptyList()
-            }
-            objects.forEach { obj ->
-                val name = obj["name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-                    ?: return@forEach
-                val args: Map<String, JsonElement> = when (val a = obj["arguments"]) {
-                    is JsonObject -> a
-                    is JsonPrimitive -> runCatching {
-                        json.parseToJsonElement(a.content).jsonObject
-                    }.getOrNull() ?: emptyMap()
-                    else -> emptyMap()
-                }
-                calls += ToolCall(id = "call_${idx++}", name = name, arguments = args)
-            }
-        }
-        if (calls.isEmpty()) return content to emptyList()
-        val cleaned = TOOL_CALL_TAG.replace(content, "").trim()
-        return cleaned to calls
-    }
-
     private fun SettingsRepository.currentBlocking(): com.hermes.agent.data.settings.UserSettings =
         kotlinx.coroutines.runBlocking { current() }
 
-    private companion object {
-        /** Matches `<tool_call>…</tool_call>` / `<toolcall>…</toolcall>` /
-         *  `<TOOLCALL>…</TOOLCALL>` (any case), capturing the inner payload. */
-        val TOOL_CALL_TAG = Regex(
-            "<(?:tool_call|toolcall)>(.*?)</(?:tool_call|toolcall)>",
-            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-        )
-    }
 }
 
 /**

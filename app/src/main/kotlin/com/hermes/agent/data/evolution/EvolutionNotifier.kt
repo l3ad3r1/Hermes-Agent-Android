@@ -31,7 +31,7 @@ class EvolutionNotifier @Inject constructor(
                     CHANNEL_ID,
                     "Skill Evolution",
                     NotificationManager.IMPORTANCE_LOW, // informative, not urgent
-                ).apply { description = "Notifies when Hermes refines its skills from your usage" },
+                ).apply { description = "Notifies when Jeeves refines its skills from your usage" },
             )
         }
 
@@ -56,7 +56,7 @@ class EvolutionNotifier @Inject constructor(
             .setContentText("Refined from how you actually used them. Tap to review.")
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
-                    "Hermes refined ${skillNames.joinToString(", ")} based on your recent " +
+                    "Jeeves refined ${skillNames.joinToString(", ")} based on your recent " +
                         "usage. Review under Settings → Skills & Tools.",
                 ),
             )

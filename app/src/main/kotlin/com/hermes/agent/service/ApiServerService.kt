@@ -121,7 +121,7 @@ class ApiServerService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Hermes API Server",
+                "Jeeves API Server",
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 description = "Local OpenAI-compatible API server status"

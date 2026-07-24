@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug-only adb test seam for the proactive engine. Exported so
+             `adb shell am broadcast` can reach it; this source set never
+             ships in a release APK. -->
+        <receiver
+            android:name="com.hermes.agent.debug.ProactiveTestReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.jeeves.debug.PROACTIVE_PING" />
+                <action android:name="com.jeeves.debug.RUN_DIGEST" />
+                <action android:name="com.jeeves.debug.RUN_NUDGE" />
+                <action android:name="com.jeeves.debug.LESS_OF_THIS" />
+                <action android:name="com.jeeves.debug.RESET_LESS" />
+                <action android:name="com.jeeves.debug.SET_CONSENT" />
+                <action android:name="com.jeeves.debug.SET_QUIET" />
+                <action android:name="com.jeeves.debug.SET_CAPTURE" />
+                <action android:name="com.jeeves.debug.ADD_COMMITMENT" />
+                <action android:name="com.jeeves.debug.DUMP_LEDGER" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -39,7 +39,7 @@ class SchedulerTool @Inject constructor(
 
     override val descriptor = ToolDescriptor(
         name = "scheduler",
-        description = "Manage Hermes scheduled tasks (cron jobs). " +
+        description = "Manage Jeeves scheduled tasks (cron jobs). " +
             "Use action='create' to schedule a recurring prompt. " +
             "Use action='list' to see all scheduled tasks. " +
             "Use action='delete' with task_id to remove a task. " +
@@ -60,7 +60,7 @@ class SchedulerTool @Inject constructor(
             ToolParameter(
                 name = "prompt",
                 type = ToolParameterType.STRING,
-                description = "The prompt Hermes will run on schedule (required for action='create').",
+                description = "The prompt Jeeves will run on schedule (required for action='create').",
                 required = false,
             ),
             ToolParameter(

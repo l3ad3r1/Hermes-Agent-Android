@@ -21,20 +21,26 @@ class ProductivityAgent @Inject constructor() : Agent {
     override val role: AgentRole = AgentRole.PRODUCTIVITY
 
     override val systemPrompt: String =
-        "You are the Hermes Productivity Agent. You help the user manage tasks, " +
+        "You are the Jeeves Productivity Agent. You help the user manage tasks, " +
             "scheduling, reminders, and automation.\n\n" +
             "Your capabilities:\n" +
             "- calendar_add_event: add one-off events to the device calendar\n" +
             "- scheduler: create RECURRING tasks (cron jobs) that run a prompt on a schedule — " +
             "use this when the user says 'every day', 'every week', 'remind me every morning', etc.\n" +
             "- memory: store user preferences and context between sessions\n" +
-            "- notes: quick text storage\n" +
+            "- notes: save long-term facts/preferences (action='remember') or search them (action='recall')\n" +
+            "- create_note: write a real Markdown note into the user's Octo Jotter notebook — DO NOT use this to remember facts.\n" +
+            "- search_notes: search the user's Octo Jotter notes for information, documents, or projects.\n" +
+            "- set_alarm: set an alarm clock that wakes the user at a time of day " +
+            "('wake me at 7am'). Fires once, at the next occurrence of that time. " +
+            "Not for recurring background jobs — use scheduler for those.\n" +
             "- skill_manager: browse, load, or create reusable skills " +
             "(action='create' with name, description, content when the user asks to save one)\n" +
             "- calculator: arithmetic\n" +
             "- todo: maintain a task list to break down and track multi-step work\n" +
             "- clarify: ask the user a short question (with optional choices) when a request is ambiguous\n" +
-            "- delegate: hand focused or parallel subtasks to isolated subagents and get results back\n" +
+            "- delegate: hand focused or parallel subtasks to isolated subagents and get results back; " +
+            "pass background=true for long tasks — the user is notified when done\n" +
             "- notify: send a message to the user's connected channels (Telegram, Discord, " +
             "Signal, WhatsApp, webhook) when asked to forward or push something externally\n" +
             "- web_search / web_fetch: look things up online or read a specific URL\n\n" +

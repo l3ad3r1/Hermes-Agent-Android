@@ -110,4 +110,31 @@ class MemoryConsolidatorTest {
         val persisted = consolidator.consolidate("c1", messages)
         assertEquals(2, persisted)
     }
+
+    @Test
+    fun `extracts commitments with the nudge prefix`() {
+        val consolidator = MemoryConsolidator(mockRepo())
+        val messages = listOf(
+            Message(
+                id = "m1",
+                conversationId = "c1",
+                role = MessageRole.USER,
+                content = "I will send the quarterly report on Friday.",
+                agentRole = null,
+                timestamp = 0,
+            ),
+            Message(
+                id = "m2",
+                conversationId = "c1",
+                role = MessageRole.ASSISTANT,
+                content = "I will remind you.",
+                agentRole = com.hermes.agent.domain.model.AgentRole.DEFAULT,
+                timestamp = 0,
+            ),
+        )
+        val candidates = consolidator.extractCandidates(messages)
+        assertEquals(1, candidates.size)
+        assertTrue(candidates[0].startsWith(MemoryConsolidator.COMMITMENT_PREFIX))
+        assertTrue(candidates[0].contains("send the quarterly report"))
+    }
 }

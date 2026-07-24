@@ -22,6 +22,10 @@ interface MemoryRepository {
     /** Delete a memory by id. */
     suspend fun deleteMemory(id: String)
 
+    /** Newest memory whose content starts with [prefix], or null. Direct
+     *  indexed lookup — no embedding or vector search. */
+    suspend fun newestMemoryWithPrefix(prefix: String): Memory?
+
     /**
      * Semantic search. Phase 1 returns an empty list (vector index not yet
      * wired). Phase 2 will embed the query and return top-k neighbors.

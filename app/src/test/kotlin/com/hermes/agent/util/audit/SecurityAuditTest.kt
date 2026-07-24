@@ -35,4 +35,11 @@ class SecurityAuditTest {
     fun `at least one control is ENFORCED`() {
         assertTrue("expected at least one ENFORCED control", SecurityAudit.enforcedCount > 0)
     }
+
+    @Test
+    fun `controls with known open gaps are not represented as enforced`() {
+        assertEquals(ControlStatus.PARTIAL, SecurityControl.NO_UNTRUSTED_CODE.status)
+        assertEquals(ControlStatus.PARTIAL, SecurityControl.TOOL_CONFIRMATION_GATE.status)
+        assertEquals(ControlStatus.PARTIAL, SecurityControl.RAG_CONTENT_ISOLATION.status)
+    }
 }

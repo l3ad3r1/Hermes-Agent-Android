@@ -24,6 +24,12 @@ class OtaUpdateWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        // JX-01: HermesApp cancels this unique work when OTA is disabled, but a run
+        // already queued before the cancel could still execute once — refuse here too.
+        if (!com.hermes.agent.BuildConfig.OTA_ENABLED) {
+            Timber.tag("OtaWorker").i("OTA disabled in this build — skipping check")
+            return Result.success()
+        }
         Timber.tag("OtaWorker").d("checking for update")
         val update = runCatching { checker.check() }
             .onFailure { Timber.tag("OtaWorker").w(it, "check failed") }
@@ -43,7 +49,7 @@ class OtaUpdateWorker @AssistedInject constructor(
                 CHANNEL_ID,
                 "App Updates",
                 NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = "Hermes update availability notifications" }
+            ).apply { description = "Jeeves update availability notifications" }
             nm.createNotificationChannel(channel)
         }
 
@@ -68,10 +74,10 @@ class OtaUpdateWorker @AssistedInject constructor(
 
         val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Hermes ${update.version} available")
-            .setContentText("Tap to open Hermes and install the update.")
+            .setContentTitle("Jeeves ${update.version} available")
+            .setContentText("Tap to open Jeeves and install the update.")
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(update.releaseNotes.ifBlank { "Tap to open Hermes and install the update." }))
+                .bigText(update.releaseNotes.ifBlank { "Tap to open Jeeves and install the update." }))
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .build()

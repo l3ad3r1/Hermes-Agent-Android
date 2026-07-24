@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Card
@@ -35,19 +36,30 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.model.Memory
+import com.hermes.agent.ui.components.DestructiveActionDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoryScreen(
     viewModel: MemoryViewModel = hiltViewModel(),
+    onBack: () -> Unit = {},
 ) {
     val memories by viewModel.memories.collectAsStateWithLifecycle()
     var newMemory by remember { mutableStateOf("") }
+    var deleteTarget by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Long-term Memory") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Navigate back"
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -81,7 +93,7 @@ fun MemoryScreen(
                 onValueChange = { newMemory = it },
                 label = { Text("Add a memory") },
                 supportingText = {
-                    Text("Anything Hermes should remember about you.")
+                    Text("Anything Jeeves should remember about you.")
                 },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
@@ -100,11 +112,24 @@ fun MemoryScreen(
                 items(memories, key = { it.id }) { memory ->
                     MemoryRow(
                         memory = memory,
-                        onDelete = { viewModel.deleteMemory(memory.id) },
+                        onDelete = { deleteTarget = memory.id },
                     )
                 }
             }
         }
+    }
+
+    if (deleteTarget != null) {
+        DestructiveActionDialog(
+            title = "Delete Memory",
+            message = "Are you sure you want to delete this memory?",
+            confirmLabel = "Delete",
+            onConfirm = {
+                deleteTarget?.let { viewModel.deleteMemory(it) }
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null }
+        )
     }
 }
 

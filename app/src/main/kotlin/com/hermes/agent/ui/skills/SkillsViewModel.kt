@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.hermes.agent.domain.model.Skill
 import com.hermes.agent.domain.repository.SkillRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,8 @@ import javax.inject.Inject
 
 data class SkillsUiState(
     val skills: List<Skill> = emptyList(),
+    val isLoading: Boolean = true,
+    val listError: String? = null,
     val selectedSkill: Skill? = null,
     val showAddDialog: Boolean = false,
     val showViewDialog: Boolean = false,
@@ -32,13 +35,27 @@ class SkillsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SkillsUiState())
     val state: StateFlow<SkillsUiState> = _state.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
-        viewModelScope.launch {
-            skillRepository.seedBuiltIn()
-        }
-        viewModelScope.launch {
-            skillRepository.observe().collect { skills ->
-                _state.value = _state.value.copy(skills = skills)
+        loadSkills()
+    }
+
+    fun loadSkills() {
+        loadJob?.cancel()
+        _state.value = _state.value.copy(isLoading = true, listError = null)
+        loadJob = viewModelScope.launch {
+            try {
+                skillRepository.seedBuiltIn()
+            } catch (e: Exception) {
+                // Ignore seed error
+            }
+            try {
+                skillRepository.observe().collect { skills ->
+                    _state.value = _state.value.copy(skills = skills, isLoading = false, listError = null)
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, listError = e.message ?: "Failed to load skills")
             }
         }
     }

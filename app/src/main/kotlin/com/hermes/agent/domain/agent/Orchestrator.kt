@@ -60,5 +60,6 @@ interface Orchestrator {
         conversationId: String,
         userMessage: String,
         recentMessages: List<LlmMessage>,
+        origin: ExecutionOrigin,
     ): Flow<OrchestratorEvent>
 }

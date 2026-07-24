@@ -25,7 +25,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import com.hermes.agent.ui.components.DestructiveActionDialog
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +47,8 @@ fun TicketDetailScreen(
     LaunchedEffect(ticketId) { viewModel.load(ticketId) }
     val ticket by viewModel.ticket.collectAsState()
 
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -53,7 +59,7 @@ fun TicketDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.delete(onDeleted = onNavigateBack) }) {
+                    IconButton(onClick = { showDeleteConfirm = true }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                     }
                 },
@@ -112,6 +118,19 @@ fun TicketDetailScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        DestructiveActionDialog(
+            title = "Delete Ticket",
+            message = "Are you sure you want to delete this ticket?",
+            confirmLabel = "Delete",
+            onConfirm = {
+                showDeleteConfirm = false
+                viewModel.delete(onDeleted = onNavigateBack)
+            },
+            onDismiss = { showDeleteConfirm = false }
+        )
     }
 }
 

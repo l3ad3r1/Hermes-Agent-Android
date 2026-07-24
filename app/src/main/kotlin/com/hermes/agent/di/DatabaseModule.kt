@@ -3,11 +3,13 @@ package com.hermes.agent.di
 import android.content.Context
 import androidx.room.Room
 import com.hermes.agent.data.local.HermesDatabase
+import com.hermes.agent.data.local.dao.ActivityLedgerDao
 import com.hermes.agent.data.local.dao.AgentTaskDao
 import com.hermes.agent.data.local.dao.ConnectorDao
 import com.hermes.agent.data.local.dao.ConversationDao
 import com.hermes.agent.data.local.dao.DocumentChunkDao
 import com.hermes.agent.data.local.dao.DocumentDao
+import com.hermes.agent.data.local.dao.ExecutionPlanDao
 import com.hermes.agent.data.local.dao.KanbanTicketDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
@@ -40,8 +42,9 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_5_6,
                 HermesDatabase.MIGRATION_6_7,
                 HermesDatabase.MIGRATION_7_8,
+                HermesDatabase.MIGRATION_8_9,
+                HermesDatabase.MIGRATION_9_10,
             )
-            .fallbackToDestructiveMigration()
             .build()
     }
 
@@ -55,4 +58,6 @@ object DatabaseModule {
     @Provides fun provideAgentTaskDao(db: HermesDatabase): AgentTaskDao = db.agentTaskDao()
     @Provides fun provideSkillDao(db: HermesDatabase): SkillDao = db.skillDao()
     @Provides fun provideKanbanTicketDao(db: HermesDatabase): KanbanTicketDao = db.kanbanTicketDao()
+    @Provides fun provideExecutionPlanDao(db: HermesDatabase): ExecutionPlanDao = db.executionPlanDao()
+    @Provides fun provideActivityLedgerDao(db: HermesDatabase): ActivityLedgerDao = db.activityLedgerDao()
 }

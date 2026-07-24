@@ -146,7 +146,7 @@ fun LearningScreen(
             SectionCard(title = "Facts learned (${s.factCount})") {
                 if (s.recentFacts.isEmpty()) {
                     Text(
-                        "No facts learned yet. Tell Hermes about yourself in a chat.",
+                        "No facts learned yet. Tell Jeeves about yourself in a chat.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -167,10 +167,10 @@ fun LearningScreen(
                 }
             }
 
-            SectionCard(title = "Skills created by Hermes (${s.autoSkills.size})") {
+            SectionCard(title = "Skills created by Jeeves (${s.autoSkills.size})") {
                 if (s.autoSkills.isEmpty()) {
                     Text(
-                        "None yet. Complete a task that uses two or more tools and Hermes will write a reusable skill.",
+                        "None yet. Complete a task that uses two or more tools and Jeeves will write a reusable skill.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

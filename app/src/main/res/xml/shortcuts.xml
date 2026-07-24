@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shortcut_new_note"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_note_short"
+        android:shortcutLongLabel="@string/shortcut_new_note_long">
+        <intent
+            android:action="com.hermes.agent.action.NEW_NOTE"
+            android:targetPackage="com.jeeves.app"
+            android:targetClass="com.hermes.agent.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_set_alarm"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_set_alarm_short"
+        android:shortcutLongLabel="@string/shortcut_set_alarm_long">
+        <intent
+            android:action="com.hermes.agent.action.SET_ALARM"
+            android:targetPackage="com.jeeves.app"
+            android:targetClass="com.hermes.agent.MainActivity" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_ask_jeeves"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_ask_jeeves_short"
+        android:shortcutLongLabel="@string/shortcut_ask_jeeves_long">
+        <intent
+            android:action="com.hermes.agent.action.ASK_JEEVES"
+            android:targetPackage="com.jeeves.app"
+            android:targetClass="com.hermes.agent.MainActivity" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="shortcut_briefing"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_briefing_short"
+        android:shortcutLongLabel="@string/shortcut_briefing_long">
+        <intent
+            android:action="com.hermes.agent.action.PLAY_BRIEFING"
+            android:targetPackage="com.jeeves.app"
+            android:targetClass="com.hermes.agent.MainActivity" />
+    </shortcut>
+</shortcuts>

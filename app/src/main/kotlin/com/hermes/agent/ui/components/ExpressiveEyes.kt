@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import android.provider.Settings
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -47,6 +49,10 @@ fun ExpressiveEyes(
     width: Dp = 84.dp,
     height: Dp = 44.dp,
 ) {
+    val context = LocalContext.current
+    val animatorScale = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+    val reducedMotion = animatorScale == 0f
+
     // Lid openness driven by mood + blink overlay.
     val moodOpenTarget = when (mood) {
         Mood.HAPPY -> 1f      // crescent shape handles the squint
@@ -63,6 +69,7 @@ fun ExpressiveEyes(
     // LISTENING: a gentle attentive scale pulse (like a soft breathing focus).
     val listenPulse = remember { Animatable(1f) }
     LaunchedEffect(mood) {
+        if (reducedMotion) return@LaunchedEffect
         if (mood == Mood.LISTENING) {
             while (true) {
                 listenPulse.animateTo(1.12f, tween(620))
@@ -76,6 +83,7 @@ fun ExpressiveEyes(
     // CELEBRATE: a couple of vertical hops.
     val bounce = remember { Animatable(0f) }
     LaunchedEffect(mood) {
+        if (reducedMotion) return@LaunchedEffect
         if (mood == Mood.CELEBRATE) {
             bounce.snapTo(0f)
             repeat(2) {
@@ -90,6 +98,7 @@ fun ExpressiveEyes(
     // Startle pop: SURPRISED eyes overshoot in scale, then settle.
     val startle = remember { Animatable(1f) }
     LaunchedEffect(mood) {
+        if (reducedMotion) return@LaunchedEffect
         if (mood == Mood.SURPRISED) {
             startle.snapTo(0.7f)
             startle.animateTo(1.22f, tween(120))
@@ -101,6 +110,7 @@ fun ExpressiveEyes(
 
     val blink = remember { Animatable(1f) }
     LaunchedEffect(mood) {
+        if (reducedMotion) return@LaunchedEffect
         if (mood == Mood.SURPRISED) {
             blink.snapTo(1f) // wide awake — no blinking mid-startle
             return@LaunchedEffect
@@ -125,6 +135,7 @@ fun ExpressiveEyes(
     val gazeX = remember { Animatable(0f) }
     val gazeY = remember { Animatable(0f) }
     LaunchedEffect(mood) {
+        if (reducedMotion) return@LaunchedEffect
         when (mood) {
             Mood.FOCUSED -> {
                 gazeX.animateTo(-0.35f, tween(300))

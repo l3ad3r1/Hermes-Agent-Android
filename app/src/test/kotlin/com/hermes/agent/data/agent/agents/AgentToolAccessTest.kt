@@ -30,6 +30,8 @@ class AgentToolAccessTest {
         "device_settings", "notes", "search_conversations", "calendar_add_event",
         "skill_manager", "memory", "scheduler", "shell", "termux", "todo", "speak",
         "clarify", "delegate", "generate_image",
+        // Cross-feature tools (Phase 6): reach :feature:jotter and :feature:butler.
+        "create_note", "set_alarm",
     )
 
     private val agents = listOf(
@@ -61,5 +63,30 @@ class AgentToolAccessTest {
     fun `creative agent exposes generate_image`() {
         val names = CreativeAgent().availableTools(FakeRegistry(allToolNames)).map { it.name }
         assertTrue(names.contains("generate_image"))
+    }
+
+    @Test
+    fun `cross-feature tools are granted to at least one agent`() {
+        for (tool in listOf("create_note", "set_alarm")) {
+            assertTrue("'$tool' is not granted to any agent — the LLM can never call it", grantedAnywhere(tool))
+        }
+    }
+
+    /**
+     * Step 3 of the tool-wiring rule: registering and granting a tool is not enough — the
+     * persona prompt must name it, or the model has no idea when to reach for it.
+     */
+    @Test
+    fun `agents that are granted the cross-feature tools also advertise them in the prompt`() {
+        for (agent in listOf(ConversationalAgent(), ProductivityAgent())) {
+            val granted = agent.availableTools(FakeRegistry(allToolNames)).map { it.name }
+            for (tool in listOf("create_note", "set_alarm")) {
+                assertTrue("${agent.role} is not granted '$tool'", granted.contains(tool))
+                assertTrue(
+                    "${agent.role} grants '$tool' but never mentions it in its system prompt",
+                    agent.systemPrompt.contains(tool),
+                )
+            }
+        }
     }
 }

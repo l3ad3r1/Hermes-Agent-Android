@@ -38,7 +38,7 @@ class WeatherPlugin @Inject constructor() : Plugin {
         displayName = "Weather",
         versionCode = 1,
         versionName = "1.0.0",
-        author = "Hermes Team",
+        author = "Jeeves Team",
         signatureFingerprint = "(in-process, no signature required)",
         capabilities = listOf(
             PluginCapability(

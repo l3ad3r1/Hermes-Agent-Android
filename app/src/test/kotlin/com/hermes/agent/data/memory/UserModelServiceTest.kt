@@ -11,6 +11,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -85,5 +87,25 @@ class UserModelServiceTest {
 
         // Marker stays put so the rebuild is retried on the next conversation.
         coVerify(exactly = 0) { learningState.setUserModelRebuiltAt(any()) }
+    }
+
+    @Test
+    fun `currentModel reads the prefixed memory directly and strips the prefix`() =
+        runTest(dispatcher) {
+            coEvery { memory.newestMemoryWithPrefix(UserModelService.MODEL_PREFIX) } returns
+                memory("${UserModelService.MODEL_PREFIX}Rinu prefers concise answers.")
+
+            val model = service.currentModel()
+
+            assertEquals("Rinu prefers concise answers.", model)
+            // The old path vector-searched 200 memories; the fast path must not.
+            coVerify(exactly = 0) { memory.searchMemories(any(), any()) }
+        }
+
+    @Test
+    fun `currentModel returns null when no model memory exists`() = runTest(dispatcher) {
+        coEvery { memory.newestMemoryWithPrefix(UserModelService.MODEL_PREFIX) } returns null
+
+        assertNull(service.currentModel())
     }
 }

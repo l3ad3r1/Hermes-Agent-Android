@@ -25,6 +25,16 @@ interface MemoryDao {
     @Query("SELECT COUNT(*) FROM memories")
     suspend fun count(): Int
 
+    @Query(
+        """
+        SELECT * FROM memories
+        WHERE content LIKE :prefix || '%' ESCAPE '\'
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun newestWithPrefix(prefix: String): MemoryEntity?
+
     /**
      * Phase 1 stand-in for ANN search. Performs a LIKE query on the content
      * column so the UI has something to surface. Phase 2 will replace this

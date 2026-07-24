@@ -87,6 +87,57 @@ android {
         }
     }
 
+    // llama.cpp is built from source (app/src/main/cpp). Only arm64-v8a is
+    // bundled — the target hardware is 64-bit ARM and every other ABI is dead
+    // weight in an APK that already carries the native inference runtime.
+    defaultConfig {
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
+        externalNativeBuild {
+            cmake {
+                arguments += "-DCMAKE_BUILD_TYPE=Release"
+                arguments += "-DBUILD_SHARED_LIBS=ON"
+                arguments += "-DLLAMA_BUILD_APP=OFF"
+                arguments += "-DLLAMA_BUILD_COMMON=ON"
+                arguments += "-DLLAMA_OPENSSL=OFF"
+                arguments += "-DGGML_NATIVE=OFF"
+                arguments += "-DGGML_BACKEND_DL=ON"
+                arguments += "-DGGML_CPU_ALL_VARIANTS=ON"
+                arguments += "-DGGML_LLAMAFILE=OFF"
+
+                // The NDK sysroot has vulkan.h but NOT the C++ vulkan.hpp that
+                // ggml-vulkan includes; both glslc and the Vulkan-Hpp headers
+                // come from the host Vulkan SDK. Overriding Vulkan_INCLUDE_DIR
+                // repoints the Vulkan::Vulkan imported target's headers at the
+                // SDK while libvulkan.so still resolves from the NDK sysroot.
+                val vulkanSdk = System.getenv("VULKAN_SDK")?.replace('\\', '/')
+                if (vulkanSdk != null) {
+                    arguments += "-DVulkan_GLSLC_EXECUTABLE=$vulkanSdk/bin/glslc"
+                    arguments += "-DVulkan_INCLUDE_DIR=$vulkanSdk/include"
+                }
+
+                // Vulkan offload is off: it triggered DeviceLostError on Adreno.
+                arguments(
+                    "-DGGML_OPENMP=OFF",
+                    "-DGGML_VULKAN=OFF"
+                )
+
+                val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+                if (!isWindows) {
+                    arguments += "-DHOST_C_COMPILER=/usr/bin/gcc"
+                    arguments += "-DHOST_CXX_COMPILER=/usr/bin/g++"
+                }
+            }
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -101,10 +152,12 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
             excludes += "/META-INF/LICENSE*"
         }
-        // Default (non-legacy) jniLibs packaging keeps shared libraries
-        // uncompressed and page-aligned, which AGP aligns to 16 KB for Android
-        // 15+ devices. (The legacy-packaging override existed only to extract
-        // the now-removed BusyBox executable.)
+        jniLibs {
+            // llama.cpp is built with GGML_BACKEND_DL=ON, so it dlopen()s its
+            // backend .so files at runtime. Legacy packaging extracts them to
+            // the filesystem, which is what makes that dlopen resolve.
+            useLegacyPackaging = true
+        }
     }
     testOptions {
         unitTests {
@@ -178,6 +231,9 @@ dependencies {
     // --- Logging ---
     implementation(libs.timber)
 
+    // --- MediaPipe / On-Device ML ---
+    implementation(libs.mediapipe.tasks.genai)
+
     // --- Unit tests ---
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
@@ -192,5 +248,7 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

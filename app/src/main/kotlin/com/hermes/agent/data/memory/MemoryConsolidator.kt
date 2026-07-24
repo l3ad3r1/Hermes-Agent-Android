@@ -101,16 +101,28 @@ class MemoryConsolidator @Inject constructor(
                 val fact = "User preference: ${match.groupValues[1].trim().take(200)}"
                 out.add(fact)
             }
+
+            for (pattern in COMMITMENT_PATTERNS) {
+                val match = pattern.find(content) ?: continue
+                val fact = "$COMMITMENT_PREFIX${match.groupValues[1].trim().take(200)}"
+                out.add(fact)
+            }
         }
         return out.distinct()
     }
 
     companion object {
+        /** Marks a memory as a user commitment so nudges can find it (roadmap v0.12). */
+        const val COMMITMENT_PREFIX = "Commitment: "
+
         private val REMEMBER_PATTERNS = listOf(
             Regex("""(?:remember|note|don't forget|do not forget)\s+(?:that\s+)?(.+?)$""", RegexOption.IGNORE_CASE),
         )
         private val PREFERENCE_PATTERNS = listOf(
             Regex("""I (?:prefer|like|always|usually|tend to)\s+(.+?)$""", RegexOption.IGNORE_CASE),
+        )
+        private val COMMITMENT_PATTERNS = listOf(
+            Regex("""I (?:will|need to|have to|must|promised to)\s+(.+?)$""", RegexOption.IGNORE_CASE),
         )
     }
 }

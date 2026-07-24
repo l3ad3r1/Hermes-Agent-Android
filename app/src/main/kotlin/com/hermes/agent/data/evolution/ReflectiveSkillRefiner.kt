@@ -153,7 +153,7 @@ class ReflectiveSkillRefiner @Inject constructor(
 
     companion object {
         private val SYSTEM = """
-            You are a skill editor for the Hermes AI agent. You are given a SKILL.md
+            You are a skill editor for the Jeeves AI agent. You are given a SKILL.md
             document and real traces of how it was used on the user's device.
 
             Reflect on the traces: where did the skill's instructions fall short, stay

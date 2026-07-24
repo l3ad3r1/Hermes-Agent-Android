@@ -5,6 +5,7 @@ import com.hermes.agent.data.tools.ShellTool
 import com.hermes.agent.data.tools.CalendarTool
 import com.hermes.agent.data.tools.ClarifyTool
 import com.hermes.agent.data.tools.ConversationSearchTool
+import com.hermes.agent.data.tools.CreateNoteTool
 import com.hermes.agent.data.tools.DelegateTool
 import com.hermes.agent.data.tools.ImageGenerationTool
 import com.hermes.agent.data.tools.DateTimeTool
@@ -12,6 +13,7 @@ import com.hermes.agent.data.tools.DeviceSettingsTool
 import com.hermes.agent.data.tools.MemoryTool
 import com.hermes.agent.data.tools.NotesTool
 import com.hermes.agent.data.tools.SchedulerTool
+import com.hermes.agent.data.tools.SetAlarmTool
 import com.hermes.agent.data.tools.SkillManagerTool
 import com.hermes.agent.data.tools.TermuxTool
 import com.hermes.agent.data.tools.TodoTool
@@ -63,6 +65,11 @@ object ToolsModule {
         clarifyTool: ClarifyTool,
         delegateTool: DelegateTool,
         imageGenerationTool: ImageGenerationTool,
+        // Cross-feature tools: reach into :feature:jotter and :feature:butler
+        // through the unified Hilt graph (JotterModule / ButlerModule).
+        createNoteTool: CreateNoteTool,
+        searchNotesTool: com.hermes.agent.data.tools.SearchNotesTool,
+        setAlarmTool: SetAlarmTool,
     ): ToolRegistry {
         val registry = com.hermes.agent.data.tool.ToolRegistryImpl()
         listOf<Tool>(
@@ -85,6 +92,9 @@ object ToolsModule {
             clarifyTool,
             delegateTool,
             imageGenerationTool,
+            createNoteTool,
+            searchNotesTool,
+            setAlarmTool,
         ).forEach(registry::register)
         return registry
     }

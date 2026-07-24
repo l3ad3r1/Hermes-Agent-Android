@@ -21,7 +21,7 @@ enum class TopLevelDestination(
     val icon: ImageVector,
 ) {
     HOME(         route = "home",                 label = "Home",       icon = Icons.Outlined.Home),
-    CONVERSATIONS(route = "conversations",         label = "Search",     icon = Icons.Outlined.Search),
+    CONVERSATIONS(route = "conversations",         label = "Chats",      icon = Icons.Outlined.Chat),
     CHAT(         route = "chat/{conversationId}", label = "Chat",       icon = Icons.Outlined.Chat),
     DOCUMENTS(    route = "documents",             label = "Artifacts",      icon = Icons.Outlined.Description),
     SKILLS(       route = "skills",               label = "Skills & Tools", icon = Icons.Outlined.Stars),

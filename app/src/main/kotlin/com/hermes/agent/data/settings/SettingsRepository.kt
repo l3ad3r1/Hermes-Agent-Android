@@ -16,6 +16,9 @@ interface SettingsRepository {
     suspend fun setAuxModel(model: String)
     suspend fun setAuxBaseUrl(url: String)
     suspend fun setAuxApiKey(key: String)
+    suspend fun setLocalModelUri(uri: String)
+    suspend fun setSelectedModelId(id: String)
+    suspend fun setModelDownloadDir(dir: String)
 
     suspend fun isOnboardingCompleted(): Boolean
     suspend fun setOnboardingCompleted(completed: Boolean)

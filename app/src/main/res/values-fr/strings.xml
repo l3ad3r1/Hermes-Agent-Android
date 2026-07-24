@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hermes Agent</string>
+    <string name="app_name">Jeeves</string>
     <string name="nav_conversations">Conversations</string>
     <string name="nav_chat">Discussion</string>
     <string name="nav_settings">Paramètres</string>

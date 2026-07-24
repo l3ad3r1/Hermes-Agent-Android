@@ -52,7 +52,7 @@ data class ExecutionStep(
     val errorMessage: String? = null,
 )
 
-enum class StepStatus { PENDING, RUNNING, SUCCEEDED, FAILED, SKIPPED }
+enum class StepStatus { PENDING, RUNNING, SUCCEEDED, FAILED, SKIPPED, BLOCKED, CANCELLED }
 
 /**
  * The orchestrator's plan for handling a user message.

@@ -16,8 +16,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import android.provider.Settings
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -33,6 +35,10 @@ fun TypingIndicator(
     modifier: Modifier = Modifier,
     dotColor: Color = MaterialTheme.colorScheme.primary,
 ) {
+    val context = LocalContext.current
+    val animatorScale = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+    val reducedMotion = animatorScale == 0f
+
     Row(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -41,6 +47,7 @@ fun TypingIndicator(
         repeat(3) { index ->
             var alpha by remember { mutableStateOf(0.3f) }
             LaunchedEffect(Unit) {
+                if (reducedMotion) return@LaunchedEffect
                 while (true) {
                     delay(120 * index.toLong())
                     alpha = 1.0f

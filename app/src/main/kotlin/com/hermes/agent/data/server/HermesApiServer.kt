@@ -1,5 +1,6 @@
 package com.hermes.agent.data.server
 
+import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.Orchestrator
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import fi.iki.elonen.NanoHTTPD
@@ -115,7 +116,7 @@ class HermesApiServer(
     ): Response = runBlocking {
         val reply = StringBuilder()
         var failure: String? = null
-        orchestrator.run(conversationId, userMessage, prior).collect { event ->
+        orchestrator.run(conversationId, userMessage, prior, ExecutionOrigin.BACKGROUND).collect { event ->
             when (event) {
                 is OrchestratorEvent.ReplyToken -> reply.append(event.text)
                 is OrchestratorEvent.ReplyComplete -> {
@@ -153,7 +154,7 @@ class HermesApiServer(
             try {
                 pipeOut.write(ApiCompletion.streamRoleChunk(id).toByteArray())
                 pipeOut.flush()
-                orchestrator.run(conversationId, userMessage, prior).collect { event ->
+                orchestrator.run(conversationId, userMessage, prior, ExecutionOrigin.BACKGROUND).collect { event ->
                     when (event) {
                         is OrchestratorEvent.ReplyToken -> {
                             pipeOut.write(ApiCompletion.streamChunk(id, event.text).toByteArray())

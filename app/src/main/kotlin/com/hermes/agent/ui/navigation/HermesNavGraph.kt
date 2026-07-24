@@ -22,19 +22,27 @@ import com.hermes.agent.ui.chat.ChatScreen
 import com.hermes.agent.ui.connect.ConnectScreen
 import com.hermes.agent.ui.conversations.ConversationsScreen
 import com.hermes.agent.ui.cron.CronScreen
+import com.hermes.agent.ui.delegate.DelegateScreen
+import com.hermes.agent.ui.documents.DocumentsScreen
+import com.hermes.agent.ui.evolution.RefineSkillScreen
+import com.hermes.agent.ui.experiment.ExperimentScreen
 import com.hermes.agent.ui.home.HomeScreen
 import com.hermes.agent.ui.kanban.KanbanBoardScreen
 import com.hermes.agent.ui.kanban.TicketDetailScreen
-import com.hermes.agent.ui.delegate.DelegateScreen
-import com.hermes.agent.ui.evolution.RefineSkillScreen
-import com.hermes.agent.ui.documents.DocumentsScreen
-import com.hermes.agent.ui.experiment.ExperimentScreen
 import com.hermes.agent.ui.learning.LearningScreen
+import com.hermes.agent.ui.ledger.LedgerScreen
 import com.hermes.agent.ui.logs.LogScreen
 import com.hermes.agent.ui.memory.MemoryScreen
+import com.hermes.agent.ui.sessions.SessionBrowserScreen
+import com.hermes.agent.ui.settings.AboutSettingsScreen
+import com.hermes.agent.ui.settings.AdvancedSettingsScreen
+import com.hermes.agent.ui.settings.AlarmSettingsScreen
+import com.hermes.agent.ui.settings.AppearanceSettingsScreen
+import com.hermes.agent.ui.settings.AssistantSettingsScreen
+import com.hermes.agent.ui.settings.ConnectionsSettingsScreen
+import com.hermes.agent.ui.settings.ProactiveSettingsScreen
 import com.hermes.agent.ui.settings.SettingsScreen
 import com.hermes.agent.ui.skills.SkillsScreen
-import com.hermes.agent.ui.sessions.SessionBrowserScreen
 
 private val bottomNavDestinations = listOf(
     TopLevelDestination.HOME,
@@ -49,7 +57,6 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    // Update-notification deep link: land on Settings (Updates section).
     androidx.compose.runtime.LaunchedEffect(startAtSettings) {
         if (startAtSettings) navController.navigate(TopLevelDestination.SETTINGS.route)
     }
@@ -72,7 +79,7 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(dest.icon, contentDescription = dest.label) },
+                            icon = { Icon(dest.icon, contentDescription = null) },
                             label = { Text(dest.label) },
                         )
                     }
@@ -83,10 +90,6 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
         NavHost(
             navController = navController,
             startDestination = TopLevelDestination.HOME.route,
-            // Consume the insets the outer Scaffold already turned into
-            // innerPadding, so each screen's own Scaffold / top bar doesn't pad
-            // for the status + navigation bars a second time (the double-inset
-            // gap above every title and the black strip at the bottom).
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
@@ -100,14 +103,14 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                 )
             }
             composable(TopLevelDestination.CONVERSATIONS.route) {
-                            SessionBrowserScreen(
-                                onOpenSession = { navController.navigate(TopLevelDestination.chatRoute(it)) },
-                                onNewSession = {
-                                    val newId = java.util.UUID.randomUUID().toString()
-                                    navController.navigate(TopLevelDestination.chatRoute(newId))
-                                },
-                            )
-                        }
+                SessionBrowserScreen(
+                    onOpenSession = { navController.navigate(TopLevelDestination.chatRoute(it)) },
+                    onNewSession = {
+                        val newId = java.util.UUID.randomUUID().toString()
+                        navController.navigate(TopLevelDestination.chatRoute(newId))
+                    },
+                )
+            }
             composable(
                 route = TopLevelDestination.CHAT.route,
                 arguments = listOf(navArgument("conversationId") { type = NavType.StringType }),
@@ -115,10 +118,14 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                 ChatScreen(
                     conversationId = entry.arguments?.getString("conversationId").orEmpty(),
                     onBack = { navController.popBackStack() },
+                    onNewChat = {
+                        val newId = java.util.UUID.randomUUID().toString()
+                        navController.navigate(TopLevelDestination.chatRoute(newId))
+                    },
                 )
             }
-            composable(TopLevelDestination.DOCUMENTS.route) { DocumentsScreen() }
-            composable(TopLevelDestination.MEMORY.route)    { MemoryScreen() }
+            composable(TopLevelDestination.DOCUMENTS.route) { DocumentsScreen(onBack = { navController.popBackStack() }) }
+            composable(TopLevelDestination.MEMORY.route)    { MemoryScreen(onBack = { navController.popBackStack() }) }
             composable(TopLevelDestination.KANBAN.route) {
                 KanbanBoardScreen(
                     onTicketClick = { navController.navigate(TopLevelDestination.ticketRoute(it)) },
@@ -133,15 +140,26 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                     onNavigateBack = { navController.popBackStack() },
                 )
             }
-            composable(TopLevelDestination.SKILLS.route)   { SkillsScreen() }
-            composable(TopLevelDestination.CONNECT.route)  { ConnectScreen() }
-            composable(TopLevelDestination.SCHEDULE.route) { CronScreen() }
+            composable(TopLevelDestination.SKILLS.route)   { SkillsScreen(onBack = { navController.popBackStack() }) }
+            composable(TopLevelDestination.CONNECT.route)  { ConnectScreen(onBack = { navController.popBackStack() }) }
+            composable(TopLevelDestination.SCHEDULE.route) { CronScreen(onBack = { navController.popBackStack() }) }
             composable(TopLevelDestination.DELEGATE.route) { DelegateScreen() }
             composable(TopLevelDestination.EXPERIMENT.route) { ExperimentScreen() }
+            
+            // Settings parent and children
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(onNavigate = { route -> navController.navigate(route) })
             }
+            composable("settings_assistant") { AssistantSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_appearance") { AppearanceSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_alarms") { AlarmSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_connections") { ConnectionsSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_advanced") { AdvancedSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_proactive") { ProactiveSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_about") { AboutSettingsScreen(onBack = { navController.popBackStack() }) }
+            
             composable("logs") { LogScreen(onBack = { navController.popBackStack() }) }
+            composable("activity_ledger") { LedgerScreen(onBack = { navController.popBackStack() }) }
             composable("learning") { LearningScreen(onBack = { navController.popBackStack() }) }
             composable("refine_skills") { RefineSkillScreen(onBack = { navController.popBackStack() }) }
         }

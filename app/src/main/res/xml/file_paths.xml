@@ -4,4 +4,16 @@
     <external-files-path name="updates" path="updates/" />
     <!-- Session export archive for the offline self-evolution tool. -->
     <external-files-path name="session-export" path="session-export/" />
+
+    <!--
+      Roots owned by :feature:jotter. Jotter calls
+      FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", ...),
+      which resolves to the host provider declared above, so its roots must live here:
+      a library's res/xml/file_paths.xml would be overridden by this app-module file.
+      Jotter's own root named "updates" is renamed "jotter-updates" because the OTA
+      root above already claims that name (the name is only the URI path segment).
+    -->
+    <files-path name="exports" path="exports/" />
+    <files-path name="attachments" path="attachments/" />
+    <files-path name="jotter-updates" path="updates/" />
 </paths>

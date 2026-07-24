@@ -46,7 +46,7 @@ class SkillManagerTool @Inject constructor(
 
     override val descriptor = ToolDescriptor(
         name = "skill_manager",
-        description = "Browse, load, and create Hermes skills (reusable instruction sets). " +
+        description = "Browse, load, and create Jeeves skills (reusable instruction sets). " +
             "Use action='list' to see available skills (name + description only, token-efficient). " +
             "Use action='view' with a skill name to load the full instructions for that skill. " +
             "Use action='create' when the user asks you to create/save a new skill — provide " +

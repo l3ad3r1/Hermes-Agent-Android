@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.hermes.agent.ui.theme.GeistMono
+import com.hermes.agent.core.theme.GeistMono
 
 /**
  * Settings → Logs. Shows the captured app log and lets the user copy or share
@@ -102,14 +102,14 @@ fun LogScreen(
 
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("Hermes logs", text))
+    clipboard.setPrimaryClip(ClipData.newPlainText("Jeeves logs", text))
     Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
 }
 
 private fun shareLogs(context: Context, text: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "Hermes Agent logs")
+        putExtra(Intent.EXTRA_SUBJECT, "Jeeves logs")
         putExtra(Intent.EXTRA_TEXT, text)
     }
     context.startActivity(Intent.createChooser(intent, "Share logs"))

@@ -34,6 +34,9 @@ class SettingsRepositoryImpl @Inject constructor(
         val AUX_MODEL = stringPreferencesKey("aux_model")
         val AUX_BASE_URL = stringPreferencesKey("aux_base_url")
         val AUX_API_KEY = stringPreferencesKey("aux_api_key")
+        val LOCAL_MODEL_URI = stringPreferencesKey("local_model_uri")
+        val SELECTED_MODEL_ID = stringPreferencesKey("selected_model_id")
+        val MODEL_DOWNLOAD_DIR = stringPreferencesKey("model_download_dir")
         val GITHUB_PAT = stringPreferencesKey("github_pat")
         val GIST_ID = stringPreferencesKey("gist_id")
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
@@ -90,6 +93,18 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setAuxApiKey(key: String) {
         context.hermesDataStore.edit { it[Keys.AUX_API_KEY] = key }
+    }
+
+    override suspend fun setLocalModelUri(uri: String) {
+        context.hermesDataStore.edit { it[Keys.LOCAL_MODEL_URI] = uri }
+    }
+
+    override suspend fun setSelectedModelId(id: String) {
+        context.hermesDataStore.edit { it[Keys.SELECTED_MODEL_ID] = id }
+    }
+
+    override suspend fun setModelDownloadDir(dir: String) {
+        context.hermesDataStore.edit { it[Keys.MODEL_DOWNLOAD_DIR] = dir }
     }
 
     override suspend fun isOnboardingCompleted(): Boolean {
@@ -163,6 +178,9 @@ class SettingsRepositoryImpl @Inject constructor(
             auxModel = this[Keys.AUX_MODEL] ?: "gpt-4o-mini",
             auxBaseUrl = this[Keys.AUX_BASE_URL] ?: "",
             auxApiKey = this[Keys.AUX_API_KEY] ?: "",
+            localModelUri = this[Keys.LOCAL_MODEL_URI] ?: "",
+            selectedModelId = this[Keys.SELECTED_MODEL_ID] ?: "",
+            modelDownloadDir = this[Keys.MODEL_DOWNLOAD_DIR] ?: "",
             githubPat = this[Keys.GITHUB_PAT] ?: "",
             gistId = this[Keys.GIST_ID] ?: "",
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,

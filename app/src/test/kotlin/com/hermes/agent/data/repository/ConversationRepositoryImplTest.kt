@@ -10,6 +10,7 @@ import com.hermes.agent.domain.model.Message
 import com.hermes.agent.domain.model.MessageRole
 import com.hermes.agent.util.DefaultDispatcherProvider
 import com.hermes.agent.util.IdGenerator
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -35,20 +36,26 @@ class ConversationRepositoryImplTest {
 
     @Before
     fun setUp() {
+        val testDispatcher = kotlinx.coroutines.test.UnconfinedTestDispatcher()
         db = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             HermesDatabase::class.java,
-        ).allowMainThreadQueries().build()
+        ).allowMainThreadQueries()
+         .build()
         repo = ConversationRepositoryImpl(
             conversationDao = db.conversationDao(),
             messageDao = db.messageDao(),
-            dispatchers = DefaultDispatcherProvider(),
+            dispatchers = object : com.hermes.agent.util.DispatcherProvider {
+                override val main = testDispatcher
+                override val io = testDispatcher
+                override val default = testDispatcher
+                override val unconfined = testDispatcher
+            },
         )
     }
 
     @After
     fun tearDown() {
-        db.close()
     }
 
     @Test

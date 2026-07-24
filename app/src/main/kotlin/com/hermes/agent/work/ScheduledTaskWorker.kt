@@ -1,15 +1,12 @@
 package com.hermes.agent.work
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
-import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.hermes.agent.R
+import com.hermes.agent.data.proactive.ProactiveNotifier
 import com.hermes.agent.domain.model.ChatStreamEvent
+import com.hermes.agent.domain.proactive.ProactiveSource
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.CronRepository
 import com.hermes.agent.domain.repository.ConversationRepository
@@ -35,6 +32,7 @@ class ScheduledTaskWorker @AssistedInject constructor(
     private val chatRepository: ChatRepository,
     private val conversationRepository: ConversationRepository,
     private val cronRepository: CronRepository,
+    private val proactiveNotifier: ProactiveNotifier,
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -42,7 +40,6 @@ class ScheduledTaskWorker @AssistedInject constructor(
         const val KEY_TASK_PROMPT = "task_prompt"
         const val KEY_TASK_LABEL  = "task_label"
         const val KEY_TASK_CRON   = "task_cron"
-        const val CHANNEL_ID      = "hermes_scheduled"
     }
 
     override suspend fun doWork(): Result {
@@ -78,7 +75,10 @@ class ScheduledTaskWorker @AssistedInject constructor(
             val result = (finalText ?: tokens.toString()).take(200).ifBlank { "Task completed." }
 
             cronRepository.recordRun(taskId, result)
-            postNotification(label, result)
+            // Route through the proactive gate (roadmap v0.12): the annoyance
+            // budget may suppress the ping, but the run and its result are
+            // already durable in cron history above — quieter, never lost.
+            proactiveNotifier.post(ProactiveSource.SCHEDULED_TASK, label, result)
 
             Result.success()
         } catch (e: Exception) {
@@ -88,28 +88,4 @@ class ScheduledTaskWorker @AssistedInject constructor(
         }
     }
 
-    private fun postNotification(label: String, summary: String) {
-        val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE)
-            as NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.createNotificationChannel(
-                NotificationChannel(
-                    CHANNEL_ID,
-                    "Scheduled Tasks",
-                    NotificationManager.IMPORTANCE_DEFAULT,
-                )
-            )
-        }
-
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(label)
-            .setContentText(summary)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
-            .setAutoCancel(true)
-            .build()
-
-        nm.notify(label.hashCode(), notification)
-    }
 }

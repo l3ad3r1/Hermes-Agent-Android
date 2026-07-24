@@ -21,7 +21,7 @@ class DeviceControlAgent @Inject constructor() : Agent {
     override val role: AgentRole = AgentRole.DEVICE_CONTROL
 
     override val systemPrompt: String =
-        "You are the Hermes Device Control Agent. You control hardware settings and " +
+        "You are the Jeeves Device Control Agent. You control hardware settings and " +
             "can run shell commands on the user's Android device.\n\n" +
             "Your capabilities:\n" +
             "- device_settings: read or set screen brightness and media volume\n" +

@@ -25,10 +25,18 @@ class OtaUpdateChecker @Inject constructor(
     )
 
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
+        // The single Jeeves update channel (BuildConfig.UPDATE_REPO, from gradle.properties).
+        // Blank means "no channel configured". Never fall back to the standalone
+        // Hermes-Agent-Android or Octo-Jotter repos: their APKs carry a different
+        // applicationId, so "updating" would install a SECOND app. See docs/UX_AUDIT.md JX-01.
+        if (!BuildConfig.OTA_ENABLED || BuildConfig.UPDATE_REPO.isBlank()) {
+            Timber.tag("OtaChecker").i("no update channel configured — skipping check")
+            return@withContext null
+        }
         val request = Request.Builder()
-            .url("https://api.github.com/repos/l3ad3r1/Hermes-Agent-Android/releases/latest")
+            .url("https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest")
             .header("Accept", "application/vnd.github.v3+json")
-            .header("User-Agent", "Hermes-Agent-Android/${BuildConfig.VERSION_NAME}")
+            .header("User-Agent", "Jeeves/${BuildConfig.VERSION_NAME}")
             .build()
 
         val body = runCatching {

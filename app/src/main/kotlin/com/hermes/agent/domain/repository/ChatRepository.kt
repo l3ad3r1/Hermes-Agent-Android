@@ -1,7 +1,9 @@
 package com.hermes.agent.domain.repository
 
 import com.hermes.agent.domain.model.ChatStreamEvent
+import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.OrchestratorEvent
+import kotlinx.coroutines.flow.Flow
 
 /**
  * High-level chat façade used by [com.hermes.agent.ui.chat.ChatViewModel].
@@ -44,5 +46,15 @@ interface ChatRepository {
     fun sendMessageOrchestrated(
         conversationId: String,
         content: String,
-    ): kotlinx.coroutines.flow.Flow<OrchestratorEvent>
+        origin: ExecutionOrigin,
+    ): Flow<OrchestratorEvent>
+
+    /**
+     * Fire-and-forget: summarizes the conversation on the repository's own
+     * background scope and saves the summary to memory. Deliberately NOT a
+     * suspend function — the caller is ChatViewModel.onCleared(), which runs
+     * after viewModelScope is already cancelled, so a coroutine launched
+     * there would be dead on arrival.
+     */
+    fun summarizeConversation(conversationId: String)
 }

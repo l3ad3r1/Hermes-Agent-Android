@@ -8,6 +8,7 @@ import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.Header
+import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Url
 import retrofit2.http.Streaming
@@ -30,6 +31,12 @@ import retrofit2.http.Streaming
  */
 interface OpenAiApi {
 
+    /** OpenAI-compatible model catalogue at `<base-url>/models`. */
+    @GET
+    suspend fun models(
+        @Url url: String,
+        @Header("Authorization") authorization: String?,
+    ): com.hermes.agent.data.remote.dto.ModelListResponse
     /**
      * Non-streaming chat completion (structured request/response).
      */

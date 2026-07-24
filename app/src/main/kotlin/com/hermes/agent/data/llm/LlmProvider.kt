@@ -45,7 +45,7 @@ sealed class LlmStreamChunk {
     object Done : LlmStreamChunk()
 
     /** Stream finished with an error. */
-    data class Error(val message: String) : LlmStreamChunk()
+    data class Error(val message: String, val cause: Throwable? = null) : LlmStreamChunk()
 }
 
 /**

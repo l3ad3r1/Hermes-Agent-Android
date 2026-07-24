@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hermes Agent</string>
+    <string name="app_name">Jeeves</string>
     <string name="app_tagline">Your on-device intelligence partner</string>
 
     <!-- Navigation -->
@@ -9,12 +9,12 @@
     <string name="nav_settings">Settings</string>
 
     <!-- Chat -->
-    <string name="chat_placeholder">Ask Hermes anything…</string>
+    <string name="chat_placeholder">Ask Jeeves</string>
     <string name="chat_send">Send</string>
-    <string name="chat_typing">Hermes is thinking…</string>
+    <string name="chat_typing">Jeeves is thinking…</string>
     <string name="chat_new_conversation">New conversation</string>
     <string name="chat_empty_title">Begin a new conversation</string>
-    <string name="chat_empty_body">Hermes runs on-device for privacy, with optional cloud fallback for complex tasks.</string>
+    <string name="chat_empty_body">Jeeves runs on-device for privacy, with optional cloud fallback for complex tasks.</string>
 
     <!-- Conversations list -->
     <string name="conversations_empty">No conversations yet. Tap + to start.</string>
@@ -60,12 +60,22 @@
     <string name="a11y_tool_call_success">Tool %1$s succeeded</string>
     <string name="a11y_tool_call_failed">Tool %1$s failed: %2$s</string>
 
+    <!-- App Shortcuts -->
+    <string name="shortcut_new_note_short">New Note</string>
+    <string name="shortcut_new_note_long">Create a new note</string>
+    <string name="shortcut_set_alarm_short">Set Alarm</string>
+    <string name="shortcut_set_alarm_long">Set a new alarm</string>
+    <string name="shortcut_ask_jeeves_short">Ask Jeeves</string>
+    <string name="shortcut_ask_jeeves_long">Chat with your assistant</string>
+    <string name="shortcut_briefing_short">Briefing</string>
+    <string name="shortcut_briefing_long">Play morning briefing</string>
+
     <!-- Onboarding (Phase 4) -->
     <string name="onboarding_continue">Continue</string>
     <string name="onboarding_skip">Skip onboarding</string>
     <string name="onboarding_get_started">Get started</string>
     <string name="onboarding_back">Back</string>
-    <string name="onboarding_welcome_title">Hermes Agent</string>
+    <string name="onboarding_welcome_title">Jeeves</string>
     <string name="onboarding_privacy_title">Privacy-first by design</string>
     <string name="onboarding_permissions_title">Permissions</string>
     <string name="onboarding_perm_mic">Microphone</string>

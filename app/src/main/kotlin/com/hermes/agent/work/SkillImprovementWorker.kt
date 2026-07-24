@@ -184,7 +184,7 @@ class SkillImprovementWorker @AssistedInject constructor(
         private const val MAX_IMPROVEMENTS_PER_RUN = 5
 
         private val IMPROVE_SYSTEM = """
-            You are a skill editor for the Hermes AI agent.
+            You are a skill editor for the Jeeves AI agent.
             Review the skill document below and rewrite ONLY the markdown body (after the --- separator).
             Improvements to make if applicable:
             - Clarify ambiguous steps

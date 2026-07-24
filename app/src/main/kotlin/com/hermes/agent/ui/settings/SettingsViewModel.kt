@@ -1,8 +1,10 @@
 package com.hermes.agent.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hermes.agent.data.backup.GithubBackupService
+import com.hermes.agent.data.llm.CloudModelCatalog
 import com.hermes.agent.data.security.KeystoreManager
 import com.hermes.agent.data.security.KnoxSecurityManager
 import com.hermes.agent.data.settings.SettingsRepository
@@ -10,8 +12,15 @@ import com.hermes.agent.data.settings.UserSettings
 import com.hermes.agent.data.export.SessionExporter
 import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
+import com.hermes.agent.core.settings.HermesSettings
+import com.sassybutler.alarm.TtsEngine
+import com.sassybutler.alarm.VoiceCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +28,30 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import retrofit2.HttpException
+
+/**
+ * The alarm settings, mirrored from the one settings store. Butler's own preferences sheet
+ * writes the same keys through `ButlerPrefs`, so both surfaces stay in sync automatically.
+ */
+data class AlarmSettings(
+    val honorific: String = HermesSettings.DEFAULT_HONORIFIC,
+    val sassLevel: Int = HermesSettings.DEFAULT_SASS_LEVEL,
+    val snoozeMinutes: Int = HermesSettings.DEFAULT_SNOOZE_MINUTES,
+    val voiceEnabled: Boolean = true,
+    val birdsIntro: Boolean = true,
+    val snoozeCommentary: Boolean = true,
+    val haptics: Boolean = false,
+    val voiceName: String = TtsEngine.DEFAULT_VOICE,
+    val briefingCalendar: Boolean = true,
+    val briefingWeather: Boolean = true,
+    val briefingTodos: Boolean = true,
+    val briefingNotes: Boolean = true,
+    val briefingHeadlines: Boolean = true,
+) {
+    val voiceLabel: String
+        get() = VoiceCatalog.VOICES.firstOrNull { it.name == voiceName }?.label ?: voiceName
+}
 
 sealed class UpdateUiState {
     object Idle : UpdateUiState()
@@ -35,6 +68,13 @@ sealed class UpdateUiState {
     data class Error(val message: String) : UpdateUiState()
 }
 
+sealed class ModelDiscoveryUiState {
+    object Idle : ModelDiscoveryUiState()
+    object Loading : ModelDiscoveryUiState()
+    data class Ready(val models: List<String>) : ModelDiscoveryUiState()
+    object Empty : ModelDiscoveryUiState()
+    data class Error(val message: String) : ModelDiscoveryUiState()
+}
 sealed class BackupUiState {
     object Idle : BackupUiState()
     object InProgress : BackupUiState()
@@ -52,6 +92,7 @@ sealed class ExportUiState {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val settingsRepository: SettingsRepository,
     private val knox: KnoxSecurityManager,
     private val keystore: KeystoreManager,
@@ -59,7 +100,70 @@ class SettingsViewModel @Inject constructor(
     private val otaInstaller: OtaInstaller,
     private val githubBackupService: GithubBackupService,
     private val sessionExporter: SessionExporter,
+    private val cloudModelCatalog: CloudModelCatalog,
+    private val localLlmManager: com.hermes.agent.data.llm.LocalLlmManager,
 ) : ViewModel() {
+
+    // ─── Unified settings (shared with Jotter and Butler) ───────────────────
+
+    /** App-wide light/dark/system mode. Drives Hermes' own theme and Jotter's. */
+    val themeMode: StateFlow<String> = HermesSettings.themeModeFlow(appContext)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.THEME_SYSTEM)
+
+    fun setThemeMode(mode: String) = HermesSettings.setThemeMode(appContext, mode)
+
+    val fontFamily: StateFlow<String> = HermesSettings.fontFamilyFlow(appContext)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.FONT_GEIST)
+
+    val fontScalePercent: StateFlow<Int> = HermesSettings.fontScalePercentFlow(appContext)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            HermesSettings.DEFAULT_FONT_SCALE_PERCENT,
+        )
+
+    fun setFontFamily(family: String) = HermesSettings.setFontFamily(appContext, family)
+
+    fun setFontScalePercent(percent: Int) = HermesSettings.setFontScalePercent(appContext, percent)
+
+    /** Butler's preferences, editable here as well as in Butler's own sheet. */
+    private val _alarmSettings = MutableStateFlow(readAlarmSettings())
+    val alarmSettings: StateFlow<AlarmSettings> = _alarmSettings.asStateFlow()
+
+    val voiceOptions: List<VoiceCatalog.Voice> = VoiceCatalog.VOICES
+
+    private fun readAlarmSettings() = AlarmSettings(
+        honorific = HermesSettings.honorific(appContext),
+        sassLevel = HermesSettings.sassLevel(appContext),
+        snoozeMinutes = HermesSettings.snoozeMinutes(appContext),
+        voiceEnabled = HermesSettings.voiceEnabled(appContext),
+        birdsIntro = HermesSettings.birdsIntro(appContext),
+        snoozeCommentary = HermesSettings.snoozeCommentary(appContext),
+        haptics = HermesSettings.haptics(appContext),
+        voiceName = HermesSettings.voiceName(appContext, TtsEngine.DEFAULT_VOICE),
+        briefingCalendar = HermesSettings.briefingCalendar(appContext),
+        briefingWeather = HermesSettings.briefingWeather(appContext),
+        briefingTodos = HermesSettings.briefingTodos(appContext),
+        briefingNotes = HermesSettings.briefingNotes(appContext),
+        briefingHeadlines = HermesSettings.briefingHeadlines(appContext),
+    )
+
+    /** Re-read after every write so this screen and Butler's sheet never drift apart. */
+    private fun refreshAlarmSettings() { _alarmSettings.value = readAlarmSettings() }
+
+    fun setHonorific(value: String) { HermesSettings.setHonorific(appContext, value); refreshAlarmSettings() }
+    fun setSassLevel(value: Int) { HermesSettings.setSassLevel(appContext, value); refreshAlarmSettings() }
+    fun setSnoozeMinutes(value: Int) { HermesSettings.setSnoozeMinutes(appContext, value); refreshAlarmSettings() }
+    fun setVoiceEnabled(value: Boolean) { HermesSettings.setVoiceEnabled(appContext, value); refreshAlarmSettings() }
+    fun setBirdsIntro(value: Boolean) { HermesSettings.setBirdsIntro(appContext, value); refreshAlarmSettings() }
+    fun setSnoozeCommentary(value: Boolean) { HermesSettings.setSnoozeCommentary(appContext, value); refreshAlarmSettings() }
+    fun setHaptics(value: Boolean) { HermesSettings.setHaptics(appContext, value); refreshAlarmSettings() }
+    fun setVoiceName(value: String) { HermesSettings.setVoiceName(appContext, value); refreshAlarmSettings() }
+    fun setBriefingCalendar(value: Boolean) { HermesSettings.setBriefingCalendar(appContext, value); refreshAlarmSettings() }
+    fun setBriefingWeather(value: Boolean) { HermesSettings.setBriefingWeather(appContext, value); refreshAlarmSettings() }
+    fun setBriefingTodos(value: Boolean) { HermesSettings.setBriefingTodos(appContext, value); refreshAlarmSettings() }
+    fun setBriefingNotes(value: Boolean) { HermesSettings.setBriefingNotes(appContext, value); refreshAlarmSettings() }
+    fun setBriefingHeadlines(value: Boolean) { HermesSettings.setBriefingHeadlines(appContext, value); refreshAlarmSettings() }
 
     val settings: StateFlow<UserSettings> = settingsRepository.observe()
         .stateIn(
@@ -67,6 +171,81 @@ class SettingsViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = UserSettings(),
         )
+
+    private val _primaryModelDiscovery = MutableStateFlow<ModelDiscoveryUiState>(ModelDiscoveryUiState.Idle)
+    val primaryModelDiscovery: StateFlow<ModelDiscoveryUiState> = _primaryModelDiscovery.asStateFlow()
+
+    private val _specialistModelDiscovery = MutableStateFlow<ModelDiscoveryUiState>(ModelDiscoveryUiState.Idle)
+    val specialistModelDiscovery: StateFlow<ModelDiscoveryUiState> = _specialistModelDiscovery.asStateFlow()
+
+    private var modelDiscoveryJob: Job? = null
+
+    val isModelDownloaded = MutableStateFlow(false)
+    val isModelDownloading: StateFlow<Boolean> = localLlmManager.isDownloading
+    val modelDownloadProgress: StateFlow<Float> = localLlmManager.downloadProgress
+    val modelDownloadError: StateFlow<String> = localLlmManager.downloadError
+
+    /** The list of models offered in the download dropdown. */
+    val modelCatalog: List<com.hermes.agent.data.llm.DownloadableModel> =
+        com.hermes.agent.data.llm.ModelCatalog.MODELS
+
+    /** Default folder name shown when the user hasn't set a custom directory. */
+    val defaultModelDirName: String = com.hermes.agent.data.llm.ModelCatalog.DEFAULT_DIR_NAME
+
+    init {
+        viewModelScope.launch {
+            isModelDownloaded.value = localLlmManager.isModelDownloaded()
+            localLlmManager.isDownloading.collect { downloading ->
+                if (!downloading) {
+                    isModelDownloaded.value = localLlmManager.isModelDownloaded()
+                }
+            }
+        }
+        scheduleModelDiscovery(delayMillis = 0L)
+    }
+
+    /** Re-evaluate whether the selected model exists in the current folder. */
+    private fun refreshModelDownloaded() = viewModelScope.launch {
+        isModelDownloaded.value = localLlmManager.isModelDownloaded()
+    }
+
+    fun downloadLocalModel() {
+        viewModelScope.launch { localLlmManager.startDownload() }
+    }
+
+    fun clearModelDownloadError() = localLlmManager.clearDownloadError()
+
+    /** Persist the chosen catalog model; the download check follows the switch. */
+    fun setSelectedModelId(id: String) = viewModelScope.launch {
+        localLlmManager.setSelectedModelId(id)
+        isModelDownloaded.value = localLlmManager.isModelDownloaded()
+    }
+
+    /** Persist a custom download directory (blank = default "AI Models"). */
+    fun setModelDownloadDir(dir: String) = viewModelScope.launch {
+        localLlmManager.setModelDownloadDir(dir.trim())
+        isModelDownloaded.value = localLlmManager.isModelDownloaded()
+    }
+
+    /** Whether the app can write models to a user-visible shared folder. */
+    fun hasStorageAccess(): Boolean =
+        com.hermes.agent.data.llm.LocalLlmManager.hasStorageAccess(appContext)
+
+    /**
+     * The Settings screen used to grant All-Files access on Android 11+. Returns
+     * null on Android 10, where the UI requests WRITE_EXTERNAL_STORAGE at runtime
+     * instead.
+     */
+    fun allFilesAccessIntent(): android.content.Intent? =
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            android.content.Intent(
+                android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                android.net.Uri.parse("package:${appContext.packageName}"),
+            )
+        } else null
+
+    /** Re-check permission-dependent state after returning from the grant flow. */
+    fun onStorageAccessMaybeChanged() = refreshModelDownloaded()
 
     private val _updateState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
     val updateState: StateFlow<UpdateUiState> = _updateState.asStateFlow()
@@ -79,18 +258,81 @@ class SettingsViewModel @Inject constructor(
 
     val isKnoxAvailable: Boolean get() = knox.isKnoxAvailable
 
+    // --- Cloud model discovery ---
+
+    fun refreshCloudModels() = scheduleModelDiscovery(delayMillis = 0L)
+
+    private fun scheduleModelDiscovery(delayMillis: Long = MODEL_DISCOVERY_DEBOUNCE_MS) {
+        modelDiscoveryJob?.cancel()
+        modelDiscoveryJob = viewModelScope.launch {
+            if (delayMillis > 0L) delay(delayMillis)
+            val current = settingsRepository.current()
+            if (!current.cloudEnabled) {
+                _primaryModelDiscovery.value = ModelDiscoveryUiState.Idle
+                _specialistModelDiscovery.value = ModelDiscoveryUiState.Idle
+                return@launch
+            }
+
+            val primary = CloudEndpoint(current.cloudBaseUrl, current.cloudApiKey)
+            val specialist = CloudEndpoint(
+                baseUrl = current.auxBaseUrl.ifBlank { primary.baseUrl },
+                apiKey = current.auxApiKey.ifBlank { primary.apiKey },
+            )
+
+            _primaryModelDiscovery.value = loadingStateFor(primary)
+            _specialistModelDiscovery.value = loadingStateFor(specialist)
+
+            val primaryState = discoverModels(primary)
+            _primaryModelDiscovery.value = primaryState
+            _specialistModelDiscovery.value = if (specialist == primary) {
+                primaryState
+            } else {
+                discoverModels(specialist)
+            }
+        }
+    }
+
+    private fun loadingStateFor(endpoint: CloudEndpoint): ModelDiscoveryUiState =
+        if (endpoint.baseUrl.isBlank()) ModelDiscoveryUiState.Idle else ModelDiscoveryUiState.Loading
+
+    private suspend fun discoverModels(endpoint: CloudEndpoint): ModelDiscoveryUiState {
+        if (endpoint.baseUrl.isBlank()) return ModelDiscoveryUiState.Idle
+        return try {
+            val models = cloudModelCatalog.listModels(endpoint.baseUrl, endpoint.apiKey)
+            if (models.isEmpty()) ModelDiscoveryUiState.Empty else ModelDiscoveryUiState.Ready(models)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            ModelDiscoveryUiState.Error(modelDiscoveryError(failure))
+        }
+    }
+
+    private fun modelDiscoveryError(failure: Throwable): String = when (failure) {
+        is HttpException -> when (failure.code()) {
+            401, 403 -> "The provider rejected model discovery. Check the API key and retry."
+            404 -> "This provider does not expose a /models endpoint at that URL. Check the API base URL."
+            else -> "The provider returned HTTP ${failure.code()} while loading models."
+        }
+        else -> failure.message ?: "Couldn't load models from this provider."
+    }
+
+    private data class CloudEndpoint(val baseUrl: String, val apiKey: String)
+
     // --- Cloud settings ---
 
     fun setCloudEnabled(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setCloudEnabled(enabled)
+        scheduleModelDiscovery()
     }
 
     fun setCloudApiKey(key: String) = viewModelScope.launch {
         settingsRepository.setCloudApiKey(key)
+        scheduleModelDiscovery()
     }
 
     fun setCloudBaseUrl(url: String) = viewModelScope.launch {
         settingsRepository.setCloudBaseUrl(url)
+        scheduleModelDiscovery()
     }
 
     fun setCloudModel(model: String) = viewModelScope.launch {
@@ -105,11 +347,13 @@ class SettingsViewModel @Inject constructor(
     /** Optional separate endpoint for the specialist provider (blank = use primary's). */
     fun setAuxBaseUrl(url: String) = viewModelScope.launch {
         settingsRepository.setAuxBaseUrl(url)
+        scheduleModelDiscovery()
     }
 
     /** Optional separate API key for the specialist provider (blank = use primary's). */
     fun setAuxApiKey(key: String) = viewModelScope.launch {
         settingsRepository.setAuxApiKey(key)
+        scheduleModelDiscovery()
     }
 
     fun setAppTheme(themeName: String) = viewModelScope.launch {
@@ -120,6 +364,11 @@ class SettingsViewModel @Inject constructor(
      *  keep tool use opaque and show only the final reply. */
     fun setShowToolCalls(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setShowToolCalls(enabled)
+    }
+
+    fun setLocalModelUri(uri: String) = viewModelScope.launch {
+        localLlmManager.setLocalModelUri(uri)
+        isModelDownloaded.value = localLlmManager.isModelDownloaded()
     }
 
     // --- Local API server ---
@@ -168,9 +417,16 @@ class SettingsViewModel @Inject constructor(
         }.onSuccess(onResult).onFailure { onResult(false) }
     }
 
+    private companion object {
+        const val MODEL_DISCOVERY_DEBOUNCE_MS = 600L
+    }
+
     // --- OTA update ---
 
     fun checkForUpdate() {
+        // JX-01: the checker targets the standalone Hermes-Agent-Android channel — wrong
+        // application for this build. The Settings UI is hidden behind the same flag.
+        if (!com.hermes.agent.BuildConfig.OTA_ENABLED) return
         if (_updateState.value is UpdateUiState.Checking) return
         _updateState.value = UpdateUiState.Checking
         viewModelScope.launch {
@@ -198,20 +454,13 @@ class SettingsViewModel @Inject constructor(
      * APK asset URL.
      */
     fun downloadAndInstall() {
+        // JX-01: see checkForUpdate — that APK is a different application.
+        if (!com.hermes.agent.BuildConfig.OTA_ENABLED) return
         val available = _updateState.value as? UpdateUiState.UpdateAvailable ?: return
         if (available.apkUrl.isBlank()) return
-        _updateState.value = UpdateUiState.Downloading(available.version, 0)
-        viewModelScope.launch {
-            val result = otaInstaller.downloadAndInstall(available.apkUrl) { percent ->
-                _updateState.value = UpdateUiState.Downloading(available.version, percent)
-            }
-            _updateState.value = if (result.isFailure) {
-                UpdateUiState.Error(result.exceptionOrNull()?.message ?: "Download failed")
-            } else {
-                // System installer has taken over — reset the panel.
-                UpdateUiState.Idle
-            }
-        }
+        
+        otaInstaller.startDownloadService(available.apkUrl)
+        _updateState.value = UpdateUiState.Idle
     }
 
     fun dismissUpdateState() {
@@ -258,7 +507,8 @@ class SettingsViewModel @Inject constructor(
                     val settingsMsg = if (result.settingsRestored) "settings, " else ""
                     BackupUiState.Success(
                         "Restored $settingsMsg${result.memoriesImported} memories, " +
-                            "${result.skillsImported} skills, ${result.cronsImported} cron jobs."
+                            "${result.skillsImported} skills, ${result.cronsImported} cron jobs, " +
+                            "${result.notesImported} notes, and ${result.alarmsImported} alarms."
                     )
                 }
                 is GithubBackupService.RestoreResult.Failure ->

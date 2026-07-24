@@ -13,6 +13,17 @@ data class UserSettings(
     val auxModel: String = "gpt-4o-mini",
     val auxBaseUrl: String = "",
     val auxApiKey: String = "",
+    // Local AI Model
+    // A custom .gguf picked via SAF (content:// URI). When set, it overrides the
+    // downloaded catalog model.
+    val localModelUri: String = "",
+    // Which catalog model (ModelCatalog.MODELS) the user has chosen to
+    // download/use. Blank = ModelCatalog.DEFAULT.
+    val selectedModelId: String = "",
+    // Absolute directory the model is downloaded into. Blank = the default
+    // top-level "AI Models" folder on shared storage. A user-typed path here
+    // (needs All-Files access) sends downloads elsewhere.
+    val modelDownloadDir: String = "",
     // Backup
     val githubPat: String = "",
     val gistId: String = "",

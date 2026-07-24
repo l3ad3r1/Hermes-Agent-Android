@@ -26,7 +26,7 @@ data class SetupProfile(
 )
 
 /**
- * Drives the multi-step setup journey: welcome → profile → permissions → device
+ * Drives the multi-step setup journey: welcome → profile → device
  * scan → finish. On finish, the collected profile and the scanned device
  * capabilities are committed to long-term [MemoryRepository] so the agent knows
  * who the user is and what the hardware can do.
@@ -47,8 +47,14 @@ class OnboardingViewModel @Inject constructor(
     private val _device = MutableStateFlow<DeviceProfile?>(null)
     val device: StateFlow<DeviceProfile?> = _device.asStateFlow()
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
+
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
 
     private val _completed = MutableStateFlow(false)
     val completed: StateFlow<Boolean> = _completed.asStateFlow()
@@ -62,17 +68,31 @@ class OnboardingViewModel @Inject constructor(
         if (_scanning.value) return
         viewModelScope.launch {
             _scanning.value = true
-            _device.value = runCatching { deviceProfiler.profile() }.getOrNull()
+            try {
+                _error.value = null
+                _device.value = deviceProfiler.profile()
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to profile device"
+            }
             _scanning.value = false
         }
     }
 
     /** Save everything to memory and mark onboarding complete. */
     fun finish() {
+        if (_saving.value) return
         viewModelScope.launch {
-            saveToMemory()
-            settings.setOnboardingCompleted(true)
-            _completed.value = true
+            _saving.value = true
+            try {
+                _error.value = null
+                saveToMemory()
+                settings.setOnboardingCompleted(true)
+                _completed.value = true
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to save to memory"
+            } finally {
+                _saving.value = false
+            }
         }
     }
 
@@ -95,8 +115,8 @@ class OnboardingViewModel @Inject constructor(
             }
             if (p.notes.isNotBlank()) add("User note from setup: ${p.notes}")
         }
-        facts.forEach { runCatching { memory.addMemory(it) } }
-        _device.value?.let { runCatching { memory.addMemory(it.toMemoryText()) } }
+        facts.forEach { memory.addMemory(it) }
+        _device.value?.let { memory.addMemory(it.toMemoryText()) }
     }
 
     companion object {

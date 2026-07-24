@@ -19,84 +19,83 @@ val HermesWarnLight    = Color(0xFFA86D0A)
 val HermesTerminalBg   = Color(0xFF070710)  // --term
 val HermesTerminalText = Color(0xFFAAB6FF)  // --term-tx
 
-// ── Midnight theme — monochrome (pure black / pure white, zero colour) ──
-val MidnightBackground        = Color(0xFF000000)  // pure black
-val MidnightSurface           = Color(0xFF111111)  // near-black card
-val MidnightSurfaceVariant    = Color(0xFF1C1C1C)  // subtle lift
-val MidnightOnBackground      = Color(0xFFFFFFFF)  // pure white text
-val MidnightOnSurface         = Color(0xFFFFFFFF)
-val MidnightOnSurfaceVariant  = Color(0xFF999999)  // muted text
-val MidnightOutline           = Color(0xFF333333)  // border
-val MidnightPrimary           = Color(0xFFFFFFFF)  // white primary (buttons, FAB)
-val MidnightOnPrimary         = Color(0xFF000000)  // black on white
-val MidnightPrimaryContainer  = Color(0xFF222222)
-val MidnightOnPrimaryContainer= Color(0xFFFFFFFF)
-val MidnightSecondary         = Color(0xFFCCCCCC)
+// ── Midnight theme — deep slate / indigo undertone ─────────────────────
+val MidnightBackground        = Color(0xFF0F111A)
+val MidnightSurface           = Color(0xFF161925)
+val MidnightSurfaceVariant    = Color(0xFF1E2233)
+val MidnightOnBackground      = Color(0xFFF1F2F6)
+val MidnightOnSurface         = Color(0xFFF1F2F6)
+val MidnightOnSurfaceVariant  = Color(0xFFA1A5B7)
+val MidnightOutline           = Color(0xFF32364A)
+val MidnightPrimary           = Color(0xFF64B5F6)
+val MidnightOnPrimary         = Color(0xFF000000)
+val MidnightPrimaryContainer  = Color(0xFF193B59)
+val MidnightOnPrimaryContainer= Color(0xFF64B5F6)
+val MidnightSecondary         = Color(0xFFE2E2E2)
 val MidnightOnSecondary       = Color(0xFF000000)
-val MidnightSecondaryContainer= Color(0xFF1A1A1A)
-val MidnightError             = Color(0xFFFF4444)
+val MidnightSecondaryContainer= Color(0xFF2A2D3D)
+val MidnightError             = Color(0xFFFF5252)
 
-val MidnightUserBubble        = Color(0xFFFFFFFF)  // white user bubble
-val MidnightUserBubbleText    = Color(0xFF000000)
-val MidnightAssistantBubble   = Color(0xFF111111)
-val MidnightAssistantBubbleText = Color(0xFFFFFFFF)
+val MidnightUserBubble        = Color(0xFF193B59)
+val MidnightUserBubbleText    = Color(0xFFF1F2F6)
+val MidnightAssistantBubble   = Color(0xFF1E2233)
+val MidnightAssistantBubbleText = Color(0xFFF1F2F6)
 
-// ── Paper theme — design "Light" (warm white / electric blue) ────────
-val PaperBackground           = Color(0xFFF3F2EE)  // --bg
-val PaperSurface              = Color(0xFFFFFFFF)   // --surface
-val PaperSurfaceVariant       = Color(0xFFF0EFEA)   // --surface-2
-val PaperOnBackground         = Color(0xFF0D0D12)   // --text
-val PaperOnSurface            = Color(0xFF0D0D12)
-val PaperOnSurfaceVariant     = Color(0xFF5D5E6A)   // --dim
-val PaperOutline              = Color(0xFF9596A1)   // --faint
-val PaperPrimary              = HermesAccentPure
+// ── Paper theme — warm sleek off-white ─────────────────────────────────
+val PaperBackground           = Color(0xFFF8F9FA)
+val PaperSurface              = Color(0xFFFFFFFF)
+val PaperSurfaceVariant       = Color(0xFFF1F3F5)
+val PaperOnBackground         = Color(0xFF1A1C23)
+val PaperOnSurface            = Color(0xFF1A1C23)
+val PaperOnSurfaceVariant     = Color(0xFF6C7280)
+val PaperOutline              = Color(0xFFDEE2E6)
+val PaperPrimary              = Color(0xFF5C6BC0)
 val PaperOnPrimary            = Color(0xFFFFFFFF)
-val PaperPrimaryContainer     = Color(0xFFE2E2FE)   // accent-soft, opaque
-val PaperOnPrimaryContainer   = HermesAccentPure
-val PaperSecondary            = HermesGoodLight
+val PaperPrimaryContainer     = Color(0xFFE8EAF6)
+val PaperOnPrimaryContainer   = Color(0xFF5C6BC0)
+val PaperSecondary            = Color(0xFF2E7D32)
 val PaperOnSecondary          = Color(0xFFFFFFFF)
-val PaperSecondaryContainer   = Color(0xFFD7F0E2)
-val PaperError                = Color(0xFFCC0000)
+val PaperSecondaryContainer   = Color(0xFFC8E6C9)
+val PaperError                = Color(0xFFD32F2F)
 
-val PaperUserBubble           = HermesAccentPure
-val PaperUserBubbleText       = Color(0xFFFFFFFF)
+val PaperUserBubble           = Color(0xFFE8EAF6)
+val PaperUserBubbleText       = Color(0xFF1A1C23)
 val PaperAssistantBubble      = Color(0xFFFFFFFF)
-val PaperAssistantBubbleText  = Color(0xFF0D0D12)
+val PaperAssistantBubbleText  = Color(0xFF1A1C23)
 
-// ── Hermes Blue theme (electric blue background / white text) ────────
-// Brand blue sourced from hermes-agent.nousresearch.com
-val BlueBrandBackground           = Color(0xFF3300FF)
-val BlueBrandSurface              = Color(0xFF2200DD)
-val BlueBrandSurfaceVariant       = Color(0xFF1A00BB)
+// ── Hermes Blue theme — deep blue accent brand ──────────────────────────
+val BlueBrandBackground           = Color(0xFF1A00BB)
+val BlueBrandSurface              = Color(0xFF2200CC)
+val BlueBrandSurfaceVariant       = Color(0xFF2A00DD)
 val BlueBrandOnBackground         = Color(0xFFFFFFFF)
 val BlueBrandOnSurface            = Color(0xFFFFFFFF)
 val BlueBrandOnSurfaceVariant     = Color(0xFFCCCCFF)
 val BlueBrandPrimary              = Color(0xFFFFFFFF)
-val BlueBrandOnPrimary            = Color(0xFF3300FF)
-val BlueBrandPrimaryContainer     = Color(0xFF4411FF)
+val BlueBrandOnPrimary            = Color(0xFF1A00BB)
+val BlueBrandPrimaryContainer     = Color(0xFF3300FF)
 val BlueBrandOnPrimaryContainer   = Color(0xFFFFFFFF)
 val BlueBrandSecondary            = Color(0xFFCCCCFF)
-val BlueBrandOnSecondary          = Color(0xFF3300FF)
+val BlueBrandOnSecondary          = Color(0xFF1A00BB)
 val BlueBrandSecondaryContainer   = Color(0xFF2200CC)
 val BlueBrandError                = Color(0xFFFF6666)
 
-val BlueBrandUserBubble           = Color(0xFF1A00BB)
+val BlueBrandUserBubble           = Color(0xFF3300FF)
 val BlueBrandUserBubbleText       = Color(0xFFFFFFFF)
 val BlueBrandAssistantBubble      = Color(0xFF2200CC)
 val BlueBrandAssistantBubbleText  = Color(0xFFFFFFFF)
 
 // ── Kanban board status + priority colors (ported from Hermes App 2) ──
-val KanbanTodo        = Color(0xFF607D8B)
-val KanbanInProgress  = Color(0xFFF0B13B)  // aligns with HermesWarn
-val KanbanReview      = Color(0xFF8A7FD4)
-val KanbanBlocked     = Color(0xFFFF6B6B)
-val KanbanDone        = Color(0xFF46D399)  // aligns with HermesGood
-val KanbanCancelled   = Color(0xFF65667A)
+val KanbanTodo        = Color(0xFF707070)
+val KanbanInProgress  = Color(0xFFF0F0F0)
+val KanbanReview      = Color(0xFFBDBDBD)
+val KanbanBlocked     = Color(0xFF4A4A4A)
+val KanbanDone        = Color(0xFFFFFFFF)
+val KanbanCancelled   = Color(0xFF333333)
 
-val PriorityCritical  = Color(0xFFD32F2F)
-val PriorityHigh      = Color(0xFFFF5722)
-val PriorityMedium    = Color(0xFFF0B13B)
-val PriorityLow       = Color(0xFF46D399)
+val PriorityCritical  = Color(0xFFFFFFFF)
+val PriorityHigh      = Color(0xFFD0D0D0)
+val PriorityMedium    = Color(0xFF9A9A9A)
+val PriorityLow       = Color(0xFF666666)
 
 // ── Legacy palette (kept for any composables still referencing these) ─
 val HermesPrimary              = Color(0xFF1E3A8A)

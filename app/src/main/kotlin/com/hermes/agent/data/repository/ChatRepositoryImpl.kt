@@ -4,6 +4,7 @@ import com.hermes.agent.data.llm.LlmMessage
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.LlmStreamChunk
 import com.hermes.agent.data.llm.RoutingDecision
+import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.Orchestrator
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.AgentRole
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,15 +36,27 @@ import javax.inject.Singleton
 @Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val conversationRepository: ConversationRepository,
+    private val memoryRepository: com.hermes.agent.domain.repository.MemoryRepository,
     private val router: LlmRouter,
     private val orchestrator: Orchestrator,
     private val dispatchers: DispatcherProvider,
 ) : ChatRepository {
 
+    // Summarization must outlive the ViewModel that requests it: onCleared()
+    // runs AFTER viewModelScope is cancelled, so launching there never
+    // executes. This singleton's own supervisor scope actually survives.
+    private val backgroundScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + dispatchers.io
+    )
+
+    // Message count at last summarization, per conversation — reopening and
+    // closing an unchanged chat must not add a duplicate summary to memory.
+    private val lastSummarizedCount = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     companion object {
         const val CONTEXT_WINDOW_MESSAGES = 20
         const val SYSTEM_PROMPT =
-            "You are Hermes, a privacy-first AI agent for Android. " +
+            "You are Jeeves, a privacy-first AI agent for Android. " +
                 "Be concise, helpful, and privacy-conscious. " +
                 "When asked about device features, check what is available on this device."
     }
@@ -84,7 +98,7 @@ class ChatRepositoryImpl @Inject constructor(
         // 3. Route to a provider.
         val decision = router.route(llmMessages)
         val provider = when (decision) {
-            is RoutingDecision.Cloud -> decision.provider
+            is RoutingDecision.Ready -> decision.provider
             is RoutingDecision.Unavailable -> {
                 emit(ChatStreamEvent.Error(IllegalStateException(decision.reason)))
                 return@flow
@@ -135,6 +149,7 @@ class ChatRepositoryImpl @Inject constructor(
     override fun sendMessageOrchestrated(
         conversationId: String,
         content: String,
+        origin: ExecutionOrigin,
     ): Flow<OrchestratorEvent> = flow {
         // 1. Persist the user message first so the orchestrator can see it
         //    in the recent window.
@@ -176,7 +191,7 @@ class ChatRepositoryImpl @Inject constructor(
         var finalIsOnDevice: Boolean = true
         var replyCompleted = false
 
-        orchestrator.run(conversationId, content, llmMessages).collect { event ->
+        orchestrator.run(conversationId, content, llmMessages, origin).collect { event ->
             when (event) {
                 is OrchestratorEvent.ReplyToken -> accumulator.append(event.text)
                 is OrchestratorEvent.ReplyComplete -> {
@@ -225,4 +240,42 @@ class ChatRepositoryImpl @Inject constructor(
             emit(OrchestratorEvent.Failed(t.message ?: "unknown error"))
         }
         .flowOn(dispatchers.io)
+    override fun summarizeConversation(conversationId: String) {
+        backgroundScope.launch {
+            runCatching { doSummarize(conversationId) }
+                .onFailure { Timber.tag("ChatRepo").w(it, "summarization failed") }
+        }
+    }
+
+    private suspend fun doSummarize(conversationId: String) {
+        val messages = conversationRepository.getRecentMessages(conversationId, limit = 50)
+        if (messages.size < 4) return // Too short to summarize
+        if (lastSummarizedCount[conversationId] == messages.size) return // Nothing new since last summary
+
+        val conversationText = messages.joinToString("\n") { "${it.role.wireName}: ${it.content}" }
+
+        val systemPrompt = """
+            You are a summarization assistant. 
+            Summarize the following conversation into a concise 1-2 sentence overview of what was discussed, 
+            focusing on the user's intent, the context, and any key facts or outcomes. 
+            Write the summary in the third person (e.g. "The user asked for...", "Jeeves explained...").
+            Do not include pleasantries.
+        """.trimIndent()
+
+        val llmMessages = listOf(
+            LlmMessage(role = "system", content = systemPrompt),
+            LlmMessage(role = "user", content = conversationText)
+        )
+
+        val decision = router.route(llmMessages)
+        if (decision is RoutingDecision.Ready) {
+            val response = runCatching { decision.provider.complete(llmMessages) }.getOrNull()
+            if (response != null && response.content.isNotBlank()) {
+                val summary = "Conversation Summary: ${response.content.trim()}"
+                memoryRepository.addMemory(summary)
+                lastSummarizedCount[conversationId] = messages.size
+                Timber.tag("ChatRepo").i("Summarized conversation %s: %s", conversationId.take(8), summary.take(50))
+            }
+        }
+    }
 }

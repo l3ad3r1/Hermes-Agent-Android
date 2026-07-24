@@ -10,9 +10,11 @@ import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
 import com.hermes.agent.data.voice.VoiceOutputManager
 import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.ConversationRepository
+import com.hermes.agent.domain.repository.ExecutionPlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,9 +42,17 @@ class ChatViewModel @Inject constructor(
     private val clarificationBus: ClarificationBus,
     private val todoStore: TodoStore,
     private val settingsRepository: SettingsRepository,
+    private val toolConfirmationService: com.hermes.agent.domain.tool.ToolConfirmationService,
+    private val executionPlanRepository: ExecutionPlanRepository,
 ) : ViewModel() {
 
     val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
+
+    val pendingToolConfirmation = toolConfirmationService.pendingRequest
+
+    fun submitToolConfirmation(requestId: String, approved: Boolean) {
+        toolConfirmationService.submitConfirmation(requestId, approved)
+    }
 
     private val _ephemeral = MutableStateFlow(ChatEphemeralState())
 
@@ -94,6 +104,10 @@ class ChatViewModel @Inject constructor(
                 isOnDevice = ephemeral.streamingIsOnDevice,
                 pendingClarification = ephemeral.pendingClarification,
             )
+        }.combine(executionPlanRepository.observeLatest(conversationId)) { state, persistedPlan ->
+            // Room is the source of truth once a plan has been persisted. The
+            // ephemeral event copy remains a fallback for tests/legacy flows.
+            state.copy(currentPlan = persistedPlan?.toSummary() ?: state.currentPlan)
         }.combine(todoStore.items) { state, todos ->
             // The todo plan persists across turns (it survives _ephemeral
             // resets), so it's merged in from its own store here.
@@ -123,7 +137,7 @@ class ChatViewModel @Inject constructor(
 
         sendJob = viewModelScope.launch {
             try {
-                chatRepository.sendMessageOrchestrated(conversationId, trimmed).collect { event ->
+                chatRepository.sendMessageOrchestrated(conversationId, trimmed, ExecutionOrigin.INTERACTIVE).collect { event ->
                     handleOrchestratorEvent(event)
                 }
             } catch (t: Throwable) {
@@ -136,12 +150,16 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private var spokenTextLength = 0
+    private val sentenceRegex = Regex("(?<=[.!?])\\s+")
+
     private fun handleOrchestratorEvent(event: OrchestratorEvent) {
         when (event) {
             is OrchestratorEvent.PlanReady -> {
                 val summary = PlanSummary(
                     steps = event.plan.steps.map {
                         PlanStepSummary(
+                            id = it.id,
                             description = it.description,
                             agentRole = it.agentRole,
                             status = StepStatus.PENDING,
@@ -153,28 +171,39 @@ class ChatViewModel @Inject constructor(
             }
             is OrchestratorEvent.StepStarted -> {
                 val updated = _ephemeral.value.plan?.let { plan ->
-                    val newSteps = plan.steps.mapIndexed { i, s ->
-                        if (i == plan.currentStepIndex) s.copy(status = StepStatus.RUNNING) else s
+                    val activeIndex = plan.steps.indexOfFirst { it.id == event.stepId }
+                    val newSteps = plan.steps.map { s ->
+                        if (s.id == event.stepId) s.copy(status = StepStatus.RUNNING) else s
                     }
-                    plan.copy(steps = newSteps)
+                    plan.copy(
+                        steps = newSteps,
+                        currentStepIndex = activeIndex.takeIf { it >= 0 } ?: plan.currentStepIndex,
+                    )
                 }
                 _ephemeral.value = _ephemeral.value.copy(plan = updated)
             }
             is OrchestratorEvent.StepFinished -> {
                 val updated = _ephemeral.value.plan?.let { plan ->
-                    val idx = plan.currentStepIndex
-                    val newSteps = plan.steps.mapIndexed { i, s ->
-                        when {
-                            i == idx -> s.copy(status = if (event.success) StepStatus.SUCCEEDED else StepStatus.FAILED)
-                            else -> s
+                    val idx = plan.steps.indexOfFirst { it.id == event.stepId }
+                    val newSteps = plan.steps.map { s ->
+                        if (s.id == event.stepId) {
+                            s.copy(status = if (event.success) StepStatus.SUCCEEDED else StepStatus.FAILED)
+                        } else {
+                            s
                         }
                     }
-                    plan.copy(steps = newSteps, currentStepIndex = (idx + 1).coerceAtMost(plan.steps.lastIndex))
+                    val nextIndex = if (idx >= 0) {
+                        (idx + 1).coerceAtMost(plan.steps.lastIndex)
+                    } else {
+                        plan.currentStepIndex
+                    }
+                    plan.copy(steps = newSteps, currentStepIndex = nextIndex)
                 }
                 _ephemeral.value = _ephemeral.value.copy(plan = updated)
             }
             is OrchestratorEvent.ToolCallRequested -> {
                 val summary = ToolCallSummary(
+                    callId = event.call.id,
                     name = event.call.name,
                     argumentsPreview = event.call.arguments.entries.joinToString { "${it.key}=${it.value}" },
                     status = ToolCallStatus.RUNNING,
@@ -186,7 +215,7 @@ class ChatViewModel @Inject constructor(
             }
             is OrchestratorEvent.ToolCallResult -> {
                 val updated = _ephemeral.value.toolCalls.map {
-                    if (it.name == event.call.name && it.status == ToolCallStatus.RUNNING) {
+                    if (it.callId == event.call.id && it.status == ToolCallStatus.RUNNING) {
                         it.copy(
                             status = if (event.success) ToolCallStatus.SUCCEEDED else ToolCallStatus.FAILED,
                             outputPreview = event.output.take(200),
@@ -198,6 +227,23 @@ class ChatViewModel @Inject constructor(
             is OrchestratorEvent.ReplyToken -> {
                 val acc = _ephemeral.value.streamingText.orEmpty() + event.text
                 _ephemeral.value = _ephemeral.value.copy(streamingText = acc)
+
+                // If voice is active and we have new complete sentences, speak them
+                // immediately. Offsets are tracked against the REAL accumulated
+                // string: rebuilding the text with joinToString(" ") replaced the
+                // original separators (newlines, double spaces), so the byte count
+                // drifted and later substrings repeated or swallowed words.
+                val alreadySpoke = _ephemeral.value.toolCalls.any { it.name == "speak" }
+                if (!alreadySpoke && voiceOutputManager.isAvailable()) {
+                    val unreadText = acc.substring(spokenTextLength)
+                    val lastBoundary = sentenceRegex.findAll(unreadText).lastOrNull()
+                    if (lastBoundary != null) {
+                        val completeEnd = lastBoundary.range.last + 1
+                        val toSpeak = unreadText.substring(0, completeEnd).trim()
+                        if (toSpeak.isNotBlank()) speakReply(toSpeak)
+                        spokenTextLength += completeEnd
+                    }
+                }
             }
             is OrchestratorEvent.ReplyComplete -> {
                 // If the agent already used the `speak` tool this turn, it has
@@ -205,13 +251,21 @@ class ChatViewModel @Inject constructor(
                 // on top of it (that caused the text to be spoken twice).
                 val alreadySpoke = _ephemeral.value.toolCalls.any { it.name == "speak" }
                 _ephemeral.value = ChatEphemeralState()
-                if (!alreadySpoke) speakReply(event.finalText)
+                
+                if (!alreadySpoke) {
+                    val unreadText = event.finalText.substring(spokenTextLength.coerceAtMost(event.finalText.length))
+                    if (unreadText.isNotBlank()) {
+                        speakReply(unreadText)
+                    }
+                }
+                spokenTextLength = 0
             }
             is OrchestratorEvent.Failed -> {
                 Timber.tag("ChatVM").w("orchestration failed: %s", event.message)
                 _ephemeral.value = ChatEphemeralState(
                     errorMessage = event.message,
                 )
+                spokenTextLength = 0
             }
             is OrchestratorEvent.StateChanged -> { /* no-op */ }
         }
@@ -302,8 +356,32 @@ class ChatViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        voiceOutputManager.shutdown()
+        sendJob?.cancel()
+        listenJob?.cancel()
+        voiceOutputManager.stop()
+        
+        // Trigger summarization when the chat session ends. Plain call, not
+        // viewModelScope.launch: onCleared() runs after viewModelScope is
+        // already cancelled, so a coroutine launched here would never run.
+        // The repository does the work on its own singleton scope.
+        chatRepository.summarizeConversation(conversationId)
     }
+}
+
+private fun com.hermes.agent.domain.model.ExecutionPlan.toSummary(): PlanSummary {
+    val summaries = steps.map { step ->
+        PlanStepSummary(
+            id = step.id,
+            description = step.description,
+            agentRole = step.agentRole,
+            status = StepStatus.valueOf(step.status.name),
+        )
+    }
+    val currentIndex = summaries.indexOfFirst { it.status == StepStatus.RUNNING }
+        .takeIf { it >= 0 }
+        ?: summaries.indexOfFirst { it.status == StepStatus.PENDING }.takeIf { it >= 0 }
+        ?: summaries.lastIndex.coerceAtLeast(0)
+    return PlanSummary(summaries, currentIndex)
 }
 
 private data class ChatEphemeralState(

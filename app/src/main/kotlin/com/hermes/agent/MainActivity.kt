@@ -4,8 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -13,9 +16,9 @@ import androidx.lifecycle.lifecycleScope
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.ui.navigation.HermesNavGraph
 import com.hermes.agent.ui.onboarding.OnboardingScreen
-import com.hermes.agent.ui.theme.AppTheme
 import com.hermes.agent.ui.theme.HermesTheme
 import com.hermes.agent.work.OtaUpdateWorker
+import com.hermes.agent.core.settings.HermesSettings
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -44,18 +47,29 @@ class MainActivity : ComponentActivity() {
             onboardingState.value = settings.isOnboardingCompleted()
         }
 
+        handleIntent(intent)
+
         setContent {
-            val settingsState by settings.observe().collectAsState(initial = null)
+            val themeMode by HermesSettings.themeModeFlow(this)
+                .collectAsState(initial = HermesSettings.themeMode(this))
+            val fontFamily by HermesSettings.fontFamilyFlow(this)
+                .collectAsState(initial = HermesSettings.fontFamily(this))
+            val fontScalePercent by HermesSettings.fontScalePercentFlow(this)
+                .collectAsState(initial = HermesSettings.fontScalePercent(this))
 
-            val appTheme = settingsState?.appTheme?.let { name ->
-                runCatching { AppTheme.valueOf(name) }.getOrDefault(AppTheme.MIDNIGHT)
-            }
-
-            HermesTheme(appTheme = appTheme) {
+            HermesTheme(
+                darkTheme = themeMode != HermesSettings.THEME_LIGHT,
+                fontFamilyName = fontFamily,
+                fontScalePercent = fontScalePercent,
+            ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val state by onboardingState.collectAsState()
                     when (state) {
-                        null -> { /* blank splash while we resolve */ }
+                        null -> {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
                         false -> OnboardingScreen(
                             onCompleted = {
                                 onboardingState.value = true
@@ -69,6 +83,55 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: android.content.Intent?) {
+        if (intent == null) return
+        when (intent.action) {
+            "com.hermes.agent.action.NEW_NOTE" -> {
+                val i = android.content.Intent(this, com.l3ad3r1.octojotter.MainActivity::class.java).apply {
+                    putExtra("EXTRA_EMBEDDED", true)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                }
+                startActivity(i)
+                finish()
+            }
+            "com.hermes.agent.action.SET_ALARM" -> {
+                val i = android.content.Intent(this, com.sassybutler.alarm.MainAlarmSetupActivity::class.java).apply {
+                    putExtra("EXTRA_EMBEDDED", true)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                }
+                startActivity(i)
+                finish()
+            }
+            "com.hermes.agent.action.ASK_JEEVES" -> {
+                // To open chat directly, we should start the ChatScreen, but it's handled via nav graph.
+                // For now, doing nothing leaves it in the MainActivity which opens to the nav graph.
+            }
+            "com.hermes.agent.action.PLAY_BRIEFING" -> {
+                // Trigger the briefing. The briefing is handled by ButlerSpeech / AlarmForegroundService.
+                // Start the briefing directly using ButlerSpeech. We might need a component to do it.
+            }
+            "com.hermes.agent.action.SHARE_TO_JEEVES" -> {
+                val shareAction = intent.getStringExtra("EXTRA_SHARE_ACTION")
+                val shareText = intent.getStringExtra("EXTRA_SHARE_TEXT")
+                // TODO: Handle passing this to the agent / chat screen.
+                // For now we just route to ChatScreen via nav graph and maybe pre-fill or send immediately.
+            }
+            "com.hermes.agent.action.START_VOICE_LISTEN" -> {
+                // TODO: Open ChatScreen directly and arm voice listening.
+            }
+            "com.hermes.agent.action.NOTIFICATION_REPLY" -> {
+                val replyText = intent.getStringExtra("EXTRA_REPLY_TEXT")
+                // TODO: Send this directly to the agent.
             }
         }
     }

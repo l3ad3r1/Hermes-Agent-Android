@@ -98,7 +98,52 @@ class WebhookTool @Inject constructor(
             }.onFailure { e -> Timber.e(e, "WebhookTool: failed to send via ${connector.name}") }
         }
 
+        if (platform == null || platform.equals("local", ignoreCase = true)) {
+            postLocalNotification(message)
+            sent++
+        }
+
         return ToolResult.ok("Sent to $sent connector(s).", System.currentTimeMillis() - start)
+    }
+
+    private fun postLocalNotification(message: String) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                android.app.NotificationChannel("jeeves_notify", "Jeeves Notifications", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            )
+        }
+
+        val remoteInput = androidx.core.app.RemoteInput.Builder("KEY_REPLY")
+            .setLabel("Reply to Jeeves...")
+            .build()
+
+        val replyIntent = android.content.Intent(context, com.hermes.agent.receiver.NotificationReplyReceiver::class.java).apply {
+            action = "com.hermes.agent.action.REPLY"
+        }
+        val replyPendingIntent = android.app.PendingIntent.getBroadcast(
+            context,
+            0,
+            replyIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_MUTABLE
+        )
+
+        val action = androidx.core.app.NotificationCompat.Action.Builder(
+            android.R.drawable.ic_menu_send,
+            "Reply",
+            replyPendingIntent
+        ).addRemoteInput(remoteInput).build()
+
+        val notification = androidx.core.app.NotificationCompat.Builder(context, "jeeves_notify")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Jeeves")
+            .setContentText(message)
+            .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(message))
+            .addAction(action)
+            .setAutoCancel(true)
+            .build()
+
+        nm.notify(message.hashCode(), notification)
     }
 
     private fun postWebhook(url: String, message: String, secret: String?) {

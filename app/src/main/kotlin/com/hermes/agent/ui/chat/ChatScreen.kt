@@ -24,8 +24,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,19 +42,21 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,8 +68,7 @@ import com.hermes.agent.ui.chat.components.ChatInputBar
 import com.hermes.agent.ui.chat.components.MessageBubble
 import com.hermes.agent.ui.chat.components.StreamingBubble
 import com.hermes.agent.ui.components.PulsingDot
-import com.hermes.agent.ui.components.SlimTopBar
-import com.hermes.agent.ui.theme.GeistMono
+import com.hermes.agent.core.theme.GeistMono
 
 /**
  * Main chat screen. Renders the message list, the streaming bubble (when
@@ -81,17 +86,25 @@ import com.hermes.agent.ui.theme.GeistMono
 fun ChatScreen(
     conversationId: String,
     onBack: () -> Unit,
+    onNewChat: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var planDrawerOpen by remember { mutableStateOf(false) }
-    var chatTab by remember { mutableStateOf(0) } // 0=Tools, 1=Terminal, 2=Subagents
+    val pendingConfirmation by viewModel.pendingToolConfirmation.collectAsStateWithLifecycle()
 
-    // Auto-scroll to bottom when new items arrive.
+    // Auto-scroll only when the user is already near the bottom of the list.
+    // This prevents pulling users away from earlier content they're reading.
+    val isNearBottom = remember {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisible >= (uiState.visibleItems.lastIndex - 1).coerceAtLeast(0)
+        }
+    }
     LaunchedEffect(uiState.visibleItems.size, uiState.streamingText) {
-        if (uiState.visibleItems.isNotEmpty()) {
+        if (uiState.visibleItems.isNotEmpty() && isNearBottom.value) {
             listState.animateScrollToItem(uiState.visibleItems.lastIndex)
         }
     }
@@ -115,26 +128,12 @@ fun ChatScreen(
     ) {
         Scaffold(
             topBar = {
-                SlimTopBar(
-                    title = uiState.title,
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = "Back",
-                            )
-                        }
-                    },
-                    actions = {
-                        if (uiState.currentPlan != null) {
-                            IconButton(onClick = { planDrawerOpen = true }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.AccountTree,
-                                    contentDescription = "View execution plan",
-                                )
-                            }
-                        }
-                    },
+                ReferenceChatTopBar(
+                    onOpenChats = onBack,
+                    onNewChat = onNewChat,
+                    onOpenPlan = if (uiState.currentPlan != null) {
+                        { planDrawerOpen = true }
+                    } else null,
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -144,10 +143,7 @@ fun ChatScreen(
                 // while navigationBarsPadding lifts the input above the nav bar.
                 // imePadding here (not on the Scaffold) consumes the nav-bar inset
                 // first, so keyboard + nav insets don't double-count.
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 3.dp,
-                ) {
+                Surface(color = MaterialTheme.colorScheme.background) {
                     androidx.compose.foundation.layout.Column(
                         modifier = Modifier
                             .navigationBarsPadding()
@@ -167,10 +163,6 @@ fun ChatScreen(
                             onMicToggle = viewModel::toggleVoiceInput,
                             prefillText = uiState.inputPrefill,
                         )
-                        ChatStatusBar(
-                            estimatedTokens = uiState.estimatedTokens,
-                            activeModel = uiState.activeModel,
-                        )
                     }
                 }
             },
@@ -180,42 +172,126 @@ fun ChatScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
             ) {
-                ChatModeTabs(selected = chatTab, onSelect = { chatTab = it })
-                if (chatTab == 0 && uiState.todos.isNotEmpty()) {
+                if (uiState.todos.isNotEmpty()) {
                     TodoPanel(todos = uiState.todos)
                 }
                 Box(modifier = Modifier.weight(1f).fillMaxSize()) {
-                    when (chatTab) {
-                        1 -> TerminalPanel()
-                        else -> {
-                            if (uiState.messages.isEmpty() && uiState.streamingText == null) {
-                                EmptyChatState(modifier = Modifier.fillMaxSize())
-                            } else {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                        vertical = 12.dp,
-                                    ),
-                                ) {
-                                    items(uiState.visibleItems) { item ->
-                                        when (item) {
-                                            is ChatListItem.MessageItem -> MessageBubble(message = item.message)
-                                            is ChatListItem.StreamingItem -> StreamingBubble(item = item)
-                                        }
-                                    }
-                                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                    if (uiState.messages.isEmpty() && uiState.streamingText == null) {
+                        EmptyChatState(
+                            onPromptSelected = viewModel::sendMessage,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                vertical = 12.dp,
+                            ),
+                        ) {
+                            items(uiState.visibleItems) { item ->
+                                when (item) {
+                                    is ChatListItem.MessageItem -> MessageBubble(message = item.message)
+                                    is ChatListItem.StreamingItem -> StreamingBubble(item = item)
                                 }
                             }
+                            item { Spacer(modifier = Modifier.height(8.dp)) }
                         }
                     }
                 }
+            } // closes Column
+        } // closes Scaffold
+    } // closes ModalNavigationDrawer
+
+    pendingConfirmation?.let { pending ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.submitToolConfirmation(pending.id, false) },
+            title = { Text("Approve Action") },
+            text = {
+                Column {
+                    Text("Jeeves wants to run the following tool:")
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = pending.call.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = pending.call.arguments.entries.joinToString("\n") { "${it.key}: ${it.value}" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.submitToolConfirmation(pending.id, true) }) {
+                    Text("Allow")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.submitToolConfirmation(pending.id, false) }) {
+                    Text("Deny")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ReferenceChatTopBar(
+    onOpenChats: () -> Unit,
+    onNewChat: () -> Unit,
+    onOpenPlan: (() -> Unit)?,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(76.dp)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            onClick = onOpenChats,
+            modifier = Modifier.align(Alignment.CenterStart).size(52.dp),
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Menu, contentDescription = "Open chats")
+            }
+        }
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(onClick = onOpenPlan ?: onOpenChats)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Chat",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Icon(
+                imageVector = Icons.Outlined.KeyboardArrowDown,
+                contentDescription = if (onOpenPlan != null) "View execution plan" else "Open chats",
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Surface(
+            onClick = onNewChat,
+            modifier = Modifier.align(Alignment.CenterEnd).size(52.dp),
+            shape = RoundedCornerShape(26.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "New chat")
             }
         }
     }
 }
-
 @Composable
 private fun PlanDrawer(
     plan: PlanSummary?,
@@ -282,7 +358,7 @@ private fun ClarificationCard(
     ) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Text(
-                text = "Hermes needs a quick answer",
+                text = "Jeeves needs a quick answer",
                 style = MaterialTheme.typography.labelSmall,
                 fontFamily = GeistMono,
                 color = scheme.onPrimaryContainer.copy(alpha = 0.7f),
@@ -403,58 +479,50 @@ private fun TodoRow(item: TodoItem) {
 }
 
 @Composable
-private fun EmptyChatState(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = stringResource(R.string.chat_empty_title),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.chat_empty_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun ChatStatusBar(
-    estimatedTokens: Int,
-    activeModel: String,
+private fun EmptyChatState(
+    onPromptSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    androidx.compose.foundation.layout.Row(
-        modifier = androidx.compose.ui.Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 3.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+    val prompts = listOf(
+        QuickPrompt(Icons.Outlined.Today, "Plan my day", "Help me plan my day"),
+        QuickPrompt(Icons.Outlined.Description, "Create a note", "Create a note for me"),
+        QuickPrompt(Icons.Outlined.Public, "Look something up", "Look something up for me"),
+    )
+    Column(
+        modifier = modifier.padding(horizontal = 28.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.Bottom,
     ) {
-        if (activeModel.isNotBlank()) {
-            Text(
-                text = activeModel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        prompts.forEach { prompt ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onPromptSelected(prompt.prompt) }
+                    .padding(horizontal = 10.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = prompt.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(25.dp),
+                    tint = MaterialTheme.colorScheme.onBackground,
+                )
+                Spacer(modifier = Modifier.size(18.dp))
+                Text(
+                    text = prompt.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+            }
         }
-        Text(
-            text = if (estimatedTokens > 0) "~${estimatedTokens}t" else "",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
+private data class QuickPrompt(
+    val icon: ImageVector,
+    val label: String,
+    val prompt: String,
+)
 @Composable
 private fun rememberDrawerState(open: Boolean): androidx.compose.material3.DrawerState {
     val state = androidx.compose.material3.rememberDrawerState(

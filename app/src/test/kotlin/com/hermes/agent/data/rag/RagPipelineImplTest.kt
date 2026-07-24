@@ -51,7 +51,13 @@ class RagPipelineImplTest {
             chunkDao = chunkDao,
             embeddingService = fakeEmbeddingService(),
             vectorStore = com.hermes.agent.data.memory.InMemoryVectorStore(),
-            dispatchers = DefaultDispatcherProvider(),
+            dispatchers = object : com.hermes.agent.util.DispatcherProvider {
+                val td = kotlinx.coroutines.test.UnconfinedTestDispatcher()
+                override val main = td
+                override val io = td
+                override val default = td
+                override val unconfined = td
+            },
         )
 
         val doc = Document(
@@ -77,7 +83,13 @@ class RagPipelineImplTest {
             chunkDao = chunkDao,
             embeddingService = fakeEmbeddingService(),
             vectorStore = com.hermes.agent.data.memory.InMemoryVectorStore(),
-            dispatchers = DefaultDispatcherProvider(),
+            dispatchers = object : com.hermes.agent.util.DispatcherProvider {
+                val td = kotlinx.coroutines.test.UnconfinedTestDispatcher()
+                override val main = td
+                override val io = td
+                override val default = td
+                override val unconfined = td
+            },
         )
 
         val results = pipeline.retrieve("anything")
@@ -94,7 +106,13 @@ class RagPipelineImplTest {
             chunkDao = chunkDao,
             embeddingService = fakeEmbeddingService(),
             vectorStore = com.hermes.agent.data.memory.InMemoryVectorStore(),
-            dispatchers = DefaultDispatcherProvider(),
+            dispatchers = object : com.hermes.agent.util.DispatcherProvider {
+                val td = kotlinx.coroutines.test.UnconfinedTestDispatcher()
+                override val main = td
+                override val io = td
+                override val default = td
+                override val unconfined = td
+            },
         )
 
         val ctx = pipeline.buildContext("query", maxChars = 1000)

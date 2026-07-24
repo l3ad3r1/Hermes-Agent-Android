@@ -1,173 +1,85 @@
 package com.hermes.agent.ui.theme
 
 import android.app.Activity
-import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.hermes.agent.core.theme.hermesColorScheme
+import com.hermes.agent.core.theme.hermesTypography
 
-/**
- * The three Hermes app themes derived from the brand site (hermes-agent.nousresearch.com).
- *
- * MIDNIGHT — black background, white text. Terminal/hacker aesthetic.
- * PAPER    — white background, black text. Clean editorial aesthetic.
- * HERMES_BLUE — electric blue (#3300FF) background, white text. Matches the brand site exactly.
- */
+/** Persisted values are retained for backup compatibility; all now render OLED monochrome. */
 enum class AppTheme {
     MIDNIGHT,
     PAPER,
     HERMES_BLUE,
 }
 
-// ── Midnight color scheme — monochrome ───────────────────────────────
-private val MidnightColorScheme = darkColorScheme(
-    primary              = MidnightPrimary,
-    onPrimary            = MidnightOnPrimary,
-    primaryContainer     = MidnightPrimaryContainer,
-    onPrimaryContainer   = MidnightOnPrimaryContainer,
-    secondary            = MidnightSecondary,
-    onSecondary          = MidnightOnSecondary,
-    secondaryContainer   = MidnightSecondaryContainer,
-    tertiary             = Color(0xFFAAAAAA),   // neutral grey (was green)
-    onTertiary           = Color(0xFF000000),
-    background           = MidnightBackground,
-    onBackground         = MidnightOnBackground,
-    surface              = MidnightSurface,
-    onSurface            = MidnightOnSurface,
-    surfaceVariant       = MidnightSurfaceVariant,
-    onSurfaceVariant     = MidnightOnSurfaceVariant,
-    surfaceContainer     = MidnightSurface,
-    surfaceContainerHigh = MidnightSurfaceVariant,
-    outline              = MidnightOutline,
-    outlineVariant       = MidnightSurfaceVariant,
-    error                = MidnightError,
-    onError              = Color.Black,
-)
-
-// ── Paper color scheme ────────────────────────────────────────────────
-private val PaperColorScheme = lightColorScheme(
-    primary              = PaperPrimary,
-    onPrimary            = PaperOnPrimary,
-    primaryContainer     = PaperPrimaryContainer,
-    onPrimaryContainer   = PaperOnPrimaryContainer,
-    secondary            = PaperSecondary,
-    onSecondary          = PaperOnSecondary,
-    secondaryContainer   = PaperSecondaryContainer,
-    tertiary             = HermesGoodLight,
-    onTertiary           = Color.White,
-    background           = PaperBackground,
-    onBackground         = PaperOnBackground,
-    surface              = PaperSurface,
-    onSurface            = PaperOnSurface,
-    surfaceVariant       = PaperSurfaceVariant,
-    onSurfaceVariant     = PaperOnSurfaceVariant,
-    surfaceContainer     = PaperSurface,
-    surfaceContainerHigh = PaperSurfaceVariant,
-    outline              = PaperOutline,
-    outlineVariant       = PaperSurfaceVariant,
-    error                = PaperError,
-    onError              = Color.White,
-)
-
-// ── Hermes Blue color scheme ──────────────────────────────────────────
-private val HermesBlueColorScheme = darkColorScheme(
-    primary              = BlueBrandPrimary,
-    onPrimary            = BlueBrandOnPrimary,
-    primaryContainer     = BlueBrandPrimaryContainer,
-    onPrimaryContainer   = BlueBrandOnPrimaryContainer,
-    secondary            = BlueBrandSecondary,
-    onSecondary          = BlueBrandOnSecondary,
-    secondaryContainer   = BlueBrandSecondaryContainer,
-    background           = BlueBrandBackground,
-    onBackground         = BlueBrandOnBackground,
-    surface              = BlueBrandSurface,
-    onSurface            = BlueBrandOnSurface,
-    surfaceVariant       = BlueBrandSurfaceVariant,
-    onSurfaceVariant     = BlueBrandOnSurfaceVariant,
-    error                = BlueBrandError,
-    onError              = Color.White,
-)
-
-// ── Legacy light / dark (used when dynamicColor is active) ────────────
-private val LightColors = lightColorScheme(
-    primary              = HermesPrimary,
-    onPrimary            = HermesOnPrimary,
-    primaryContainer     = HermesPrimaryContainer,
-    onPrimaryContainer   = HermesOnPrimaryContainer,
-    secondary            = HermesAccent,
-    onSecondary          = HermesOnAccent,
-    secondaryContainer   = HermesAccentContainer,
-    background           = HermesBackground,
-    onBackground         = HermesOnBackground,
-    surface              = HermesSurface,
-    onSurface            = HermesOnSurface,
-    surfaceVariant       = HermesSurfaceVariant,
-    onSurfaceVariant     = HermesOnSurfaceVariant,
-    error                = HermesError,
-)
-
-private val DarkColors = darkColorScheme(
-    primary              = HermesPrimaryDarkMode,
-    secondary            = HermesAccentDarkMode,
-    background           = HermesBackgroundDark,
-    onBackground         = HermesOnBackgroundDark,
-    surface              = HermesSurfaceDark,
-    onSurface            = HermesOnSurfaceDark,
-    surfaceVariant       = Color(0xFF334155),
-    onSurfaceVariant     = Color(0xFFCBD5E1),
-    error                = Color(0xFFFCA5A5),
-)
-
-/**
- * Root theme composable. When [appTheme] is provided it overrides dynamic
- * color and system dark-mode — the user's explicit choice wins.
- */
+/** Root Jeeves theme: shared monochrome light or OLED-black surfaces and typography. */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun HermesTheme(
     appTheme: AppTheme? = null,
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    fontFamilyName: String = "geist",
+    fontScalePercent: Int = 100,
     content: @Composable () -> Unit,
 ) {
-    val context = LocalContext.current
-
-    val colorScheme = when (appTheme) {
-        AppTheme.MIDNIGHT   -> MidnightColorScheme
-        AppTheme.PAPER      -> PaperColorScheme
-        AppTheme.HERMES_BLUE -> HermesBlueColorScheme
-        null -> when {
-            dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            darkTheme -> DarkColors
-            else -> LightColors
-        }
-    }
-
-    val isDark = appTheme != AppTheme.PAPER && (appTheme != null || darkTheme)
-
+    val colorScheme = hermesColorScheme(darkTheme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
+            window.navigationBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
         }
     }
 
+    val context = LocalContext.current
+    val fontScale = context.resources.configuration.fontScale
+    val selectedTypography = hermesTypography(fontFamilyName, fontScalePercent)
+    val typography = if (fontScale > 1.2f) boostedTypography(selectedTypography) else selectedTypography
+
     MaterialTheme(
         colorScheme = colorScheme,
-        typography  = HermesTypography,
-        shapes      = HermesShapes,
-        content     = content,
-    )
+        typography = typography,
+        shapes = HermesShapes,
+    ) {
+        HermesHighContrastWrapper(darkTheme = darkTheme, content = content)
+    }
 }
+
+fun Modifier.glassBackground(
+    color: Color,
+    alpha: Float = 0.65f,
+    blurRadius: Float = 16f,
+): Modifier = this
+    .blur(blurRadius.dp)
+    .background(
+        brush = Brush.linearGradient(
+            colors = listOf(
+                color.copy(alpha = alpha),
+                color.copy(alpha = alpha * 0.8f),
+            ),
+        ),
+    )
+
+fun Modifier.premiumGradient(color: Color): Modifier = this.background(
+    brush = Brush.linearGradient(
+        colors = listOf(color, color.copy(alpha = 0.85f)),
+    ),
+)

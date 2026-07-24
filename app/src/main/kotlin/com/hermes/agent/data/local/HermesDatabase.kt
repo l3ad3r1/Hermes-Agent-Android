@@ -4,21 +4,26 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.hermes.agent.data.local.dao.ActivityLedgerDao
 import com.hermes.agent.data.local.dao.AgentTaskDao
 import com.hermes.agent.data.local.dao.ConnectorDao
 import com.hermes.agent.data.local.dao.ConversationDao
 import com.hermes.agent.data.local.dao.DocumentChunkDao
 import com.hermes.agent.data.local.dao.DocumentDao
+import com.hermes.agent.data.local.dao.ExecutionPlanDao
 import com.hermes.agent.data.local.dao.KanbanTicketDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
 import com.hermes.agent.data.local.dao.SkillDao
+import com.hermes.agent.data.local.entity.ActivityLedgerEntity
 import com.hermes.agent.data.local.entity.AgentTaskEntity
 import com.hermes.agent.data.local.entity.ConnectorEntity
 import com.hermes.agent.data.local.entity.ConversationEntity
 import com.hermes.agent.data.local.entity.DocumentChunkEntity
 import com.hermes.agent.data.local.entity.DocumentEntity
+import com.hermes.agent.data.local.entity.ExecutionPlanEntity
+import com.hermes.agent.data.local.entity.ExecutionStepEntity
 import com.hermes.agent.data.local.entity.KanbanTicketEntity
 import com.hermes.agent.data.local.entity.MemoryEntity
 import com.hermes.agent.data.local.entity.MessageEntity
@@ -37,8 +42,11 @@ import com.hermes.agent.data.local.entity.SkillEntity
         AgentTaskEntity::class,
         SkillEntity::class,
         KanbanTicketEntity::class,
+        ExecutionPlanEntity::class,
+        ExecutionStepEntity::class,
+        ActivityLedgerEntity::class,
     ],
-    version = 8,
+    version = 10,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -52,6 +60,8 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun agentTaskDao(): AgentTaskDao
     abstract fun skillDao(): SkillDao
     abstract fun kanbanTicketDao(): KanbanTicketDao
+    abstract fun executionPlanDao(): ExecutionPlanDao
+    abstract fun activityLedgerDao(): ActivityLedgerDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
@@ -247,6 +257,75 @@ abstract class HermesDatabase : RoomDatabase() {
                                 """)
                             }
                         }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS execution_plans (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        conversationId TEXT NOT NULL,
+                        userMessage TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        approved INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_execution_plans_conversationId_createdAt " +
+                        "ON execution_plans(conversationId, createdAt)",
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS execution_steps (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        planId TEXT NOT NULL,
+                        position INTEGER NOT NULL,
+                        agentRoleName TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        requiredToolsJson TEXT NOT NULL,
+                        dependsOnJson TEXT NOT NULL,
+                        statusName TEXT NOT NULL,
+                        startedAt INTEGER,
+                        finishedAt INTEGER,
+                        toolCallIdsJson TEXT NOT NULL,
+                        errorMessage TEXT,
+                        FOREIGN KEY(planId) REFERENCES execution_plans(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_execution_steps_planId ON execution_steps(planId)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_execution_steps_planId_position " +
+                        "ON execution_steps(planId, position)",
+                )
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS activity_ledger (
+                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        timestamp INTEGER NOT NULL,
+                        kindName TEXT NOT NULL,
+                        origin TEXT NOT NULL,
+                        conversationId TEXT,
+                        title TEXT NOT NULL,
+                        detail TEXT NOT NULL,
+                        success INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_activity_ledger_timestamp " +
+                        "ON activity_ledger(timestamp)",
+                )
+            }
+        }
 
                 val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {

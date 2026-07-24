@@ -1,4 +1,4 @@
-package com.hermes.agent.ui.theme
+package com.hermes.agent.core.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -108,3 +108,39 @@ val HermesTypography = Typography(
         letterSpacing = 0.06.em,
     ),
 )
+/** Applies the user's validated family and size choice to every Material text role. */
+fun hermesTypography(
+    fontFamilyName: String,
+    scalePercent: Int,
+    base: Typography = HermesTypography,
+): Typography {
+    val family = when (fontFamilyName) {
+        "system" -> FontFamily.SansSerif
+        "serif" -> FontFamily.Serif
+        "mono" -> FontFamily.Monospace
+        else -> Geist
+    }
+    val scale = scalePercent.coerceIn(85, 130) / 100f
+    fun TextStyle.adjusted(): TextStyle = copy(
+        fontFamily = family,
+        fontSize = (fontSize.value * scale).sp,
+        lineHeight = (lineHeight.value * scale).sp,
+    )
+    return Typography(
+        displayLarge = base.displayLarge.adjusted(),
+        displayMedium = base.displayMedium.adjusted(),
+        displaySmall = base.displaySmall.adjusted(),
+        headlineLarge = base.headlineLarge.adjusted(),
+        headlineMedium = base.headlineMedium.adjusted(),
+        headlineSmall = base.headlineSmall.adjusted(),
+        titleLarge = base.titleLarge.adjusted(),
+        titleMedium = base.titleMedium.adjusted(),
+        titleSmall = base.titleSmall.adjusted(),
+        bodyLarge = base.bodyLarge.adjusted(),
+        bodyMedium = base.bodyMedium.adjusted(),
+        bodySmall = base.bodySmall.adjusted(),
+        labelLarge = base.labelLarge.adjusted(),
+        labelMedium = base.labelMedium.adjusted(),
+        labelSmall = base.labelSmall.adjusted(),
+    )
+}

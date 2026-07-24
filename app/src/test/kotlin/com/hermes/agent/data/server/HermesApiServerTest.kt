@@ -1,6 +1,7 @@
 package com.hermes.agent.data.server
 
 import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.Orchestrator
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.AgentRole
@@ -44,6 +45,7 @@ class HermesApiServerTest {
             conversationId: String,
             userMessage: String,
             recentMessages: List<LlmMessage>,
+            origin: ExecutionOrigin,
         ): Flow<OrchestratorEvent> = flow {
             emit(OrchestratorEvent.ReplyToken(reply))
             emit(OrchestratorEvent.ReplyComplete(reply, AgentRole.CONVERSATIONAL, isOnDevice = true))
