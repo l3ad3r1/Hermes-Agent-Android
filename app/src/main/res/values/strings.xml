@@ -51,6 +51,7 @@
     <!-- Accessibility (Phase 4) -->
     <string name="a11y_stop_generating">Stop generating reply</string>
     <string name="a11y_voice_input">Voice input</string>
+    <string name="a11y_listening">Listening. Tap to stop.</string>
 <string name="a11y_send_button">Send message</string>
     <string name="a11y_back">Back</string>
     <string name="a11y_view_plan">View execution plan</string>

@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import com.hermes.agent.core.theme.HermesDark
 import com.hermes.agent.core.theme.HermesLight
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,6 +38,7 @@ class ThinkingOrbRenderTest {
         rotation: Float,
         background: Color,
         color: Color,
+        state: OrbState = OrbState.THINKING,
         px: Int = 176,
         density: Float = 1f,
     ): Bitmap {
@@ -50,7 +52,7 @@ class ThinkingOrbRenderTest {
             // Stand in for the chat bubble's surfaceVariant, so the orb is
             // judged against the surface it actually sits on.
             drawRect(background)
-            drawOrb(rotation = rotation, color = color)
+            drawOrb(rotation = rotation, color = color, style = styleFor(state))
         }
         return image.asAndroidBitmap()
     }
@@ -103,6 +105,83 @@ class ThinkingOrbRenderTest {
 
         val frames = outputDir.listFiles { f -> f.extension == "png" }.orEmpty()
         assertTrue("expected rendered frames", frames.size >= 10)
+    }
+
+    @Test
+    fun rendersEveryState() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // Two angles each, at shipping size and density, since these are meant
+        // to be told apart at 32dp on a phone — not at poster size.
+        OrbState.entries.forEach { state ->
+            listOf(0.0f, 0.125f).forEach { rotation ->
+                val tag = "%03d".format((rotation * 1000).toInt())
+                write(
+                    "state-${state.name.lowercase()}-$tag",
+                    render(rotation, surface, primary, state, px = 32 * 3, density = 3f),
+                )
+            }
+            // A large frame too, for inspecting the lattice itself.
+            write(
+                "state-${state.name.lowercase()}-large",
+                render(0.125f, surface, primary, state),
+            )
+        }
+    }
+
+    @Test
+    fun everyStateLooksDifferentFromTheOthers() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // Rendered at the size they actually ship at: two lattices can differ
+        // on paper and still collapse to the same blob at 32dp.
+        val frames = OrbState.entries.associateWith { state ->
+            render(0.125f, surface, primary, state, px = 32 * 3, density = 3f)
+        }
+
+        OrbState.entries.forEach { a ->
+            OrbState.entries.forEach { b ->
+                if (a.ordinal >= b.ordinal) return@forEach
+                val fa = frames.getValue(a)
+                val fb = frames.getValue(b)
+                var differing = 0
+                for (x in 0 until fa.width step 2) {
+                    for (y in 0 until fa.height step 2) {
+                        if (fa.getPixel(x, y) != fb.getPixel(x, y)) differing++
+                    }
+                }
+                assertTrue(
+                    "$a and $b render too similarly to tell apart ($differing px differ)",
+                    differing > 150,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun jitterIsStableAcrossFrames() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // SOLVING and WORKING scatter their lattice. That scatter must be a
+        // function of the point index, not of time — a per-frame random would
+        // make every point twitch independently instead of the sphere turning
+        // as a rigid body. Same rotation must give a byte-identical frame.
+        listOf(OrbState.SOLVING, OrbState.WORKING).forEach { state ->
+            val first = render(0.3f, surface, primary, state)
+            val second = render(0.3f, surface, primary, state)
+            for (x in 0 until first.width step 3) {
+                for (y in 0 until first.height step 3) {
+                    assertEquals(
+                        "$state jitter is not deterministic at ($x, $y)",
+                        first.getPixel(x, y),
+                        second.getPixel(x, y),
+                    )
+                }
+            }
+        }
     }
 
     @Test

@@ -193,7 +193,10 @@ fun ChatScreen(
                             items(uiState.visibleItems) { item ->
                                 when (item) {
                                     is ChatListItem.MessageItem -> MessageBubble(message = item.message)
-                                    is ChatListItem.StreamingItem -> StreamingBubble(item = item)
+                                    is ChatListItem.StreamingItem -> StreamingBubble(
+                                        item = item,
+                                        orbState = uiState.orbState,
+                                    )
                                 }
                             }
                             item { Spacer(modifier = Modifier.height(8.dp)) }

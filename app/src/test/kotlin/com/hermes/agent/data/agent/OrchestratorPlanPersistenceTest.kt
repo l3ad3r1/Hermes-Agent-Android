@@ -25,9 +25,13 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import com.hermes.agent.domain.agent.AgentActivity
+import com.hermes.agent.domain.agent.AgentPhase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,9 +78,41 @@ class OrchestratorPlanPersistenceTest {
         assertTrue(events.any { it is OrchestratorEvent.Failed && it.message == "stopped" })
     }
 
+    @Test
+    fun `a turn walks through the phases the orb renders`() = runTest {
+        val fixture = fixture(AgentLoopOutcome.Completed("answer", emptyList()))
+
+        fixture.orchestrator.run("conversation", "hello", emptyList(), ExecutionOrigin.INTERACTIVE)
+            .toList()
+
+        // Phases are captured inside the collaborators rather than sampled from
+        // the collector. Two reasons the obvious approach does not work: phase
+        // is a StateFlow, so fast transitions conflate; and `flowOn` buffers, so
+        // the producer runs ahead of anything reading downstream.
+        val at = fixture.phases()
+
+        // The orb is driven off these; if the orchestrator stops reporting them
+        // it silently degrades to one state and nobody notices.
+        assertEquals("routing should report SOLVING", AgentPhase.SOLVING, at["routing"])
+        assertEquals("retrieval should report SEARCHING", AgentPhase.SEARCHING, at["retrieval"])
+        assertEquals("awaiting the model should report THINKING", AgentPhase.THINKING, at["inference"])
+        assertEquals("reply text should report COMPOSING", AgentPhase.COMPOSING, at["reply"])
+
+        // And the run must not leave the orb spinning once it is over.
+        assertEquals(AgentPhase.IDLE, AgentActivity.phase.value)
+    }
+
     private fun fixture(outcome: AgentLoopOutcome): Fixture {
+        // Phase observed at each stage, recorded from inside the producer
+        // coroutine where it is actually accurate.
+        val phases = mutableMapOf<String, AgentPhase>()
+        fun mark(stage: String) { phases.putIfAbsent(stage, AgentActivity.phase.value) }
+
         val agentRouter = mockk<AgentRouter>()
-        coEvery { agentRouter.route(any()) } returns RoutingResult.Solo(AgentRole.CONVERSATIONAL, 1f)
+        coEvery { agentRouter.route(any()) } coAnswers {
+            mark("routing")
+            RoutingResult.Solo(AgentRole.CONVERSATIONAL, 1f)
+        }
 
         val agent = mockk<Agent>()
         every { agent.systemPrompt } returns "system"
@@ -90,8 +126,23 @@ class OrchestratorPlanPersistenceTest {
         coEvery { llmRouter.route(any()) } returns RoutingDecision.Ready(provider, "test")
 
         val loopRunner = mockk<AgentLoopRunner>()
-        coEvery { loopRunner.run(any(), any(), any(), any(), any(), any(), any()) } returns outcome
+        coEvery { loopRunner.run(any(), any(), any(), any(), any(), any(), any()) } coAnswers {
+            mark("inference")
+            outcome
+        }
+
+        // markStepFinished(SUCCEEDED) is the first collaborator called after the
+        // reply text lands, so it sits inside the COMPOSING window.
         val plans = mockk<ExecutionPlanRepository>(relaxed = true)
+        coEvery { plans.markStepFinished(any(), StepStatus.SUCCEEDED, any()) } coAnswers {
+            mark("reply")
+        }
+
+        val memoryRepository = mockk<MemoryRepository>(relaxed = true)
+        coEvery { memoryRepository.searchMemories(any(), any()) } coAnswers {
+            mark("retrieval")
+            emptyList()
+        }
 
         val orchestrator = OrchestratorImpl(
             agentRouter = agentRouter,
@@ -105,7 +156,7 @@ class OrchestratorPlanPersistenceTest {
                 override val main = Dispatchers.Unconfined
                 override val unconfined = Dispatchers.Unconfined
             },
-            memoryRepository = mockk<MemoryRepository>(relaxed = true),
+            memoryRepository = memoryRepository,
             conversationLearner = mockk<ConversationLearner>(relaxed = true),
             toolConfirmationService = mockk<ToolConfirmationService>(relaxed = true),
             autonomousSkillCreator = mockk<AutonomousSkillCreator>(relaxed = true),
@@ -115,11 +166,12 @@ class OrchestratorPlanPersistenceTest {
             executionPlanRepository = plans,
             activityLedger = mockk<ActivityLedger>(relaxed = true),
         )
-        return Fixture(orchestrator, plans)
+        return Fixture(orchestrator, plans) { phases.toMap() }
     }
 
     private data class Fixture(
         val orchestrator: OrchestratorImpl,
         val plans: ExecutionPlanRepository,
+        val phases: () -> Map<String, AgentPhase>,
     )
 }

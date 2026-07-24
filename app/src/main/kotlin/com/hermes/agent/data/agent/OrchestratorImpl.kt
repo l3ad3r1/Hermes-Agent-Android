@@ -24,6 +24,7 @@ import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.util.DispatcherProvider
 import com.hermes.agent.util.IdGenerator
 import com.hermes.agent.domain.agent.AgentActivity
+import com.hermes.agent.domain.agent.AgentPhase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -86,6 +87,7 @@ class OrchestratorImpl @Inject constructor(
     ): Flow<OrchestratorEvent> = flow {
 
         // 1. Route.
+        AgentActivity.setPhase(AgentPhase.SOLVING)
         val routing = agentRouter.route(userMessage)
         val primaryRole = when (routing) {
             is RoutingResult.Solo -> routing.agent
@@ -102,6 +104,7 @@ class OrchestratorImpl @Inject constructor(
         // 3. Load memories + user model and inject into system prompt.
         // The four context lookups are independent — run them concurrently so
         // the pre-first-token wait is the slowest one, not the sum of all four.
+        AgentActivity.setPhase(AgentPhase.SEARCHING)
         val contextStart = System.currentTimeMillis()
         val (memories, ragContext, userModel, skillBlockDeferred) = coroutineScope {
             val memoriesJob = async {
@@ -193,6 +196,7 @@ class OrchestratorImpl @Inject constructor(
                     return@flow
                 }
             }
+            AgentActivity.setPhase(AgentPhase.THINKING)
             val loopOutcome = try {
                 agentLoopRunner.run(
                     provider = provider,
@@ -200,6 +204,7 @@ class OrchestratorImpl @Inject constructor(
                     tools = tools,
                     origin = origin,
                     onToolRequested = { call, requiresConfirmation ->
+                        AgentActivity.setPhase(AgentPhase.WORKING)
                         emit(OrchestratorEvent.ToolCallRequested(call, requiresConfirmation))
                     },
                     confirmationGate = ToolCallExecutor.ConfirmationGate { call, requiresConfirmation ->
@@ -224,6 +229,10 @@ class OrchestratorImpl @Inject constructor(
                                 success = result.success,
                             ),
                         )
+                        // The loop feeds the result back to the model, so we
+                        // are waiting on inference again until it either calls
+                        // another tool or starts replying.
+                        AgentActivity.setPhase(AgentPhase.THINKING)
                     },
                 )
             } catch (cancelled: CancellationException) {
@@ -261,6 +270,7 @@ class OrchestratorImpl @Inject constructor(
             lastProviderWasOnDevice = provider.isOnDevice
             allToolsUsed += completed.toolsInvoked
             aggregator.append(completed.reply)
+            AgentActivity.setPhase(AgentPhase.COMPOSING)
             emit(OrchestratorEvent.ReplyToken(completed.reply))
             executionPlanRepository.markStepFinished(step.id, StepStatus.SUCCEEDED)
             emit(OrchestratorEvent.StepFinished(step.id, success = true))

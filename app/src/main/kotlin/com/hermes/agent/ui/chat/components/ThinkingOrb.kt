@@ -28,20 +28,80 @@ import kotlin.math.sin
 
 private const val TWO_PI = (2.0 * PI).toFloat()
 
-/** One full revolution of the sphere, in milliseconds. */
-private const val SPIN_PERIOD_MS = 3600
-
-/** Latitude bands the points are laid out on. */
-private const val RINGS = 13
-
-/** Points around the widest ring; thinner rings get proportionally fewer. */
-private const val EQUATOR_POINTS = 20
-
 /** Fixed tilt (radians) so the sphere is seen slightly from above. */
 private const val TILT = 0.42f
 
 /**
- * A rotating sphere of points, shown while the assistant is generating.
+ * What the orb is depicting. Mirrors [com.hermes.agent.domain.agent.AgentPhase],
+ * plus [LISTENING], which comes from voice capture rather than the orchestrator.
+ */
+enum class OrbState {
+    THINKING,
+    SEARCHING,
+    SOLVING,
+    WORKING,
+    COMPOSING,
+    LISTENING,
+}
+
+/**
+ * Per-state look. Every state draws the same rotating point sphere; only the
+ * lattice, dot size, spin rate and scatter change, which is enough to make the
+ * six read as distinct at a glance without six separate drawing routines.
+ */
+internal data class OrbStyle(
+    /** Latitude bands. Few + many points per band reads as stripes. */
+    val rings: Int,
+    /** Points around the widest band; thinner bands get proportionally fewer. */
+    val equatorPoints: Int,
+    /** Multiplier on the base dot radius. */
+    val dotScale: Float,
+    /** Sphere size within the canvas. */
+    val radiusScale: Float,
+    /** Lattice scatter, 0 = perfect grid. Deterministic per point, not per frame. */
+    val jitter: Float,
+    /** Milliseconds per revolution. */
+    val spinMs: Int,
+)
+
+internal fun styleFor(state: OrbState): OrbStyle = when (state) {
+    // Dense bands with few rings: the points crowd into visible lines, which
+    // is the banded look the reference uses for thinking.
+    OrbState.THINKING -> OrbStyle(
+        rings = 7, equatorPoints = 34, dotScale = 0.70f,
+        radiusScale = 0.88f, jitter = 0f, spinMs = 3600,
+    )
+    // The plain globe, spinning briskly — scanning.
+    OrbState.SEARCHING -> OrbStyle(
+        rings = 13, equatorPoints = 20, dotScale = 1.0f,
+        radiusScale = 0.88f, jitter = 0f, spinMs = 2400,
+    )
+    // Sparser and heavily scattered, against SEARCHING's dense order. The gap
+    // has to be this wide: at 32dp a lightly jittered grid is indistinguishable
+    // from a clean one, whatever a pixel diff says.
+    OrbState.SOLVING -> OrbStyle(
+        rings = 9, equatorPoints = 12, dotScale = 1.35f,
+        radiusScale = 0.88f, jitter = 0.95f, spinMs = 4200,
+    )
+    // Sparse, chunky, slow — few large points doing deliberate work.
+    OrbState.WORKING -> OrbStyle(
+        rings = 7, equatorPoints = 9, dotScale = 1.7f,
+        radiusScale = 0.86f, jitter = 0.35f, spinMs = 5200,
+    )
+    // Weighted toward the equator, turning quickly: output streaming past.
+    OrbState.COMPOSING -> OrbStyle(
+        rings = 5, equatorPoints = 26, dotScale = 0.85f,
+        radiusScale = 0.88f, jitter = 0f, spinMs = 2000,
+    )
+    // Small and tight, held still-ish — attentive rather than busy.
+    OrbState.LISTENING -> OrbStyle(
+        rings = 10, equatorPoints = 14, dotScale = 0.9f,
+        radiusScale = 0.62f, jitter = 0f, spinMs = 6000,
+    )
+}
+
+/**
+ * A rotating sphere of points, shown while the assistant is busy.
  *
  * Points sit on latitude bands of a unit sphere, spin about the vertical axis,
  * and are projected orthographically. Depth drives both alpha and dot size, so
@@ -66,6 +126,7 @@ private const val TILT = 0.42f
 @Composable
 fun ThinkingOrb(
     modifier: Modifier = Modifier,
+    state: OrbState = OrbState.THINKING,
     diameter: Dp = 32.dp,
     color: Color = MaterialTheme.colorScheme.primary,
 ) {
@@ -76,15 +137,17 @@ fun ThinkingOrb(
         1f,
     )
     val reducedMotion = animatorScale == 0f
+    val style = styleFor(state)
 
     val transition = rememberInfiniteTransition(label = "thinking-orb")
 
-    // Linear, so the spin never visibly stalls at the loop seam.
+    // Linear, so the spin never visibly stalls at the loop seam. Keyed on the
+    // period so a phase change restarts the animation at the new rate.
     val spin by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(SPIN_PERIOD_MS, easing = LinearEasing),
+            animation = tween(style.spinMs, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
         label = "spin",
@@ -94,31 +157,48 @@ fun ThinkingOrb(
     val rotation = if (reducedMotion) 0.15f else spin
 
     Canvas(modifier = modifier.size(diameter)) {
-        drawOrb(rotation, color)
+        drawOrb(rotation, color, style)
     }
+}
+
+/**
+ * Deterministic scatter in -1..1 for a given lattice position.
+ *
+ * Has to be stable across frames: a per-frame random would make every point
+ * twitch independently and destroy the sense of a rigid rotating body.
+ */
+private fun scatter(ring: Int, index: Int, salt: Int): Float {
+    var h = ring * 73856093 xor index * 19349663 xor salt * 83492791
+    h = h xor (h shl 13)
+    h = h xor (h ushr 17)
+    h = h xor (h shl 5)
+    return (h and 0xFFFF) / 32768f - 1f
 }
 
 /** Visible for rendering tests, which rasterise fixed angles to PNG. */
 internal fun DrawScope.drawOrb(
     rotation: Float,
     color: Color,
+    style: OrbStyle = styleFor(OrbState.THINKING),
 ) {
-    val radius = size.minDimension / 2f * 0.88f
+    val radius = size.minDimension / 2f * style.radiusScale
     val mid = center
     val angle = rotation * TWO_PI
     val cosTilt = cos(TILT)
     val sinTilt = sin(TILT)
-    val dotBase = radius * 0.055f
+    val dotBase = radius * 0.055f * style.dotScale
 
-    for (ring in 0 until RINGS) {
+    for (ring in 0 until style.rings) {
         // Half-offset keeps points off the poles, where they would pile up.
-        val phi = PI.toFloat() * (ring + 0.5f) / RINGS
+        val phiJitter = style.jitter * scatter(ring, 0, 1) * 0.5f
+        val phi = PI.toFloat() * (ring + 0.5f + phiJitter) / style.rings
         val bandY = cos(phi)
         val bandRadius = sin(phi)
-        val count = max(1, (EQUATOR_POINTS * bandRadius).roundToInt())
+        val count = max(1, (style.equatorPoints * bandRadius).roundToInt())
 
         for (j in 0 until count) {
-            val theta = TWO_PI * j / count + angle
+            val thetaJitter = style.jitter * scatter(ring, j, 2) * (TWO_PI / count) * 0.5f
+            val theta = TWO_PI * j / count + angle + thetaJitter
             val x = bandRadius * cos(theta)
             val z = bandRadius * sin(theta)
 
