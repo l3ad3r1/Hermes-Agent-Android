@@ -1,5 +1,33 @@
 # Hermes Agent — Progress
 
+## Back-port from Jeeves (v0.8.9 → v0.14.0 sources) — 2026-07-24
+- Ported the whole advancement made in the **Jeeves** fork (`l3ad3r1/Jeeves`, v0.14.0)
+  back onto standalone Hermes, **without** bringing over the Octo Jotter or Sassy
+  Butler feature code. Jeeves was Hermes five minor versions ahead on the same
+  `com.hermes.agent` namespace, so this was a one-directional sync (127 new files,
+  134 updated, 0 Hermes-only). Done on branch `backport/jeeves-v0.14`, phased:
+  - **Deleted** the completed `docs/SUPER_APP_ROADMAP.md` (that merge shipped as Jeeves).
+  - **Toolchain** upgraded Gradle 8.13→9.6.1, AGP 8.13.2→9.1.1 (drop `kotlin-android`),
+    Kotlin 2.0.21→2.2.10, KSP→2.3.5, Hilt→2.60.1, Room→2.7.0, compile/target SDK 34→36.
+  - **Synced** the Jeeves `app/src`: on-device llama.cpp inference (pinned submodule +
+    `com.arm.aichat` JNI bridge, model picker, SAF loading), FailoverLlmProvider
+    (cloud→local), hardened agent execution (AgentLoopRunner, RepeatedExecutionGuard,
+    ToolExecutionPolicy, persisted ExecutionPlan), the activity ledger, and the
+    proactive engine (annoyance budget, daily digest, commitment nudges, notification
+    capture). The two Jeeves `:core` modules were folded back into `:app`.
+  - **Excised** Jotter/Butler: removed `data/jotter`, `data/butler`, their DI modules,
+    the FeatureBridge, the note/alarm tools + NoteIndexer + HabitExtractor + alarm
+    settings, and rewired the survivors (TtsTool → platform TTS only; DailyDigestWorker
+    → todos+notifications; backup schema v5→v6 drops notes/alarms). Restored the Hermes
+    identity — package, app name, launcher icon, service names, OTA channel.
+- **Verified**: `:app:compileDebugKotlin`, `:app:assembleDebug` (87 MB APK, arm64-v8a
+  ggml/llama native libs bundled), and `:app:testDebugUnitTest` (317 tests, 52 suites,
+  0 failures, 0 skipped) all green. The old pre-existing test debt is gone — the Jeeves
+  sources had already fixed RagPipelineImplTest/ChatViewModelTest/etc. Not device-verified;
+  not yet released.
+
+---
+
 ## RELEASED: v0.8.9 (2026-07-09)
 - GitHub release **v0.8.9** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.8.9 (versionCode 59). Signer verified. **Closes out ALL findings in docs/CODE-AUDIT-2026-07-08.md.**
 - **Audit L1–L5**: LIKE wildcard escaping (`util/SqlLike` + ESCAPE in MessageDao/MemoryDao); flagged skills accrue no usage signal; blind weekly rewrite gated by SkillConstraints; backup card discloses API keys in gist; update notification deep-links to Settings via `OtaUpdateWorker.EXTRA_OPEN_UPDATES` → `HermesNavGraph(startAtSettings)`.
