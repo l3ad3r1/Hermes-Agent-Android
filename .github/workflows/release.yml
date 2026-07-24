@@ -1,0 +1,96 @@
+name: Release
+
+# Builds and signs the release APK, verifies the signer, and attaches it to
+# the GitHub Release for the pushed tag. Triggered ONLY by a tag push (v*);
+# the tag initiator explicitly authorizes this mechanical release build.
+#
+# Required repo secrets (set these in GitHub Settings -> Secrets and variables
+# -> Actions; nothing here or in any agent session ever sees the values):
+#   RELEASE_KEYSTORE_BASE64   base64 of hermes-release.jks (`base64 -w0 hermes-release.jks`)
+#   RELEASE_KEYSTORE_PASSWORD
+#   RELEASE_KEY_ALIAS
+#   RELEASE_KEY_PASSWORD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # needed to create the release / upload the asset
+
+jobs:
+  build-sign-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # If the four signing secrets aren't configured yet, skip the job
+      # gracefully instead of failing red: the release APK can also be built
+      # and signed locally and attached by hand. A missing-secret skip is
+      # expected setup state, not a broken build.
+      - name: Check signing secrets
+        id: secrets
+        run: |
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Signing secrets not configured; skipping CI-signed build. Attach a locally signed APK to the release instead."
+          fi
+
+      - if: steps.secrets.outputs.available == 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - if: steps.secrets.outputs.available == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - if: steps.secrets.outputs.available == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Write signing config (from secrets, runner-local only)
+        if: steps.secrets.outputs.available == 'true'
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+          cat > hermes.local.properties <<EOF
+          hermes.signing.storeFile=$RUNNER_TEMP/release.jks
+          hermes.signing.storePassword=${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          hermes.signing.keyAlias=${{ secrets.RELEASE_KEY_ALIAS }}
+          hermes.signing.keyPassword=${{ secrets.RELEASE_KEY_PASSWORD }}
+          EOF
+
+      - name: Build signed release APK
+        if: steps.secrets.outputs.available == 'true'
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      # Verify the signer before anything ships. Hard-fails the job rather than
+      # publishing an APK signed with the wrong (or no) key.
+      - name: Verify signer
+        if: steps.secrets.outputs.available == 'true'
+        run: |
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          echo "Checking: $APK"
+          FINGERPRINT=$("$ANDROID_HOME/build-tools"/*/apksigner verify --print-certs "$APK" \
+            | grep -i 'signer #1 certificate SHA-256' | awk '{print $NF}')
+          echo "Signer SHA-256: $FINGERPRINT"
+          if [ "$FINGERPRINT" != "99255c31ffba1932e4ab2abc12d99b82bf780874b8c686076497157996cf6d6f" ]; then
+            echo "::error::Signer mismatch - expected 99255c31..., got $FINGERPRINT"
+            exit 1
+          fi
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+
+      - name: Attach APK to the GitHub Release
+        if: steps.secrets.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK_PATH" --clobber
+          else
+            gh release create "$TAG" "$APK_PATH" --title "Hermes $TAG" --generate-notes
+          fi

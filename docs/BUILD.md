@@ -4,14 +4,22 @@
 
 | Tool                     | Version              | Notes                                              |
 |--------------------------|----------------------|----------------------------------------------------|
-| JDK                      | 17                   | Required by AGP 8.x. Use `java -version` to check. |
-| Android SDK              | Platform 34 + build-tools 34.0.0 | Android Studio Hedgehog (or newer) bundles both. |
-| Android Studio (optional)| Hedgehog 2023.1+     | Recommended IDE; also works pure CLI.              |
-| Gradle                   | 8.9 (auto via wrapper) | Don't use a system Gradle; the wrapper pins the version. |
-| Kotlin                   | 2.0.21               | Bundled via the Kotlin Gradle plugin.              |
+| JDK                      | 21                   | Required by AGP 9. Android Studio's bundled JBR 21 works; `java -version` to check. |
+| Android SDK              | Platform 36 + build-tools 36.0.0 | Android Studio bundles both. |
+| Android NDK + CMake      | via SDK Manager      | Needed to build the llama.cpp native runtime (see below). |
+| Android Studio (optional)| Ladybug 2024.2+      | Recommended IDE; also works pure CLI.              |
+| Gradle                   | 9.6.1 (auto via wrapper) | Don't use a system Gradle; the wrapper pins the version. |
+| Kotlin                   | 2.2.10               | Bundled via AGP 9's built-in Kotlin support.       |
 
-Minimum runtime device: **Android 10 (API 29)**. The app installs and runs on
-any Android 10+ device for development.
+Minimum runtime device: **Android 10 (API 29)**, **arm64-v8a**. The APK bundles
+the 64-bit ARM on-device inference runtime.
+
+> **Clone with submodules.** On-device inference is built from
+> `app/src/main/cpp/llama.cpp`, a git **submodule**. A plain `git clone` leaves
+> that directory empty and the native build fails at CMake `add_subdirectory`.
+> Clone with `git clone --recurse-submodules <url>`, or in an existing checkout
+> run `git submodule update --init` once before your first build. CI does this
+> automatically (`submodules: recursive`).
 
 ---
 
@@ -168,27 +176,22 @@ stub is left there for this purpose). Then:
 
 ---
 
-## 7. CI sketch (optional)
+## 7. CI & release
 
-A minimal GitHub Actions workflow for this project:
+Two GitHub Actions workflows ship with the repo:
 
-```yaml
-# .github/workflows/ci.yml
-name: CI
-on: [push, pull_request]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: android-actions/setup-android@v3
-      - run: ./gradlew assembleDebug test
-```
+- **`.github/workflows/ci.yml`** — on every push/PR to `main`, checks out the
+  submodule (`submodules: recursive`), builds `:app:assembleDebug` (native libs
+  included), and runs the Robolectric unit suite.
+- **`.github/workflows/release.yml`** — on a `v*` tag push, builds
+  `:app:assembleRelease`, verifies the signer SHA-256 is `99255c31…` (hard-fails
+  otherwise), and attaches the signed APK to the tag's GitHub Release.
 
-Add `hermes.cloudApiKey` as a repository secret and inject it via
-`-Phermes.cloudApiKey=$CLOUD_KEY` if you want CI to build a fully-wired
-debug APK.
+The release workflow needs four repo secrets (Settings → Secrets and variables →
+Actions): `RELEASE_KEYSTORE_BASE64` (`base64 -w0 hermes-release.jks`),
+`RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. Until
+they're set, the release job skips gracefully and you attach a locally-signed APK
+by hand.
+
+Both checkouts use `submodules: recursive`, so the llama.cpp native build works
+from a bare CI checkout with no manual step.
