@@ -133,17 +133,14 @@ See `docs/ARCHITECTURE.md` § 7 for the diagram of the swap.
 
 ## 5. Release builds
 
-Release builds need a signing key. Generate one (one-time):
+Every published release ships a signed APK whose signer SHA-256 begins
+**`99255c31`**. The keystore (`hermes-release.jks`) and its credentials must
+never be moved or regenerated — a different signer cannot install as an update
+over existing devices. Both the local build and CI verify this fingerprint.
 
-```bash
-keytool -genkeypair -v \
-  -keystore hermes-release.jks \
-  -alias hermes-release \
-  -keyalg RSA -keysize 4096 \
-  -validity 10000
-```
+### 5a. Local signed build
 
-Then add to `hermes.local.properties`:
+Signing reads from `hermes.local.properties` (gitignored) at the repo root:
 
 ```properties
 hermes.signing.storeFile=/absolute/path/to/hermes-release.jks
@@ -152,13 +149,48 @@ hermes.signing.keyAlias=hermes-release
 hermes.signing.keyPassword=...
 ```
 
-And uncomment the `signingConfigs` block in `app/build.gradle.kts` (a
-stub is left there for this purpose). Then:
+`app/build.gradle.kts` applies the signing config automatically when
+`hermes.signing.storeFile` is set — no edit to the build file is needed. If it's
+absent, the release APK builds unsigned (fine for CI compile-checks, not for
+distribution). Then:
 
 ```bash
 ./gradlew assembleRelease
 # Output: app/build/outputs/apk/release/app-release.apk
 ```
+
+Verify the signer before distributing (must start `99255c31`):
+
+```bash
+"$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs \
+  app/build/outputs/apk/release/app-release.apk | grep -i 'SHA-256'
+```
+
+### 5b. CI-signed releases — required GitHub secrets
+
+`.github/workflows/release.yml` builds, signs, verifies, and attaches the APK on
+any `v*` tag push. It needs **four repository secrets**, set under
+**GitHub → Settings → Secrets and variables → Actions → New repository secret**.
+No agent session or workflow log ever prints their values; the keystore is
+reconstructed only on the runner and discarded with it.
+
+| Secret name                 | Value — how to produce it                                                      |
+|-----------------------------|--------------------------------------------------------------------------------|
+| `RELEASE_KEYSTORE_BASE64`   | base64 of the keystore file: `base64 -w0 hermes-release.jks` (macOS: `base64 -i hermes-release.jks`). Paste the whole one-line string. |
+| `RELEASE_KEYSTORE_PASSWORD` | the keystore's store password (same as `hermes.signing.storePassword`).        |
+| `RELEASE_KEY_ALIAS`         | the key alias — `hermes-release`.                                              |
+| `RELEASE_KEY_PASSWORD`      | the key password (same as `hermes.signing.keyPassword`).                        |
+
+Until all four are set, the release job **skips gracefully** (a warning, not a
+red build) — build and sign locally per §5a and attach the APK by hand. Once
+they're set, tagging a release runs the full pipeline:
+
+```bash
+git tag v0.9.1 && git push origin v0.9.1
+```
+
+The workflow hard-fails if the produced APK's signer isn't `99255c31…`, so a
+wrong or missing key can never publish.
 
 ---
 
@@ -167,7 +199,8 @@ stub is left there for this purpose). Then:
 | Symptom                                                       | Likely cause                                                       | Fix                                                                            |
 |---------------------------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------------------|
 | `SDK location not found`                                      | `local.properties` missing or `sdk.dir` wrong                      | Create `local.properties` with `sdk.dir=/path/to/Android/Sdk`                |
-| `Failed to transform kotlin-stdlib`                           | JDK 8 or 11 in use                                                 | Set `org.gradle.java.home` in `gradle.properties` to a JDK 17 path           |
+| `Failed to transform kotlin-stdlib`                           | JDK 8/11/17 in use (AGP 9 needs 21)                                | Set `org.gradle.java.home` in `gradle.properties` to a JDK 21 path           |
+| `./gradlew: Permission denied` (exit 126) on Linux/CI         | `gradlew` lost its executable bit                                  | `git update-index --chmod=+x gradlew` then commit                            |
 | Hilt generates `unresolved reference: HiltAndroidApp`         | KSP not picking up Hilt                                            | Verify `ksp(libs.hilt.compiler)` is present in `app/build.gradle.kts`        |
 | Cloud calls fail with `401 Unauthorized`                      | API key missing or wrong                                           | Check `Settings → Cloud LLM → API key` or `hermes.local.properties`          |
 | Cloud calls fail with `Connection refused` on emulator        | Emulator can't reach your host                                     | Use `10.0.2.2` instead of `localhost` in the base URL                        |
@@ -185,13 +218,9 @@ Two GitHub Actions workflows ship with the repo:
   included), and runs the Robolectric unit suite.
 - **`.github/workflows/release.yml`** — on a `v*` tag push, builds
   `:app:assembleRelease`, verifies the signer SHA-256 is `99255c31…` (hard-fails
-  otherwise), and attaches the signed APK to the tag's GitHub Release.
-
-The release workflow needs four repo secrets (Settings → Secrets and variables →
-Actions): `RELEASE_KEYSTORE_BASE64` (`base64 -w0 hermes-release.jks`),
-`RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. Until
-they're set, the release job skips gracefully and you attach a locally-signed APK
-by hand.
+  otherwise), and attaches the signed APK to the tag's GitHub Release. It needs
+  the four `RELEASE_*` repository secrets documented in **§5b** above; until those
+  are set it skips gracefully so you attach a locally-signed APK by hand.
 
 Both checkouts use `submodules: recursive`, so the llama.cpp native build works
 from a bare CI checkout with no manual step.
