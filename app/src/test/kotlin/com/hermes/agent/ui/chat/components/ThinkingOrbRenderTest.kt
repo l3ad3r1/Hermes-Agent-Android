@@ -132,7 +132,7 @@ class ThinkingOrbRenderTest {
 
         // The puzzle twist stepped through one event, so the layer turn can be
         // eyeballed rather than only asserted on.
-        listOf(0.00f, 0.04f, 0.08f, 0.12f, 0.16f, 0.20f).forEach { t ->
+        listOf(0.00f, 0.04f, 0.08f, 0.12f, 0.20f, 0.22f, 0.25f, 0.28f).forEach { t ->
             write(
                 "twist-%03d".format((t * 1000).toInt()),
                 render(0.2f, surface, primary, OrbState.SEARCHING, twist = t),
@@ -190,6 +190,57 @@ class ThinkingOrbRenderTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun twistsTurnAboutBothAxes() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // Event 0 turns a horizontal band, event 1 a vertical slice. Rendered
+        // at the same body rotation so the only difference is the layer moving.
+        val rest = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0f)
+        val band = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0.05f)
+        val slice = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0.22f)
+
+        fun movedRows(a: Bitmap, b: Bitmap): Set<Int> {
+            val rows = mutableSetOf<Int>()
+            for (y in 0 until a.height step 2) {
+                for (x in 0 until a.width step 2) {
+                    if (a.getPixel(x, y) != b.getPixel(x, y)) { rows += y / 8; break }
+                }
+            }
+            return rows
+        }
+        fun movedCols(a: Bitmap, b: Bitmap): Set<Int> {
+            val cols = mutableSetOf<Int>()
+            for (x in 0 until a.width step 2) {
+                for (y in 0 until a.height step 2) {
+                    if (a.getPixel(x, y) != b.getPixel(x, y)) { cols += x / 8; break }
+                }
+            }
+            return cols
+        }
+
+        val bandRows = movedRows(rest, band)
+        val sliceRows = movedRows(rest, slice)
+        val bandCols = movedCols(rest, band)
+        val sliceCols = movedCols(rest, slice)
+
+        assertTrue("the band twist moved nothing", bandRows.isNotEmpty())
+        assertTrue("the slice twist moved nothing", sliceRows.isNotEmpty())
+
+        // A band is a horizontal ring: it spans the sphere's width but only a
+        // little of its height. A vertical slice is the opposite. If both twists
+        // ever collapsed onto the same axis, these would look alike.
+        assertTrue(
+            "band twist should be wide and shallow, got ${bandCols.size} cols x ${bandRows.size} rows",
+            bandCols.size > bandRows.size,
+        )
+        assertTrue(
+            "slice twist should be tall and narrow, got ${sliceCols.size} cols x ${sliceRows.size} rows",
+            sliceRows.size > sliceCols.size,
+        )
     }
 
     @Test

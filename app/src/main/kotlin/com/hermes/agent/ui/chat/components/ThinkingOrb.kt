@@ -65,8 +65,9 @@ internal data class OrbStyle(
     /**
      * Milliseconds for one full round of layer twists, or 0 for none.
      *
-     * Non-zero turns the sphere into a puzzle: one latitude band at a time
-     * spins on its own axis while the rest of the body holds still.
+     * Non-zero turns the sphere into a puzzle: one layer at a time turns while
+     * the rest of the body holds still, alternating between horizontal bands
+     * and vertical slices.
      */
     val twistMs: Int = 0,
     /**
@@ -81,18 +82,48 @@ internal data class OrbStyle(
 )
 
 /** Layer twists per [OrbStyle.twistMs] cycle. */
-private const val TWIST_EVENTS = 5
+private const val TWIST_EVENTS = 6
+
+/** A horizontal band — a ring of constant latitude, turning about the poles. */
+private const val AXIS_BAND = 0
+
+/** A vertical slice — a slab of constant x, turning end over end. */
+private const val AXIS_SLICE = 1
 
 /**
- * Which band each twist grabs, as an offset into the ring count.
+ * Which axis each twist turns about.
  *
- * Deliberately not adjacent and not in order — consecutive bands would read as
- * a wave travelling down the sphere rather than someone working a puzzle.
+ * Alternating matters: turning only bands moves every cell along the same
+ * horizontal path, and the sphere reads as a body being stirred rather than a
+ * puzzle being worked. Vertical slices give the motion its second direction.
  */
-private val TWIST_ORDER = intArrayOf(4, 1, 7, 2, 5)
+private val TWIST_AXES = intArrayOf(AXIS_BAND, AXIS_SLICE, AXIS_BAND, AXIS_SLICE, AXIS_BAND, AXIS_SLICE)
+
+/**
+ * Which layer each twist grabs, as an offset into the layer count.
+ *
+ * Deliberately not adjacent and not in order — consecutive layers would read as
+ * a wave travelling across the sphere rather than someone working a puzzle.
+ *
+ * Slices stay near the middle of their range. A slice is a slab of constant x,
+ * so an outer one cuts the sphere near its edge, where the cross-section is a
+ * small circle of a few dim cells and the turn is invisible; a central one cuts
+ * a great circle straight through the face.
+ */
+private val TWIST_ORDER = intArrayOf(4, 4, 6, 3, 2, 5)
 
 /** Proportion of a twist spent turning; the remainder is the pause after it. */
 private const val TWIST_DUTY = 0.6f
+
+/**
+ * Slice thickness, in layers.
+ *
+ * Wider than a band is deep, because the two are not symmetric: a band already
+ * owns a whole ring of cells, while a one-layer slab catches only the handful
+ * that happen to sit near that plane — and half of those are on the far side,
+ * drawn dim. Below about 1.5 the slice turn is too sparse to read.
+ */
+private const val SLICE_LAYERS = 1.6f
 
 internal fun styleFor(state: OrbState): OrbStyle = when (state) {
     // Dense bands with few rings: the points crowd into visible lines, which
@@ -224,23 +255,29 @@ private fun scatter(ring: Int, index: Int, salt: Int): Float {
 }
 
 /**
- * Extra spin applied to one latitude band, for the puzzle styles.
+ * The twist in progress: which axis, which layer, and how far through the turn.
  *
  * A twist is a **whole** turn, not a quarter. A quarter turn would have to be
  * remembered between frames and accumulated, and whatever it accumulated would
- * snap back to nothing when the cycle wrapped. A full turn leaves the band
+ * snap back to nothing when the cycle wrapped. A full turn leaves the layer
  * exactly where it started, so the effect needs no state and the seam at the
  * end of the cycle is invisible.
  */
-private fun bandTwist(ring: Int, style: OrbStyle, twist: Float): Float {
-    if (style.twistMs <= 0) return 0f
+private class Twist(val axis: Int, val layer: Int, val angle: Float)
+
+private fun twistAt(style: OrbStyle, twist: Float): Twist? {
+    if (style.twistMs <= 0) return null
     val t = twist * TWIST_EVENTS
     val event = t.toInt().coerceIn(0, TWIST_EVENTS - 1)
-    if (TWIST_ORDER[event] % style.rings != ring) return 0f
     val local = (t - event) / TWIST_DUTY
-    if (local >= 1f) return 0f          // holding, back at the start
+    if (local >= 1f) return null        // holding, back where it started
     val p = local.coerceAtLeast(0f)
-    return (p * p * (3f - 2f * p)) * TWO_PI   // ease in and out of the turn
+    val eased = p * p * (3f - 2f * p)   // ease in and out of the turn
+    return Twist(
+        axis = TWIST_AXES[event],
+        layer = TWIST_ORDER[event] % style.rings,
+        angle = eased * TWO_PI,
+    )
 }
 
 /** Visible for rendering tests, which rasterise fixed angles to PNG. */
@@ -253,9 +290,14 @@ internal fun DrawScope.drawOrb(
     val radius = size.minDimension / 2f * style.radiusScale
     val mid = center
     val angle = rotation * TWO_PI
+    val cosSpin = cos(angle)
+    val sinSpin = sin(angle)
     val cosTilt = cos(TILT)
     val sinTilt = sin(TILT)
     val dotBase = radius * 0.055f * style.dotScale
+    val active = twistAt(style, twist)
+    val cosTwist = active?.let { cos(it.angle) } ?: 1f
+    val sinTwist = active?.let { sin(it.angle) } ?: 0f
 
     for (ring in 0 until style.rings) {
         // Half-offset keeps points off the poles, where they would pile up.
@@ -264,18 +306,51 @@ internal fun DrawScope.drawOrb(
         val bandY = cos(phi)
         val bandRadius = sin(phi)
         val count = max(1, (style.equatorPoints * bandRadius).roundToInt())
-        val twistAngle = bandTwist(ring, style, twist)
 
         for (j in 0 until count) {
+            // Body frame first, before the sphere's own rotation. Layers have to
+            // be picked here: the body spin moves points continuously, so a
+            // layer chosen in view coordinates would gain and shed cells
+            // part-way through its turn and tear itself apart.
             val thetaJitter = style.jitter * scatter(ring, j, 2) * (TWO_PI / count) * 0.5f
-            val theta = TWO_PI * j / count + angle + twistAngle + thetaJitter
-            val x = bandRadius * cos(theta)
-            val z = bandRadius * sin(theta)
+            val theta0 = TWO_PI * j / count + thetaJitter
+            var bx = bandRadius * cos(theta0)
+            var by = bandY
+            var bz = bandRadius * sin(theta0)
+
+            if (active != null) {
+                val inLayer = when (active.axis) {
+                    // A ring of constant latitude.
+                    AXIS_BAND -> ring == active.layer
+                    // A slab of constant x, centred on the chosen layer.
+                    else -> {
+                        val step = 2f / style.rings
+                        val mid = -1f + (active.layer + 0.5f) * step
+                        val half = step * SLICE_LAYERS / 2f
+                        bx >= mid - half && bx < mid + half
+                    }
+                }
+                if (inLayer) {
+                    if (active.axis == AXIS_BAND) {
+                        val nx = bx * cosTwist - bz * sinTwist
+                        bz = bx * sinTwist + bz * cosTwist
+                        bx = nx
+                    } else {
+                        val ny = by * cosTwist - bz * sinTwist
+                        bz = by * sinTwist + bz * cosTwist
+                        by = ny
+                    }
+                }
+            }
+
+            // The body's own rotation, about the vertical axis.
+            val x = bx * cosSpin - bz * sinSpin
+            val sz = bx * sinSpin + bz * cosSpin
 
             // Tilt about the X axis, then drop the depth term for an
             // orthographic projection.
-            val y = bandY * cosTilt - z * sinTilt
-            val depth = (bandY * sinTilt + z * cosTilt + 1f) / 2f
+            val y = by * cosTilt - sz * sinTilt
+            val depth = (by * sinTilt + sz * cosTilt + 1f) / 2f
 
             // Linear, and never faint at the rim. A sharper (e.g. squared)
             // falloff dims the silhouette points, and without a visible
