@@ -2,6 +2,8 @@ package com.hermes.agent.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hermes.agent.data.local.HermesDatabase
 import com.hermes.agent.data.local.dao.ActivityLedgerDao
 import com.hermes.agent.data.local.dao.AgentTaskDao
@@ -44,7 +46,16 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_7_8,
                 HermesDatabase.MIGRATION_8_9,
                 HermesDatabase.MIGRATION_9_10,
+                HermesDatabase.MIGRATION_10_11,
             )
+            // conversation_fts is not a Room entity, so a fresh install creates
+            // its schema from the entity list and runs no migrations at all —
+            // without this the search index would only ever exist on upgrades.
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    HermesDatabase.createSearchIndex(db)
+                }
+            })
             .build()
     }
 

@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.hermes.agent.R
 
@@ -50,6 +52,7 @@ fun ChatInputBar(
 ) {
     var text by remember(prefillText) { mutableStateOf(prefillText) }
     var quickActionsOpen by remember { mutableStateOf(false) }
+    val listeningDescription = stringResource(R.string.a11y_listening)
 
     fun submit() {
         val message = text.trim()
@@ -132,13 +135,25 @@ fun ChatInputBar(
                 onClick = onMicToggle,
                 modifier = Modifier.size(44.dp),
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Mic,
-                    contentDescription = stringResource(R.string.a11y_voice_input),
-                    tint = if (isListening) {
-                        MaterialTheme.colorScheme.error
-                    } else MaterialTheme.colorScheme.onSurface,
-                )
+                // While the mic is hot the icon becomes the orb, so voice
+                // capture reads as the same "Hermes is busy" language as the
+                // chat bubble. The button keeps its action and description, so
+                // tapping still stops listening.
+                if (isListening) {
+                    ThinkingOrb(
+                        state = OrbState.LISTENING,
+                        diameter = 26.dp,
+                        modifier = Modifier.semantics {
+                            contentDescription = listeningDescription
+                        },
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Mic,
+                        contentDescription = stringResource(R.string.a11y_voice_input),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
 
             val actionColor = if (isSending) {

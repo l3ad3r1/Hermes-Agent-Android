@@ -22,9 +22,6 @@ hilt = "2.60.1"
 # Room — stable 2.7.0 (was 2.7.0-alpha11)
 room = "2.7.0"
 
-# SQLite with FTS5
-sqliteAndroid = "3.45.0"
-
 # Networking
 retrofit = "2.12.0"
 okhttp = "4.12.0"
@@ -48,7 +45,6 @@ mockk = "1.13.13"
 turbine = "1.1.0"
 coroutinesTest = "1.10.2"
 robolectric = "4.13"
-mediapipe-tasks-genai = "0.10.14"
 archCoreTesting = "2.2.0"
 
 [libraries]
@@ -85,9 +81,6 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
-# SQLite with FTS5 (ReQuery)
-sqlite-android = { group = "io.github.requery", name = "sqlite-android", version.ref = "sqliteAndroid" }
-
 # Networking
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-kotlinx-serialization = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofitKotlinxSerialization" }
@@ -104,9 +97,6 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # Logging
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
-
-# MediaPipe / On-device ML
-mediapipe-tasks-genai = { group = "com.google.mediapipe", name = "tasks-genai", version.ref = "mediapipe-tasks-genai" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
