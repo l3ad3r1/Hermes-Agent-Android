@@ -41,6 +41,7 @@ class ThinkingOrbRenderTest {
         state: OrbState = OrbState.THINKING,
         px: Int = 176,
         density: Float = 1f,
+        twist: Float = 0f,
     ): Bitmap {
         val image = ImageBitmap(px, px)
         CanvasDrawScope().draw(
@@ -52,7 +53,7 @@ class ThinkingOrbRenderTest {
             // Stand in for the chat bubble's surfaceVariant, so the orb is
             // judged against the surface it actually sits on.
             drawRect(background)
-            drawOrb(rotation = rotation, color = color, style = styleFor(state))
+            drawOrb(rotation = rotation, color = color, style = styleFor(state), twist = twist)
         }
         return image.asAndroidBitmap()
     }
@@ -128,6 +129,15 @@ class ThinkingOrbRenderTest {
                 render(0.125f, surface, primary, state),
             )
         }
+
+        // The puzzle twist stepped through one event, so the layer turn can be
+        // eyeballed rather than only asserted on.
+        listOf(0.00f, 0.04f, 0.08f, 0.12f, 0.16f, 0.20f).forEach { t ->
+            write(
+                "twist-%03d".format((t * 1000).toInt()),
+                render(0.2f, surface, primary, OrbState.SEARCHING, twist = t),
+            )
+        }
     }
 
     @Test
@@ -158,6 +168,55 @@ class ThinkingOrbRenderTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun puzzleTwistLoopsWithoutAVisibleSeam() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // Each twist is a whole turn of one band, so the band ends exactly where
+        // it began. That is what lets the cycle wrap without carrying any state.
+        // If a twist were ever changed to a partial turn, the end of the cycle
+        // would snap back to the start, and this catches that.
+        val start = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0f)
+        val end = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 1f)
+        for (x in 0 until start.width step 2) {
+            for (y in 0 until start.height step 2) {
+                assertEquals(
+                    "twist cycle does not return to its starting pose at ($x, $y)",
+                    start.getPixel(x, y),
+                    end.getPixel(x, y),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun aTwistMovesOneBandAndLeavesTheRestAlone() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // Sampled early in the first twist, while that band is mid-turn.
+        val still = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0f)
+        val turning = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0.05f)
+
+        var differing = 0
+        for (x in 0 until still.width step 2) {
+            for (y in 0 until still.height step 2) {
+                if (still.getPixel(x, y) != turning.getPixel(x, y)) differing++
+            }
+        }
+        assertTrue("no band appears to twist at all ($differing px)", differing > 40)
+
+        // Only one band of nine may move. Were the twist ever applied to the
+        // whole body, far more of the frame would change than this allows.
+        val sampled = (still.width / 2) * (still.height / 2)
+        assertTrue(
+            "twist disturbed too much of the sphere to be one band " +
+                "($differing of $sampled sampled px)",
+            differing < sampled / 6,
+        )
     }
 
     @Test

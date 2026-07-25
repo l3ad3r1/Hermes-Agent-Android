@@ -62,7 +62,37 @@ internal data class OrbStyle(
     val jitter: Float,
     /** Milliseconds per revolution. */
     val spinMs: Int,
+    /**
+     * Milliseconds for one full round of layer twists, or 0 for none.
+     *
+     * Non-zero turns the sphere into a puzzle: one latitude band at a time
+     * spins on its own axis while the rest of the body holds still.
+     */
+    val twistMs: Int = 0,
+    /**
+     * Per-cell brightness variation, 0 for a uniform lattice.
+     *
+     * Required for [twistMs] to be worth anything. A band of identical, evenly
+     * spaced dots is rotationally symmetric — turn it and it looks untouched.
+     * Giving each cell a fixed tone is what a Rubik's cube's stickers do: it
+     * makes the rotation legible.
+     */
+    val cellTone: Float = 0f,
 )
+
+/** Layer twists per [OrbStyle.twistMs] cycle. */
+private const val TWIST_EVENTS = 5
+
+/**
+ * Which band each twist grabs, as an offset into the ring count.
+ *
+ * Deliberately not adjacent and not in order — consecutive bands would read as
+ * a wave travelling down the sphere rather than someone working a puzzle.
+ */
+private val TWIST_ORDER = intArrayOf(4, 1, 7, 2, 5)
+
+/** Proportion of a twist spent turning; the remainder is the pause after it. */
+private const val TWIST_DUTY = 0.6f
 
 internal fun styleFor(state: OrbState): OrbStyle = when (state) {
     // Dense bands with few rings: the points crowd into visible lines, which
@@ -71,10 +101,14 @@ internal fun styleFor(state: OrbState): OrbStyle = when (state) {
         rings = 7, equatorPoints = 34, dotScale = 0.70f,
         radiusScale = 0.88f, jitter = 0f, spinMs = 3600,
     )
-    // The plain globe, spinning briskly — scanning.
+    // A spherical Rubik's cube being worked: a coarse grid of cells, turning
+    // slowly as a body while one band at a time twists on its own axis. The
+    // ring and cell counts are kept low so the cells stay legible at 32dp —
+    // a fine lattice just reads as noise once a layer starts moving.
     OrbState.SEARCHING -> OrbStyle(
-        rings = 13, equatorPoints = 20, dotScale = 1.0f,
-        radiusScale = 0.88f, jitter = 0f, spinMs = 2400,
+        rings = 9, equatorPoints = 16, dotScale = 1.25f,
+        radiusScale = 0.88f, jitter = 0f, spinMs = 7000,
+        twistMs = 6000, cellTone = 0.62f,
     )
     // Sparser and heavily scattered, against SEARCHING's dense order. The gap
     // has to be this wide: at 32dp a lightly jittered grid is indistinguishable
@@ -153,11 +187,25 @@ fun ThinkingOrb(
         label = "spin",
     )
 
+    // Its own clock, deliberately not a divisor of spinMs, so the twists do not
+    // land on the same point of the body's rotation every cycle.
+    val twistCycle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(style.twistMs.coerceAtLeast(1), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "twist",
+    )
+
     // An off-axis angle still reads as a sphere; 0 would line the bands up.
     val rotation = if (reducedMotion) 0.15f else spin
+    // Mid-turn, so a still frame shows the puzzle caught in the act.
+    val twist = if (reducedMotion) 0.06f else twistCycle
 
     Canvas(modifier = modifier.size(diameter)) {
-        drawOrb(rotation, color, style)
+        drawOrb(rotation, color, style, twist)
     }
 }
 
@@ -175,11 +223,32 @@ private fun scatter(ring: Int, index: Int, salt: Int): Float {
     return (h and 0xFFFF) / 32768f - 1f
 }
 
+/**
+ * Extra spin applied to one latitude band, for the puzzle styles.
+ *
+ * A twist is a **whole** turn, not a quarter. A quarter turn would have to be
+ * remembered between frames and accumulated, and whatever it accumulated would
+ * snap back to nothing when the cycle wrapped. A full turn leaves the band
+ * exactly where it started, so the effect needs no state and the seam at the
+ * end of the cycle is invisible.
+ */
+private fun bandTwist(ring: Int, style: OrbStyle, twist: Float): Float {
+    if (style.twistMs <= 0) return 0f
+    val t = twist * TWIST_EVENTS
+    val event = t.toInt().coerceIn(0, TWIST_EVENTS - 1)
+    if (TWIST_ORDER[event] % style.rings != ring) return 0f
+    val local = (t - event) / TWIST_DUTY
+    if (local >= 1f) return 0f          // holding, back at the start
+    val p = local.coerceAtLeast(0f)
+    return (p * p * (3f - 2f * p)) * TWO_PI   // ease in and out of the turn
+}
+
 /** Visible for rendering tests, which rasterise fixed angles to PNG. */
 internal fun DrawScope.drawOrb(
     rotation: Float,
     color: Color,
     style: OrbStyle = styleFor(OrbState.THINKING),
+    twist: Float = 0f,
 ) {
     val radius = size.minDimension / 2f * style.radiusScale
     val mid = center
@@ -195,10 +264,11 @@ internal fun DrawScope.drawOrb(
         val bandY = cos(phi)
         val bandRadius = sin(phi)
         val count = max(1, (style.equatorPoints * bandRadius).roundToInt())
+        val twistAngle = bandTwist(ring, style, twist)
 
         for (j in 0 until count) {
             val thetaJitter = style.jitter * scatter(ring, j, 2) * (TWO_PI / count) * 0.5f
-            val theta = TWO_PI * j / count + angle + thetaJitter
+            val theta = TWO_PI * j / count + angle + twistAngle + thetaJitter
             val x = bandRadius * cos(theta)
             val z = bandRadius * sin(theta)
 
@@ -210,7 +280,18 @@ internal fun DrawScope.drawOrb(
             // Linear, and never faint at the rim. A sharper (e.g. squared)
             // falloff dims the silhouette points, and without a visible
             // outline the whole thing reads as a glowing disc, not a sphere.
-            val alpha = 0.30f + 0.70f * depth
+            val depthAlpha = 0.30f + 0.70f * depth
+
+            // Three discrete tones rather than a smooth ramp — stickers, not a
+            // gradient. Keyed on the cell's own index so the tone travels with
+            // the cell when its band twists.
+            val tone = if (style.cellTone > 0f) {
+                val level = (((scatter(ring, j, 7) + 1f) / 2f) * 3f).toInt().coerceIn(0, 2)
+                1f - style.cellTone * (level / 2f)
+            } else {
+                1f
+            }
+            val alpha = depthAlpha * tone
 
             drawCircle(
                 color = color.copy(alpha = alpha),
