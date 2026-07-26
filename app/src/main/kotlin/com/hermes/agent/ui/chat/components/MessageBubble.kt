@@ -98,7 +98,6 @@ fun MessageBubble(
 fun StreamingBubble(
     item: ChatListItem.StreamingItem,
     modifier: Modifier = Modifier,
-    orbState: OrbState = OrbState.THINKING,
 ) {
     Column(
         modifier = modifier
@@ -133,7 +132,7 @@ fun StreamingBubble(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             if (item.text.isBlank()) {
-                ThinkingOrb(state = orbState)
+                ThinkingOrb()
             } else {
                 Column {
                     SelectionContainer {
@@ -143,7 +142,7 @@ fun StreamingBubble(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
-                    ThinkingOrb(state = orbState, modifier = Modifier.padding(top = 6.dp))
+                    ThinkingOrb(modifier = Modifier.padding(top = 6.dp))
                 }
             }
         }

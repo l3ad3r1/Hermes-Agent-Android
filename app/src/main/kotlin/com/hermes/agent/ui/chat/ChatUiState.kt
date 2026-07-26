@@ -1,10 +1,8 @@
 package com.hermes.agent.ui.chat
 
-import com.hermes.agent.domain.agent.AgentPhase
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.domain.model.Message
-import com.hermes.agent.ui.chat.components.OrbState
 
 /**
  * Immutable UI state for [ChatScreen].
@@ -48,25 +46,7 @@ data class ChatUiState(
      *  When false, tool-call cards are withheld from [visibleItems] — the agent's
      *  tool use stays opaque and only the final reply is shown. */
     val showToolCalls: Boolean = true,
-    /** Stage of the in-flight orchestrator run, driving the thinking orb. */
-    val agentPhase: AgentPhase = AgentPhase.IDLE,
 ) {
-    /**
-     * Which orb to show in the streaming bubble.
-     *
-     * [AgentPhase.IDLE] still maps to a visible state: the bubble only exists
-     * while a reply is in flight, and a phase update can lag the first frame.
-     * Showing nothing there would flicker.
-     */
-    val orbState: OrbState
-        get() = when (agentPhase) {
-            AgentPhase.SOLVING -> OrbState.SOLVING
-            AgentPhase.SEARCHING -> OrbState.SEARCHING
-            AgentPhase.WORKING -> OrbState.WORKING
-            AgentPhase.COMPOSING -> OrbState.COMPOSING
-            AgentPhase.THINKING, AgentPhase.IDLE -> OrbState.THINKING
-        }
-
     /** Messages plus the in-flight streaming bubble, if any. */
     val visibleItems: List<ChatListItem>
         get() = buildList {

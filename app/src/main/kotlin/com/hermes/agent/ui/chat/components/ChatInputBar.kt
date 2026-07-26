@@ -141,7 +141,6 @@ fun ChatInputBar(
                 // tapping still stops listening.
                 if (isListening) {
                     ThinkingOrb(
-                        state = OrbState.LISTENING,
                         diameter = 26.dp,
                         modifier = Modifier.semantics {
                             contentDescription = listeningDescription

@@ -10,7 +10,6 @@ import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
 import com.hermes.agent.data.voice.VoiceOutputManager
 import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.domain.agent.AgentActivity
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.repository.ChatRepository
@@ -115,10 +114,6 @@ class ChatViewModel @Inject constructor(
             state.copy(todos = todos.map { TodoItem(it.id, it.content, it.status) })
         }.combine(settingsRepository.observe()) { state, settings ->
             state.copy(showToolCalls = settings.showToolCalls)
-        }.combine(AgentActivity.phase) { state, phase ->
-            // Process-wide, so the orb also reflects work kicked off outside
-            // this screen (kanban, delegate) that is occupying the agent.
-            state.copy(agentPhase = phase)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

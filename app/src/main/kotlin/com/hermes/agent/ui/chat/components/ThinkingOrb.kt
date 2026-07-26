@@ -32,22 +32,13 @@ private const val TWO_PI = (2.0 * PI).toFloat()
 private const val TILT = 0.42f
 
 /**
- * What the orb is depicting. Mirrors [com.hermes.agent.domain.agent.AgentPhase],
- * plus [LISTENING], which comes from voice capture rather than the orchestrator.
- */
-enum class OrbState {
-    THINKING,
-    SEARCHING,
-    SOLVING,
-    WORKING,
-    COMPOSING,
-    LISTENING,
-}
-
-/**
- * Per-state look. Every state draws the same rotating point sphere; only the
- * lattice, dot size, spin rate and scatter change, which is enough to make the
- * six read as distinct at a glance without six separate drawing routines.
+ * The orb's look.
+ *
+ * One style, used everywhere. There were six — one per agent phase — but they
+ * are gone: the phases they marked are mostly sub-second, so in practice the
+ * chat bubble flickered between lattices nobody could read, and the puzzle was
+ * the only one worth watching. The knobs are kept because they are what the
+ * drawing code is written against, not because anything varies them.
  */
 internal data class OrbStyle(
     /** Latitude bands. Few + many points per band reads as stripes. */
@@ -125,45 +116,24 @@ private const val TWIST_DUTY = 0.6f
  */
 private const val SLICE_LAYERS = 1.6f
 
-internal fun styleFor(state: OrbState): OrbStyle = when (state) {
-    // Dense bands with few rings: the points crowd into visible lines, which
-    // is the banded look the reference uses for thinking.
-    OrbState.THINKING -> OrbStyle(
-        rings = 7, equatorPoints = 34, dotScale = 0.70f,
-        radiusScale = 0.88f, jitter = 0f, spinMs = 3600,
-    )
-    // A spherical Rubik's cube being worked: a coarse grid of cells, turning
-    // slowly as a body while one band at a time twists on its own axis. The
-    // ring and cell counts are kept low so the cells stay legible at 32dp —
-    // a fine lattice just reads as noise once a layer starts moving.
-    OrbState.SEARCHING -> OrbStyle(
-        rings = 9, equatorPoints = 16, dotScale = 1.25f,
-        radiusScale = 0.88f, jitter = 0f, spinMs = 7000,
-        twistMs = 6000, cellTone = 0.62f,
-    )
-    // Sparser and heavily scattered, against SEARCHING's dense order. The gap
-    // has to be this wide: at 32dp a lightly jittered grid is indistinguishable
-    // from a clean one, whatever a pixel diff says.
-    OrbState.SOLVING -> OrbStyle(
-        rings = 9, equatorPoints = 12, dotScale = 1.35f,
-        radiusScale = 0.88f, jitter = 0.95f, spinMs = 4200,
-    )
-    // Sparse, chunky, slow — few large points doing deliberate work.
-    OrbState.WORKING -> OrbStyle(
-        rings = 7, equatorPoints = 9, dotScale = 1.7f,
-        radiusScale = 0.86f, jitter = 0.35f, spinMs = 5200,
-    )
-    // Weighted toward the equator, turning quickly: output streaming past.
-    OrbState.COMPOSING -> OrbStyle(
-        rings = 5, equatorPoints = 26, dotScale = 0.85f,
-        radiusScale = 0.88f, jitter = 0f, spinMs = 2000,
-    )
-    // Small and tight, held still-ish — attentive rather than busy.
-    OrbState.LISTENING -> OrbStyle(
-        rings = 10, equatorPoints = 14, dotScale = 0.9f,
-        radiusScale = 0.62f, jitter = 0f, spinMs = 6000,
-    )
-}
+/**
+ * A spherical Rubik's cube being worked: a coarse grid of cells turning slowly
+ * as a body, while one layer at a time twists on its own axis.
+ *
+ * Ring and cell counts are deliberately low. At 32dp a finer lattice just reads
+ * as noise once a layer starts moving, and the cells have to stay separable for
+ * the twist to be visible at all.
+ */
+internal val PUZZLE = OrbStyle(
+    rings = 9,
+    equatorPoints = 16,
+    dotScale = 1.25f,
+    radiusScale = 0.88f,
+    jitter = 0f,
+    spinMs = 7000,
+    twistMs = 6000,
+    cellTone = 0.62f,
+)
 
 /**
  * A rotating sphere of points, shown while the assistant is busy.
@@ -191,7 +161,6 @@ internal fun styleFor(state: OrbState): OrbStyle = when (state) {
 @Composable
 fun ThinkingOrb(
     modifier: Modifier = Modifier,
-    state: OrbState = OrbState.THINKING,
     diameter: Dp = 32.dp,
     color: Color = MaterialTheme.colorScheme.primary,
 ) {
@@ -202,12 +171,11 @@ fun ThinkingOrb(
         1f,
     )
     val reducedMotion = animatorScale == 0f
-    val style = styleFor(state)
+    val style = PUZZLE
 
     val transition = rememberInfiniteTransition(label = "thinking-orb")
 
-    // Linear, so the spin never visibly stalls at the loop seam. Keyed on the
-    // period so a phase change restarts the animation at the new rate.
+    // Linear, so the spin never visibly stalls at the loop seam.
     val spin by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -284,7 +252,7 @@ private fun twistAt(style: OrbStyle, twist: Float): Twist? {
 internal fun DrawScope.drawOrb(
     rotation: Float,
     color: Color,
-    style: OrbStyle = styleFor(OrbState.THINKING),
+    style: OrbStyle = PUZZLE,
     twist: Float = 0f,
 ) {
     val radius = size.minDimension / 2f * style.radiusScale

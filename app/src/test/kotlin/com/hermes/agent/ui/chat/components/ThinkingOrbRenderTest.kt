@@ -38,7 +38,6 @@ class ThinkingOrbRenderTest {
         rotation: Float,
         background: Color,
         color: Color,
-        state: OrbState = OrbState.THINKING,
         px: Int = 176,
         density: Float = 1f,
         twist: Float = 0f,
@@ -53,7 +52,7 @@ class ThinkingOrbRenderTest {
             // Stand in for the chat bubble's surfaceVariant, so the orb is
             // judged against the surface it actually sits on.
             drawRect(background)
-            drawOrb(rotation = rotation, color = color, style = styleFor(state), twist = twist)
+            drawOrb(rotation = rotation, color = color, twist = twist)
         }
         return image.asAndroidBitmap()
     }
@@ -109,64 +108,21 @@ class ThinkingOrbRenderTest {
     }
 
     @Test
-    fun rendersEveryState() {
+    fun rendersTheOrbAndItsTwist() {
         val surface = HermesDark.surfaceVariant
         val primary = HermesDark.primary
 
-        // Two angles each, at shipping size and density, since these are meant
-        // to be told apart at 32dp on a phone — not at poster size.
-        OrbState.entries.forEach { state ->
-            listOf(0.0f, 0.125f).forEach { rotation ->
-                val tag = "%03d".format((rotation * 1000).toInt())
-                write(
-                    "state-${state.name.lowercase()}-$tag",
-                    render(rotation, surface, primary, state, px = 32 * 3, density = 3f),
-                )
-            }
-            // A large frame too, for inspecting the lattice itself.
-            write(
-                "state-${state.name.lowercase()}-large",
-                render(0.125f, surface, primary, state),
-            )
+        // Shipping size and density, plus one large frame for the lattice.
+        listOf(0.0f, 0.125f).forEach { rotation ->
+            val tag = "%03d".format((rotation * 1000).toInt())
+            write("orb-$tag", render(rotation, surface, primary, px = 32 * 3, density = 3f))
         }
+        write("orb-large", render(0.125f, surface, primary))
 
-        // The puzzle twist stepped through one event, so the layer turn can be
-        // eyeballed rather than only asserted on.
+        // The twist stepped through a band turn and then a slice turn, so the
+        // layers can be eyeballed rather than only asserted on.
         listOf(0.00f, 0.04f, 0.08f, 0.12f, 0.20f, 0.22f, 0.25f, 0.28f).forEach { t ->
-            write(
-                "twist-%03d".format((t * 1000).toInt()),
-                render(0.2f, surface, primary, OrbState.SEARCHING, twist = t),
-            )
-        }
-    }
-
-    @Test
-    fun everyStateLooksDifferentFromTheOthers() {
-        val surface = HermesDark.surfaceVariant
-        val primary = HermesDark.primary
-
-        // Rendered at the size they actually ship at: two lattices can differ
-        // on paper and still collapse to the same blob at 32dp.
-        val frames = OrbState.entries.associateWith { state ->
-            render(0.125f, surface, primary, state, px = 32 * 3, density = 3f)
-        }
-
-        OrbState.entries.forEach { a ->
-            OrbState.entries.forEach { b ->
-                if (a.ordinal >= b.ordinal) return@forEach
-                val fa = frames.getValue(a)
-                val fb = frames.getValue(b)
-                var differing = 0
-                for (x in 0 until fa.width step 2) {
-                    for (y in 0 until fa.height step 2) {
-                        if (fa.getPixel(x, y) != fb.getPixel(x, y)) differing++
-                    }
-                }
-                assertTrue(
-                    "$a and $b render too similarly to tell apart ($differing px differ)",
-                    differing > 150,
-                )
-            }
+            write("twist-%03d".format((t * 1000).toInt()), render(0.2f, surface, primary, twist = t))
         }
     }
 
@@ -179,8 +135,8 @@ class ThinkingOrbRenderTest {
         // it began. That is what lets the cycle wrap without carrying any state.
         // If a twist were ever changed to a partial turn, the end of the cycle
         // would snap back to the start, and this catches that.
-        val start = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0f)
-        val end = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 1f)
+        val start = render(0.2f, surface, primary, twist = 0f)
+        val end = render(0.2f, surface, primary, twist = 1f)
         for (x in 0 until start.width step 2) {
             for (y in 0 until start.height step 2) {
                 assertEquals(
@@ -199,9 +155,9 @@ class ThinkingOrbRenderTest {
 
         // Event 0 turns a horizontal band, event 1 a vertical slice. Rendered
         // at the same body rotation so the only difference is the layer moving.
-        val rest = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0f)
-        val band = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0.05f)
-        val slice = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0.22f)
+        val rest = render(0.2f, surface, primary, twist = 0f)
+        val band = render(0.2f, surface, primary, twist = 0.05f)
+        val slice = render(0.2f, surface, primary, twist = 0.22f)
 
         fun movedRows(a: Bitmap, b: Bitmap): Set<Int> {
             val rows = mutableSetOf<Int>()
@@ -249,8 +205,8 @@ class ThinkingOrbRenderTest {
         val primary = HermesDark.primary
 
         // Sampled early in the first twist, while that band is mid-turn.
-        val still = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0f)
-        val turning = render(0.2f, surface, primary, OrbState.SEARCHING, twist = 0.05f)
+        val still = render(0.2f, surface, primary, twist = 0f)
+        val turning = render(0.2f, surface, primary, twist = 0.05f)
 
         var differing = 0
         for (x in 0 until still.width step 2) {
@@ -271,21 +227,21 @@ class ThinkingOrbRenderTest {
     }
 
     @Test
-    fun jitterIsStableAcrossFrames() {
+    fun cellTonesAreStableAcrossFrames() {
         val surface = HermesDark.surfaceVariant
         val primary = HermesDark.primary
 
-        // SOLVING and WORKING scatter their lattice. That scatter must be a
-        // function of the point index, not of time — a per-frame random would
-        // make every point twitch independently instead of the sphere turning
-        // as a rigid body. Same rotation must give a byte-identical frame.
-        listOf(OrbState.SOLVING, OrbState.WORKING).forEach { state ->
-            val first = render(0.3f, surface, primary, state)
-            val second = render(0.3f, surface, primary, state)
+        // Each cell's tone must be a function of its index, not of time. If it
+        // were re-rolled per frame the cells would flicker independently and the
+        // twist would be unreadable — the tones are the only thing that makes a
+        // turning layer visible at all. Same inputs, byte-identical frame.
+        listOf(0f, 0.05f, 0.22f).forEach { twist ->
+            val first = render(0.3f, surface, primary, twist = twist)
+            val second = render(0.3f, surface, primary, twist = twist)
             for (x in 0 until first.width step 3) {
                 for (y in 0 until first.height step 3) {
                     assertEquals(
-                        "$state jitter is not deterministic at ($x, $y)",
+                        "cell tones are not deterministic at twist=$twist ($x, $y)",
                         first.getPixel(x, y),
                         second.getPixel(x, y),
                     )
