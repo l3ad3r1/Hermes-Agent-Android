@@ -55,6 +55,7 @@ fun ChatInputBar(
     var text by remember(prefillText) { mutableStateOf(prefillText) }
     var quickActionsOpen by remember { mutableStateOf(false) }
     val listeningDescription = stringResource(R.string.a11y_listening)
+    val endVoiceChatDescription = stringResource(R.string.a11y_end_voice_chat)
 
     fun submit() {
         val message = text.trim()
@@ -141,7 +142,11 @@ fun ChatInputBar(
                 // capture reads as the same "Hermes is busy" language as the
                 // chat bubble. The button keeps its action and description, so
                 // tapping still stops listening.
-                if (isListening) {
+                //
+                // Not during voice chat, though: that mode is listening too, so
+                // both buttons lit up and sat side by side showing two orbs for
+                // one state. In voice chat the round button is the indicator.
+                if (isListening && !voiceChatActive) {
                     ThinkingOrb(
                         diameter = 26.dp,
                         modifier = Modifier.semantics {
@@ -174,21 +179,34 @@ fun ChatInputBar(
                 } else MaterialTheme.colorScheme.onPrimary,
             ) {
                 Box(contentAlignment = Alignment.Center) {
+                    // In voice chat the button becomes the orb. The theme's
+                    // "error" colour is white, identical to the sending state,
+                    // so colour alone could not distinguish the two — and a
+                    // conversation in progress is exactly what the orb means
+                    // everywhere else in the app.
+                    if (voiceChatActive) {
+                        ThinkingOrb(
+                            diameter = 30.dp,
+                            color = MaterialTheme.colorScheme.onError,
+                            modifier = Modifier.semantics {
+                                contentDescription = endVoiceChatDescription
+                            },
+                        )
+                    } else {
                     Icon(
                         imageVector = when {
                             isSending -> Icons.Outlined.Stop
                             text.isNotBlank() -> Icons.Outlined.ArrowUpward
-                            voiceChatActive -> Icons.Outlined.Stop
                             else -> Icons.Outlined.GraphicEq
                         },
                         contentDescription = when {
                             isSending -> stringResource(R.string.a11y_stop_generating)
                             text.isNotBlank() -> stringResource(R.string.a11y_send_button)
-                            voiceChatActive -> stringResource(R.string.a11y_end_voice_chat)
                             else -> stringResource(R.string.a11y_start_voice_chat)
                         },
                         modifier = Modifier.size(25.dp),
                     )
+                    }
                 }
             }
         }
