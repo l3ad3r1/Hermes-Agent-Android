@@ -18,21 +18,46 @@ class LocalPromptAndToolParserTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `local prompt preserves recent user assistant and tool turns`() {
+    fun `history is context and only the newest user turn is the live message`() {
         val prompt = buildLocalPrompt(
             listOf(
                 LlmMessage("system", "Be concise."),
                 LlmMessage("user", "What time is it?"),
                 LlmMessage("assistant", "I will check."),
                 LlmMessage("tool", "10:30", toolCallId = "call_1"),
+                LlmMessage("user", "and the date?"),
             ),
         )
 
-        assertEquals("Be concise.", prompt.system)
-        assertTrue(prompt.conversation.contains("User:\nWhat time is it?"))
-        assertTrue(prompt.conversation.contains("Assistant:\nI will check."))
-        assertTrue(prompt.conversation.contains("Tool result (call_1):\n10:30"))
-        assertFalse(prompt.conversation.contains("<|begin_of_text|>"))
+        // The live turn must be a plain user message. The native side wraps it
+        // in the model's own chat template, so a role-labelled transcript here
+        // is formatted twice and invites the model to continue the script —
+        // which is how replies started coming back prefixed "Assistant:".
+        assertEquals("and the date?", prompt.conversation)
+        assertFalse(prompt.conversation.contains("User:"))
+        assertFalse(prompt.conversation.contains("Assistant:"))
+
+        // Earlier turns survive as context, alongside the instructions.
+        assertTrue(prompt.system.contains("Be concise."))
+        assertTrue(prompt.system.contains("What time is it?"))
+        assertTrue(prompt.system.contains("I will check."))
+        assertTrue(prompt.system.contains("Tool result (call_1):"))
+        assertFalse(prompt.system.contains("<|begin_of_text|>"))
+    }
+
+    @Test
+    fun `strips role labels the model writes at the start of its reply`() {
+        assertEquals("Hello there.", stripLeadingRoleLabel("Assistant:\nHello there."))
+        assertEquals("Hello there.", stripLeadingRoleLabel("assistant: Hello there."))
+        // A contaminated history produced stacked labels on the device, so one
+        // pass is not enough.
+        assertEquals("Hello there.", stripLeadingRoleLabel("Assistant:\nAssistant:\nHello there."))
+        // Prose that merely contains the word must be left alone.
+        assertEquals(
+            "The assistant: a short history.",
+            stripLeadingRoleLabel("The assistant: a short history."),
+        )
+        assertEquals("", stripLeadingRoleLabel(""))
     }
 
     @Test

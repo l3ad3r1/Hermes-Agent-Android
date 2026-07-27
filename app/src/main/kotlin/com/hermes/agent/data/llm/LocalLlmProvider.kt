@@ -11,12 +11,25 @@ internal data class LocalPrompt(
     val conversation: String,
 )
 
-/** Builds a bounded, role-labelled transcript without model-specific template tokens. */
+/**
+ * Splits the conversation into a system block and the single live user turn.
+ *
+ * The native side applies the model's own chat template (see
+ * `chat_add_and_format` in `ai_chat.cpp`), so whatever goes in as the user turn
+ * is wrapped in that model's real user/assistant markers. Handing it a
+ * "User:/Assistant:" transcript therefore formatted the conversation twice: the
+ * model was shown a labelled script inside a user turn and asked to continue it,
+ * so it obligingly wrote "Assistant:" of its own. That reply was stored with the
+ * prefix, replayed as history next turn, and the prefixes stacked up.
+ *
+ * Prior turns are now context inside the system block, and only the newest user
+ * message is the user turn — which is what the template expects.
+ */
 internal fun buildLocalPrompt(
     messages: List<LlmMessage>,
     maxConversationChars: Int = 12_000,
 ): LocalPrompt {
-    val system = messages.filter { it.role == "system" }
+    val instructions = messages.filter { it.role == "system" }
         .joinToString("\n\n") { it.content.trim() }
         .trim()
     val rendered = messages.filterNot { it.role == "system" }.map { message ->
@@ -52,10 +65,55 @@ internal fun buildLocalPrompt(
         selected.addFirst(fitted)
         used += cost.coerceAtMost(maxConversationChars)
     }
+    // The newest user message is the live turn; everything before it is history.
+    val liveTurnIndex = messages.indexOfLast { it.role == "user" }
+    val liveTurn = messages.getOrNull(liveTurnIndex)?.content?.trim().orEmpty()
+    val historyEntries = if (liveTurnIndex >= 0) {
+        // `rendered` excludes system messages, so map the index across.
+        val nonSystem = messages.filterNot { it.role == "system" }
+        val liveInRendered = nonSystem.indexOfLast { it.role == "user" }
+        selected.filterIndexed { i, _ -> i < selected.size - (nonSystem.size - liveInRendered) + 1 }
+    } else {
+        selected.toList()
+    }
+
+    val system = buildString {
+        if (instructions.isNotBlank()) append(instructions)
+        if (historyEntries.isNotEmpty()) {
+            if (isNotEmpty()) append("\n\n")
+            append("## Conversation so far\n")
+            append(historyEntries.joinToString("\n\n"))
+            append("\n\nReply to the user's latest message directly. ")
+            append("Do not prefix your reply with a name or role label.")
+        }
+    }.trim()
+
     return LocalPrompt(
         system = system,
-        conversation = selected.joinToString("\n\n").trim(),
+        // Falls back to the whole transcript when there is no user turn at all
+        // (internal calls), so those callers keep working.
+        conversation = liveTurn.ifBlank { selected.joinToString("\n\n").trim() },
     )
+}
+
+/**
+ * Strips role labels the model writes at the start of its own reply.
+ *
+ * Belt and braces alongside the prompt fix: a small model will still sometimes
+ * open with "Assistant:". Left in, that text is persisted and replayed as
+ * history, and the labels compound turn after turn — which is exactly how a
+ * single stray prefix became two.
+ */
+internal fun stripLeadingRoleLabel(text: String): String {
+    var out = text.trimStart()
+    val label = Regex("^(assistant|ai|hermes|bot)\\s*:\\s*", RegexOption.IGNORE_CASE)
+    // Repeats, because a contaminated history can produce more than one.
+    while (true) {
+        val stripped = out.replaceFirst(label, "")
+        if (stripped == out) break
+        out = stripped.trimStart()
+    }
+    return out
 }
 
 class LocalLlmProvider @Inject constructor(
@@ -78,7 +136,9 @@ class LocalLlmProvider @Inject constructor(
             }
         }
         return LlmResponse(
-            content = response.toString(),
+            // Stripped here rather than in stream(): the label arrives split
+            // across tokens, so only the assembled text can be matched.
+            content = stripLeadingRoleLabel(response.toString()),
             tokensUsed = 0,
             model = model,
             finishReason = "stop",
