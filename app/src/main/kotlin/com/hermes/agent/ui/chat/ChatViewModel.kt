@@ -62,8 +62,15 @@ class ChatViewModel @Inject constructor(
     /** Phase 3: true while voice input is listening. */
     private val _isListening = MutableStateFlow(false)
 
+    /** True while the hands-free listen/speak loop is running. */
+    private val _voiceChatActive = MutableStateFlow(false)
+
     private var sendJob: Job? = null
     private var listenJob: Job? = null
+    private var speakJob: Job? = null
+
+    /** Consecutive voice-chat turns that yielded no usable transcript. */
+    private var emptyVoiceTurns = 0
 
     init {
         // Mirror the agent's pending `clarify` question into UI state so the
@@ -114,6 +121,11 @@ class ChatViewModel @Inject constructor(
             state.copy(todos = todos.map { TodoItem(it.id, it.content, it.status) })
         }.combine(settingsRepository.observe()) { state, settings ->
             state.copy(showToolCalls = settings.showToolCalls)
+        }.combine(_voiceChatActive) { state, active ->
+            // Chained rather than folded into the combine above: the typed
+            // overloads stop at five flows, and a sixth silently drops to the
+            // untyped vararg form.
+            state.copy(voiceChatActive = active)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -149,9 +161,6 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
-
-    private var spokenTextLength = 0
-    private val sentenceRegex = Regex("(?<=[.!?])\\s+")
 
     private fun handleOrchestratorEvent(event: OrchestratorEvent) {
         when (event) {
@@ -227,45 +236,28 @@ class ChatViewModel @Inject constructor(
             is OrchestratorEvent.ReplyToken -> {
                 val acc = _ephemeral.value.streamingText.orEmpty() + event.text
                 _ephemeral.value = _ephemeral.value.copy(streamingText = acc)
-
-                // If voice is active and we have new complete sentences, speak them
-                // immediately. Offsets are tracked against the REAL accumulated
-                // string: rebuilding the text with joinToString(" ") replaced the
-                // original separators (newlines, double spaces), so the byte count
-                // drifted and later substrings repeated or swallowed words.
-                val alreadySpoke = _ephemeral.value.toolCalls.any { it.name == "speak" }
-                if (!alreadySpoke && voiceOutputManager.isAvailable()) {
-                    val unreadText = acc.substring(spokenTextLength)
-                    val lastBoundary = sentenceRegex.findAll(unreadText).lastOrNull()
-                    if (lastBoundary != null) {
-                        val completeEnd = lastBoundary.range.last + 1
-                        val toSpeak = unreadText.substring(0, completeEnd).trim()
-                        if (toSpeak.isNotBlank()) speakReply(toSpeak)
-                        spokenTextLength += completeEnd
-                    }
-                }
             }
             is OrchestratorEvent.ReplyComplete -> {
-                // If the agent already used the `speak` tool this turn, it has
-                // chosen exactly what to say aloud — don't auto-read the reply
-                // on top of it (that caused the text to be spoken twice).
+                // If the agent used the `speak` tool this turn it already chose
+                // what to say aloud, so reading the reply on top of it would say
+                // everything twice.
                 val alreadySpoke = _ephemeral.value.toolCalls.any { it.name == "speak" }
                 _ephemeral.value = ChatEphemeralState()
-                
-                if (!alreadySpoke) {
-                    val unreadText = event.finalText.substring(spokenTextLength.coerceAtMost(event.finalText.length))
-                    if (unreadText.isNotBlank()) {
-                        speakReply(unreadText)
-                    }
+
+                // Replies are only read aloud in voice chat. Outside it the app
+                // stays silent — a typed conversation should not start talking.
+                if (_voiceChatActive.value) {
+                    if (alreadySpoke) listenForNextTurn() else speakThenListen(event.finalText)
                 }
-                spokenTextLength = 0
             }
             is OrchestratorEvent.Failed -> {
                 Timber.tag("ChatVM").w("orchestration failed: %s", event.message)
                 _ephemeral.value = ChatEphemeralState(
                     errorMessage = event.message,
                 )
-                spokenTextLength = 0
+                // Hand the turn back rather than leaving voice chat dead after a
+                // failed reply.
+                if (_voiceChatActive.value) listenForNextTurn()
             }
             is OrchestratorEvent.StateChanged -> { /* no-op */ }
         }
@@ -299,11 +291,97 @@ class ChatViewModel @Inject constructor(
 
     // --- Phase 3: Voice I/O ---
 
+    /** Dictation: fills the input bar, leaving the user to send. */
     fun toggleVoiceInput() {
         if (_isListening.value) {
             stopVoiceInput()
         } else {
             startVoiceInput()
+        }
+    }
+
+    /**
+     * Hands-free voice chat: speak, and Hermes answers aloud and listens again.
+     *
+     * The turn is a strict cycle — listen, send, speak, listen — never two of
+     * those at once. Overlapping them means the recogniser hears the reply
+     * coming out of the speaker and answers Hermes instead of the user.
+     */
+    fun toggleVoiceChat() {
+        if (_voiceChatActive.value) stopVoiceChat() else startVoiceChat()
+    }
+
+    private fun startVoiceChat() {
+        if (!voiceInputManager.isAvailable()) {
+            _ephemeral.value = _ephemeral.value.copy(
+                errorMessage = "Speech recognition not available on this device",
+            )
+            return
+        }
+        _voiceChatActive.value = true
+        emptyVoiceTurns = 0
+        // Warm the engine now: the first speak() otherwise arrives before the
+        // engine is ready and is dropped, so the first reply is silent and the
+        // loop never gets its Done to listen on.
+        voiceOutputManager.initialize()
+        startVoiceInput()
+    }
+
+    private fun stopVoiceChat() {
+        _voiceChatActive.value = false
+        speakJob?.cancel()
+        speakJob = null
+        voiceOutputManager.stop()
+        stopVoiceInput()
+    }
+
+    /**
+     * Listen again for the user's next turn, if voice chat is still on.
+     *
+     * Gives up after [MAX_EMPTY_VOICE_TURNS] turns that produced nothing. The
+     * loop restarts the recogniser the instant it finishes, so a recogniser
+     * that fails immediately — no microphone permission, no recognition
+     * service — would otherwise spin as fast as the CPU allows, forever.
+     */
+    private fun listenForNextTurn() {
+        if (!_voiceChatActive.value) return
+        if (emptyVoiceTurns >= MAX_EMPTY_VOICE_TURNS) {
+            stopVoiceChat()
+            _ephemeral.value = _ephemeral.value.copy(
+                errorMessage = "Voice chat stopped — I couldn't hear anything.",
+            )
+            return
+        }
+        startVoiceInput()
+    }
+
+    /**
+     * Read [text] aloud, then hand the turn back to the microphone.
+     *
+     * Listening only resumes once the engine reports the utterance finished.
+     * Starting the recogniser earlier would capture Hermes's own voice.
+     */
+    private fun speakThenListen(text: String) {
+        if (text.isBlank()) {
+            listenForNextTurn()
+            return
+        }
+        speakJob?.cancel()
+        speakJob = viewModelScope.launch {
+            if (!voiceOutputManager.isAvailable()) {
+                // No engine: skip the speaking half rather than stall the loop.
+                listenForNextTurn()
+                return@launch
+            }
+            voiceOutputManager.speak(text).collect { event ->
+                when (event) {
+                    // Both terminal states hand the turn back — a TTS failure
+                    // should not silently end the conversation.
+                    VoiceOutputEvent.Done -> listenForNextTurn()
+                    is VoiceOutputEvent.Error -> listenForNextTurn()
+                    VoiceOutputEvent.Start -> Unit
+                }
+            }
         }
     }
 
@@ -314,18 +392,40 @@ class ChatViewModel @Inject constructor(
             )
             return
         }
+        listenJob?.cancel()
         _isListening.value = true
         listenJob = viewModelScope.launch {
             voiceInputManager.listen().collect { event ->
                 when (event) {
                     is VoiceInputEvent.Partial -> _inputPrefill.value = event.text
                     is VoiceInputEvent.Final -> {
-                        _inputPrefill.value = event.text
                         _isListening.value = false
+                        if (_voiceChatActive.value) {
+                            // Hands-free: send it rather than parking it in the
+                            // input bar for a tap that will never come.
+                            _inputPrefill.value = ""
+                            if (event.text.isNotBlank()) {
+                                emptyVoiceTurns = 0
+                                sendMessage(event.text)
+                            } else {
+                                emptyVoiceTurns++
+                                listenForNextTurn()
+                            }
+                        } else {
+                            _inputPrefill.value = event.text
+                        }
                     }
                     is VoiceInputEvent.Error -> {
-                        _ephemeral.value = _ephemeral.value.copy(errorMessage = event.message)
                         _isListening.value = false
+                        // Recogniser errors are routine in a hands-free loop —
+                        // silence times out. Surfacing them would bury the chat
+                        // in snackbars, so just take the turn again.
+                        if (_voiceChatActive.value) {
+                            emptyVoiceTurns++
+                            listenForNextTurn()
+                        } else {
+                            _ephemeral.value = _ephemeral.value.copy(errorMessage = event.message)
+                        }
                     }
                     VoiceInputEvent.Ready -> { /* no-op */ }
                 }
@@ -339,25 +439,20 @@ class ChatViewModel @Inject constructor(
         _isListening.value = false
     }
 
-    private fun speakReply(text: String) {
-        if (text.isBlank()) return
-        voiceOutputManager.initialize { ready ->
-            if (ready) {
-                viewModelScope.launch {
-                    voiceOutputManager.speak(text).collect { /* UI could track playing state here */ }
-                }
-            }
-        }
-    }
-
     fun stopSpeech() {
         voiceOutputManager.stop()
+    }
+
+    private companion object {
+        /** Turns of silence or recogniser failure before voice chat gives up. */
+        const val MAX_EMPTY_VOICE_TURNS = 3
     }
 
     override fun onCleared() {
         super.onCleared()
         sendJob?.cancel()
         listenJob?.cancel()
+        speakJob?.cancel()
         voiceOutputManager.stop()
         
         // Trigger summarization when the chat session ends. Plain call, not

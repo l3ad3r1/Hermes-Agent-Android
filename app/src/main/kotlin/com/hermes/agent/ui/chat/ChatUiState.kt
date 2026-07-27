@@ -29,6 +29,8 @@ data class ChatUiState(
     val inputPrefill: String = "",
     /** Phase 3: true while voice input is listening. */
     val isListening: Boolean = false,
+    /** True while the hands-free voice conversation is running. */
+    val voiceChatActive: Boolean = false,
     /** Estimated token count across all messages in this conversation. */
     val estimatedTokens: Int = 0,
     /** Active model name shown in the status bar. */

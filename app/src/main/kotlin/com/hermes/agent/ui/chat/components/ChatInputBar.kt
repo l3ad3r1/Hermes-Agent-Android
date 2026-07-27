@@ -47,8 +47,10 @@ fun ChatInputBar(
     onSend: (String) -> Unit,
     onCancel: () -> Unit,
     onMicToggle: () -> Unit,
+    onVoiceChatToggle: () -> Unit,
     modifier: Modifier = Modifier,
     prefillText: String = "",
+    voiceChatActive: Boolean = false,
 ) {
     var text by remember(prefillText) { mutableStateOf(prefillText) }
     var quickActionsOpen by remember { mutableStateOf(false) }
@@ -155,19 +157,19 @@ fun ChatInputBar(
                 }
             }
 
-            val actionColor = if (isSending) {
+            val actionColor = if (isSending || voiceChatActive) {
                 MaterialTheme.colorScheme.error
             } else MaterialTheme.colorScheme.primary
             Surface(
                 onClick = when {
                     isSending -> onCancel
                     text.isNotBlank() -> ::submit
-                    else -> onMicToggle
+                    else -> onVoiceChatToggle
                 },
                 modifier = Modifier.size(48.dp),
                 shape = RoundedCornerShape(24.dp),
                 color = actionColor,
-                contentColor = if (isSending) {
+                contentColor = if (isSending || voiceChatActive) {
                     MaterialTheme.colorScheme.onError
                 } else MaterialTheme.colorScheme.onPrimary,
             ) {
@@ -176,12 +178,14 @@ fun ChatInputBar(
                         imageVector = when {
                             isSending -> Icons.Outlined.Stop
                             text.isNotBlank() -> Icons.Outlined.ArrowUpward
+                            voiceChatActive -> Icons.Outlined.Stop
                             else -> Icons.Outlined.GraphicEq
                         },
                         contentDescription = when {
                             isSending -> stringResource(R.string.a11y_stop_generating)
                             text.isNotBlank() -> stringResource(R.string.a11y_send_button)
-                            else -> stringResource(R.string.a11y_voice_input)
+                            voiceChatActive -> stringResource(R.string.a11y_end_voice_chat)
+                            else -> stringResource(R.string.a11y_start_voice_chat)
                         },
                         modifier = Modifier.size(25.dp),
                     )

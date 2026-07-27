@@ -161,7 +161,9 @@ fun ChatScreen(
                             onSend = viewModel::sendMessage,
                             onCancel = viewModel::cancel,
                             onMicToggle = viewModel::toggleVoiceInput,
+                            onVoiceChatToggle = viewModel::toggleVoiceChat,
                             prefillText = uiState.inputPrefill,
+                            voiceChatActive = uiState.voiceChatActive,
                         )
                     }
                 }
