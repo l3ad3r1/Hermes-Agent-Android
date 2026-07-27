@@ -1,9 +1,13 @@
 package com.hermes.agent.ui.home
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hermes.agent.data.llm.LocalLlmManager
+import com.hermes.agent.data.llm.ModelCatalog
 import com.hermes.agent.data.memory.UserModelService
 import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.data.settings.UserSettings
 import com.hermes.agent.data.voice.VoiceActivity
 import com.hermes.agent.domain.agent.AgentActivity
 import com.hermes.agent.domain.model.Conversation
@@ -28,6 +32,7 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val conversationRepository: ConversationRepository,
     private val settings: SettingsRepository,
+    private val localLlmManager: LocalLlmManager,
     memoryRepository: MemoryRepository,
 ) : ViewModel() {
 
@@ -37,11 +42,42 @@ class HomeViewModel @Inject constructor(
             .map { it.take(3) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Currently-configured cloud model, surfaced on the gateway card. */
+    /**
+     * The model a turn would actually run on, for the home screen's
+     * "Active model" card.
+     *
+     * Mirrors the two conditions [com.hermes.agent.data.llm.HybridLlmRouter]
+     * routes on: cloud is used only when it is switched on *and* has a key;
+     * otherwise the on-device model, if one is present. This used to report
+     * `cloudModel` unconditionally, which named a cloud model on a device
+     * running purely on-device — the card said one thing and the app did
+     * another.
+     */
     val modelName: StateFlow<String> =
         settings.observe()
-            .map { it.cloudModel.ifBlank { "not configured" } }
+            .map { s ->
+                val cloudActive = s.cloudEnabled && s.cloudApiKey.isNotBlank()
+                when {
+                    cloudActive -> s.cloudModel.ifBlank { "not configured" }
+                    localLlmManager.isModelDownloaded() -> localModelLabel(s)
+                    else -> "not configured"
+                }
+            }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    /**
+     * Name for the on-device model. A user-picked `.gguf` overrides the
+     * catalog, so its filename is preferred when one is set.
+     */
+    private fun localModelLabel(s: UserSettings): String {
+        if (s.localModelUri.isNotBlank()) {
+            val file = runCatching {
+                Uri.parse(s.localModelUri).lastPathSegment?.substringAfterLast('/')
+            }.getOrNull()
+            return file?.takeIf { it.endsWith(".gguf", ignoreCase = true) } ?: "custom model"
+        }
+        return ModelCatalog.byId(s.selectedModelId).displayName
+    }
 
     /** Re-evaluates the greeting once a minute so hour transitions land. */
     private val minuteTicker = flow {
