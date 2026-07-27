@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.hermes.agent.data.llm.stripLeadingRoleLabel
 import com.hermes.agent.data.local.dao.ActivityLedgerDao
 import com.hermes.agent.data.local.dao.AgentTaskDao
 import com.hermes.agent.data.local.dao.ConnectorDao
@@ -46,7 +47,7 @@ import com.hermes.agent.data.local.entity.SkillEntity
         ExecutionStepEntity::class,
         ActivityLedgerEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -362,6 +363,59 @@ abstract class HermesDatabase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
+            }
+        }
+
+        /**
+         * Scrubs "Assistant:" prefixes the on-device model left in stored replies.
+         *
+         * Until the local prompt was fixed, the model was shown a role-labelled
+         * transcript and continued it, writing its own "Assistant:" line. Those
+         * replies were persisted with the prefix, so fixing the prompt only
+         * cleans new turns — existing conversations keep the text and go on
+         * showing it, including in the list preview.
+         *
+         * Uses the same [stripLeadingRoleLabel] the provider applies to fresh
+         * replies, so the cleanup and the prevention cannot drift apart. It
+         * rewrites only rows that actually change, and rebuilds the search index
+         * afterwards because the indexed text has moved.
+         */
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Collected first, then written: updating while the cursor over
+                // the same table is still open is asking for trouble.
+                val messageEdits = mutableListOf<Pair<String, String>>()
+                db.query("SELECT id, content FROM messages WHERE role = 'assistant'").use { c ->
+                    while (c.moveToNext()) {
+                        val id = c.getString(0)
+                        val content = c.getString(1)
+                        val cleaned = stripLeadingRoleLabel(content)
+                        if (cleaned != content) messageEdits += id to cleaned
+                    }
+                }
+                messageEdits.forEach { (id, cleaned) ->
+                    db.execSQL("UPDATE messages SET content = ? WHERE id = ?", arrayOf(cleaned, id))
+                }
+
+                val previewEdits = mutableListOf<Pair<String, String>>()
+                db.query("SELECT id, last_message_preview FROM conversations").use { c ->
+                    while (c.moveToNext()) {
+                        val id = c.getString(0)
+                        val preview = c.getString(1)
+                        val cleaned = stripLeadingRoleLabel(preview)
+                        if (cleaned != preview) previewEdits += id to cleaned
+                    }
+                }
+                previewEdits.forEach { (id, cleaned) ->
+                    db.execSQL(
+                        "UPDATE conversations SET last_message_preview = ? WHERE id = ?",
+                        arrayOf(cleaned, id),
+                    )
+                }
+
+                if (messageEdits.isNotEmpty() || previewEdits.isNotEmpty()) {
+                    createSearchIndex(db)
+                }
             }
         }
 
