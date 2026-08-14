@@ -1,9 +1,11 @@
 # Hermes Agent — Android App
 
-A privacy-first, on-device AI agent platform for Android, built per the [Technical Architecture Plan][plan] (June 2026).
+A privacy-first Android agent that combines deterministic phone actions, cloud-first model routing, local fallback inference, and explicit security gates for automation.
 
 > **Status:** v0.9.3 — Android AppAgent bridge, cloud-first LLM routing, deterministic phone actions, and authenticated automation. All four plan phases
-> are implemented plus three new Hermes Agent features: **Connect** (Webhook /
+> are implemented plus the Android AppAgent bridge, quality-aware provider
+> routing, and authenticated automation. The earlier Hermes features include
+> **Connect** (Webhook /
 > Telegram / Discord platform integrations with an LLM-callable `notify` tool),
 > **Delegate** (one-shot background agent tasks via WorkManager), and
 > **Experiment** (side-by-side streaming model A/B comparison). Runs
@@ -15,7 +17,7 @@ A privacy-first, on-device AI agent platform for Android, built per the [Technic
 
 [plan]: ./Hermes_Agent_Android_App_Technical_Plan.pdf
 
-## What's in Phase 1 + 2 + 3 + 4 + v0.3.0
+## Current capabilities
 
 | Module                      | Status | Notes                                                                 |
 |-----------------------------|--------|-----------------------------------------------------------------------|
@@ -23,11 +25,11 @@ A privacy-first, on-device AI agent platform for Android, built per the [Technic
 | Hilt DI                     | ✅      | App / Database / Network / LLM / Tools / Agents / Memory / RAG / Plugins / Connect / Delegate modules |
 | Room persistence            | ✅      | Conversations, messages, memories, documents, connectors, agent_tasks — schema v4 with migrations |
 | LLM provider interface      | ✅      | `LlmProvider` + `LlmRouter` contracts (tool support since Phase 2)    |
-| On-device LLM provider      | ✅ mock | Canned replies + synthesized tool calls when trigger phrases match   |
+| On-device LLM provider      | ✅      | Local inference is the final fallback when configured cloud providers fail |
 | Cloud LLM provider          | ✅      | OpenAI-compatible Retrofit; **real SSE streaming** (Phase 3) + `completeWithTools` |
-| Hybrid LLM router           | ✅      | Heuristic complexity classifier + per-user settings                   |
+| Quality-aware LLM router    | ✅      | Ranked cloud candidates, provider failover, and final local fallback |
 | **Multi-agent orchestration** | ✅    | 5 agents, plan-then-execute, tool-call loop                           |
-| **Tool system**             | ✅      | 8 first-party tools (+ `notify` v0.3.0) + 3 plugin-contributed tools |
+| **Tool system**             | ✅      | Phone actions, AppAgent screen tools, shell/Termux gates, and plugins |
 | **Function-calling protocol** | ✅    | OpenAI-compatible `tools` array + `tool_calls` parsing                |
 | **Conversation memory (enhanced)** | ✅ | Short-term sliding window + long-term semantic store with hybrid vector + keyword search |
 | **Memory consolidation**    | ✅      | Regex-based fact extractor + daily WorkManager pass while charging    |
@@ -42,21 +44,21 @@ A privacy-first, on-device AI agent platform for Android, built per the [Technic
 | **Localization**            | ✅      | es / fr / de / ja / zh-CN for top strings (Phase 4)                   |
 | **Memory pressure shedding**| ✅      | Tiered NORMAL/ELEVATED/CRITICAL, on-device LLM auto-unloads < 2GB (Phase 4) |
 | **Idle unload**             | ✅      | On-device LLM unloads after configurable idle period (Phase 4)        |
-| **Beta packaging**          | ✅      | v1.0.0, release signing config, ProGuard verified (Phase 4)           |
-| **Connect** (v0.3.0)        | ✅      | Webhook / Telegram / Discord integrations; LLM `notify` tool; ConnectorRepository + CRUD UI |
-| **Delegate** (v0.3.0)       | ✅      | One-shot background agent tasks via WorkManager + `@HiltWorker`; task lifecycle (Queued→Running→Completed/Failed) |
-| **Experiment** (v0.3.0)     | ✅      | Side-by-side streaming LLM A/B comparison; pick any two model IDs; parallel SSE streams |
-| Plugin gRPC sandbox         | ⏳      | Interface stub; Phase 3.x will wire real gRPC IPC                      |
-| Plugin marketplace          | ⏳      | Phase 3.x                                                               |
-| On-device MLC-LLM           | ⏳      | Phase 3.x (JNI bindings + Snapdragon NPU)                              |
-| Real embeddings (MiniLM)    | ⏳      | Phase 3.x (currently SHA-256 hashing mock)                             |
-| SQLite-VSS persistent index | ⏳      | Phase 3.x (currently in-memory brute-force ANN)                        |
-| Real certificate hashes     | ⏳      | Phase 3.x (placeholders ship in Phase 4 — capture before public beta)  |
+| **Release packaging**       | ✅      | v0.9.3 release APK, ProGuard, optional local signing                  |
+| **Connect**                 | ✅      | Webhook / Telegram / Discord integrations and `notify`               |
+| **Delegate**                | ✅      | One-shot background agent tasks via WorkManager                       |
+| **Experiment**              | ✅      | Side-by-side streaming LLM comparison                                |
+| **AppAgent bridge**         | ✅      | Accessibility-backed screen observation and interaction              |
+| **Approval controls**       | ✅      | Safe background allowlist; biometric/PIN for shell and Termux         |
+| Plugin gRPC sandbox         | ⏳      | Interface remains a stub; IPC is future work                           |
+| Plugin marketplace          | ⏳      | Future work                                                             |
+| Persistent vector index     | ⏳      | Current retrieval index is in-memory                                    |
+| Production certificate hashes | ⏳    | Deployment-specific pins still need to be supplied                     |
 
 See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the layered design,
 sequence diagrams, and how each piece maps back to the plan's sections.
 See **[docs/PHASE2.md](docs/PHASE2.md)**, **[docs/PHASE3.md](docs/PHASE3.md)**,
-and **[docs/PHASE4.md](docs/PHASE4.md)** for what each phase added on top.
+and **[docs/PHASE4.md](docs/PHASE4.md)** for the historical phase notes.
 
 ## Quick start
 
@@ -107,7 +109,9 @@ The unsigned release artifact is produced with:
 .\gradlew.bat assembleRelease
 ```
 
-The APK is written to `app/build/outputs/apk/release/app-release-unsigned.apk`.
+The APK is written to `app/build/outputs/apk/release/app-release.apk`.
+The published artifact is available from the
+[v0.9.3 GitHub release](https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.9.3).
 For a distributable signed build, provide the `hermes.signing.*` properties
 described in `app/build.gradle.kts` through the local properties file; signing
 credentials are never committed.
@@ -136,9 +140,11 @@ hermes-agent-android/
 │   └── src/test/kotlin/              # Unit tests (router, repo, viewmodel)
 ├── gradle/libs.versions.toml         # Version catalog
 ├── docs/
-│   ├── ARCHITECTURE.md
+│   ├── APPAGENT_DEVICE_TEST.md
+│   ├── BUGS.md
 │   ├── BUILD.md
-│   └── MODULES.md
+│   ├── LLM_ROUTER_ANDROID.md
+│   └── RELEASE_NOTES_v0.9.3.md
 └── settings.gradle.kts
 ```
 
@@ -157,12 +163,12 @@ For per-module responsibilities and the public API of each package, see
 | Async        | Coroutines 1.9                                            |
 | Background   | WorkManager 2.9 (HiltWorkerFactory)                       |
 | Logging      | Timber                                                    |
-| Min SDK      | 29 (Android 10) — covers ~95% of devices                  |
-| Target SDK   | 34 (Android 14) — matches the plan's target               |
+| Min SDK      | 29 (Android 10)                                           |
+| Target SDK   | 36 (Android 16)                                            |
 | JDK          | 17                                                        |
-| Kotlin       | 2.0.21 + Compose Compiler plugin                          |
-| AGP          | 8.5.2                                                     |
-| Gradle       | 8.9                                                       |
+| Kotlin       | 2.2.x + Compose Compiler plugin                           |
+| AGP          | 9.1.x                                                     |
+| Gradle       | 9.6.1                                                     |
 
 ## Roadmap alignment
 
@@ -172,8 +178,8 @@ For per-module responsibilities and the public API of each package, see
 | Phase 2: Core Agent (weeks 7–14)    | ✅        | Orchestration, tool system, memory, RAG, function calling |
 | Phase 3: Platform (weeks 15–20)     | ✅        | Plugin framework + 3 plugins, real SSE streaming, voice I/O |
 | Phase 4: Polish & Launch (21–24)    | ✅        | Onboarding, accessibility, localization, encrypted settings, cert pinning, memory-pressure shedding, v1.0.0 packaging |
-| **v0.3.0: Connect / Delegate / Experiment** | ✅ | Platform integrations, background agent tasks, model A/B comparison |
-| Phase 3.x: Production backends      | staged    | MLC-LLM + NPU, real embeddings, SQLite-VSS, gRPC plugin sandbox, real cert hashes |
+| **v0.9.3: Android AppAgent + secure automation** | ✅ | Device actions, routing, accessibility tools, and approval gates |
+| Next: production hardening           | staged    | Persistent provider health, signed distribution, broader device coverage |
 
 ## License & attribution
 
