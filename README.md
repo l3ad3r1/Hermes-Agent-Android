@@ -2,7 +2,7 @@
 
 A privacy-first, on-device AI agent platform for Android, built per the [Technical Architecture Plan][plan] (June 2026).
 
-> **Status:** v0.9.0 — Android AppAgent bridge, cloud-first LLM routing, deterministic phone actions, and authenticated automation. All four plan phases
+> **Status:** v0.9.3 — Android AppAgent bridge, cloud-first LLM routing, deterministic phone actions, and authenticated automation. All four plan phases
 > are implemented plus three new Hermes Agent features: **Connect** (Webhook /
 > Telegram / Discord platform integrations with an LLM-callable `notify` tool),
 > **Delegate** (one-shot background agent tasks via WorkManager), and
