@@ -30,3 +30,6 @@ secrets.properties
 hermes.local.properties
 KEYSTORE_CREDENTIALS.txt
 graphify-out/
+
+# Local Codex device-test screenshots and UI dumps
+.codex-*
