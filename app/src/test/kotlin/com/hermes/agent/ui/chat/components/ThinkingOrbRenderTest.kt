@@ -41,6 +41,8 @@ class ThinkingOrbRenderTest {
         px: Int = 176,
         density: Float = 1f,
         twist: Float = 0f,
+        style: OrbStyle = PUZZLE,
+        breath: Float = 0f,
     ): Bitmap {
         val image = ImageBitmap(px, px)
         CanvasDrawScope().draw(
@@ -52,7 +54,7 @@ class ThinkingOrbRenderTest {
             // Stand in for the chat bubble's surfaceVariant, so the orb is
             // judged against the surface it actually sits on.
             drawRect(background)
-            drawOrb(rotation = rotation, color = color, twist = twist)
+            drawOrb(rotation = rotation, color = color, style = style, twist = twist, breath = breath)
         }
         return image.asAndroidBitmap()
     }
@@ -123,6 +125,78 @@ class ThinkingOrbRenderTest {
         // layers can be eyeballed rather than only asserted on.
         listOf(0.00f, 0.04f, 0.08f, 0.12f, 0.20f, 0.22f, 0.25f, 0.28f).forEach { t ->
             write("twist-%03d".format((t * 1000).toInt()), render(0.2f, surface, primary, twist = t))
+        }
+    }
+
+    @Test
+    fun theListeningOrbBreathes() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        fun litPixels(breath: Float): Int {
+            val bmp = render(0.2f, surface, primary, style = BREATHING, breath = breath)
+            val bg = surface.toArgb()
+            var n = 0
+            for (x in 0 until bmp.width step 2) {
+                for (y in 0 until bmp.height step 2) {
+                    if (bmp.getPixel(x, y) != bg) n++
+                }
+            }
+            return n
+        }
+
+        // A breath is a change of size, so the drawn area has to grow with it.
+        val rest = litPixels(0f)
+        val full = litPixels(1f)
+        assertTrue("the orb did not swell: rest=$rest full=$full", full > rest)
+
+        // Frames written out so the swell can be eyeballed, not just counted.
+        listOf(0f, 0.5f, 1f).forEach { b ->
+            write(
+                "breath-%03d".format((b * 100).toInt()),
+                render(0.2f, surface, primary, style = BREATHING, breath = b),
+            )
+        }
+    }
+
+    @Test
+    fun theListeningOrbNeverTwists() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // Breathing is meant to read as calm; a layer snapping round in the
+        // middle of it would undo that. BREATHING sets twistMs = 0, and this
+        // pins it: the twist phase must make no difference at all.
+        val a = render(0.2f, surface, primary, style = BREATHING, twist = 0f, breath = 0.4f)
+        val b = render(0.2f, surface, primary, style = BREATHING, twist = 0.22f, breath = 0.4f)
+        for (x in 0 until a.width step 2) {
+            for (y in 0 until a.height step 2) {
+                assertEquals(
+                    "the listening orb twisted at ($x, $y)",
+                    a.getPixel(x, y),
+                    b.getPixel(x, y),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun theWorkingOrbDoesNotBreathe() {
+        val surface = HermesDark.surfaceVariant
+        val primary = HermesDark.primary
+
+        // PUZZLE leaves breathDepth at zero, so the breath clock — which runs
+        // for every orb — must not move it.
+        val a = render(0.2f, surface, primary, breath = 0f)
+        val b = render(0.2f, surface, primary, breath = 1f)
+        for (x in 0 until a.width step 2) {
+            for (y in 0 until a.height step 2) {
+                assertEquals(
+                    "the working orb changed size with the breath at ($x, $y)",
+                    a.getPixel(x, y),
+                    b.getPixel(x, y),
+                )
+            }
         }
     }
 

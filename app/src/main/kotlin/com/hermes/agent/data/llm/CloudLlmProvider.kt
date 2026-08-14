@@ -8,6 +8,7 @@ import com.hermes.agent.data.remote.dto.ToolCallDto
 import com.hermes.agent.data.remote.dto.FunctionCallDto
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.data.settings.CloudProviderProfile
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.delay
@@ -70,13 +71,26 @@ class CloudLlmProvider @Inject constructor(
     private val modelSource: CloudModelSource,
 ) : LlmProvider {
 
+    private var fixedProfile: CloudProviderProfile? = null
+
+    internal constructor(
+        api: OpenAiApi,
+        settings: SettingsRepository,
+        dispatchers: DispatcherProvider,
+        json: Json,
+        profile: CloudProviderProfile,
+    ) : this(api, settings, dispatchers, json, CloudModelSource.PRIMARY) {
+        fixedProfile = profile
+    }
+
     private companion object {
         const val NETWORK_ATTEMPTS = 2
         const val NETWORK_RETRY_DELAY_MS = 350L
     }
 
-    override val name: String =
-        if (modelSource == CloudModelSource.AUX) "Hermes-Cloud-Specialised" else "Hermes-Cloud"
+    override val name: String
+        get() = fixedProfile?.name
+            ?: if (modelSource == CloudModelSource.AUX) "Hermes-Cloud-Specialised" else "Hermes-Cloud"
     override val isOnDevice: Boolean = false
     override val model: String
         get() = settings.currentBlocking().selectedModel().cleaned()
@@ -86,7 +100,7 @@ class CloudLlmProvider @Inject constructor(
      * or the specialised [UserSettings.auxModel], depending on [modelSource].
      */
     private fun UserSettings.selectedModel(): String =
-        if (modelSource == CloudModelSource.AUX) auxModel else cloudModel
+        fixedProfile?.model ?: if (modelSource == CloudModelSource.AUX) auxModel else cloudModel
 
     /**
      * Base URL this instance targets. The specialist (AUX) provider may use its
@@ -95,19 +109,25 @@ class CloudLlmProvider @Inject constructor(
      * be fully separate.
      */
     private fun UserSettings.activeBaseUrl(): String =
-        if (modelSource == CloudModelSource.AUX && auxBaseUrl.isNotBlank()) auxBaseUrl else cloudBaseUrl
+        fixedProfile?.baseUrl
+            ?: if (modelSource == CloudModelSource.AUX && auxBaseUrl.isNotBlank()) auxBaseUrl else cloudBaseUrl
 
     /** API key this instance targets — AUX uses [UserSettings.auxApiKey] when set, else the primary key. */
     private fun UserSettings.activeApiKey(): String =
-        if (modelSource == CloudModelSource.AUX && auxApiKey.isNotBlank()) auxApiKey else cloudApiKey
+        fixedProfile?.apiKey
+            ?: if (modelSource == CloudModelSource.AUX && auxApiKey.isNotBlank()) auxApiKey else cloudApiKey
 
     override suspend fun isAvailable(): Boolean {
         val s = settings.current()
-        return s.cloudEnabled && s.activeApiKey().isNotBlank()
+        return s.cloudEnabled && (fixedProfile?.enabled != false) && s.activeApiKey().isNotBlank()
     }
 
-    /** Strip control chars / stray whitespace users sometimes paste into Settings. */
-    private fun String.cleaned(): String = filter { it.code >= 0x20 }.trim()
+    /**
+     * HTTP header values used for provider credentials must be printable ASCII.
+     * Backup files and copied provider tables can carry footnote markers or
+     * zero-width Unicode characters that OkHttp correctly rejects.
+     */
+    private fun String.cleaned(): String = filter { it.code in 0x21..0x7E }.trim()
 
     /** Absolute chat-completions URL built from the user's configured base URL. */
     private fun chatUrl(baseUrl: String): String =

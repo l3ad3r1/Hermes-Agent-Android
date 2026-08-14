@@ -28,6 +28,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -88,6 +90,7 @@ fun OnboardingScreen(
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when (step) {
                     OnboardingViewModel.WELCOME -> WelcomeStep()
+                    OnboardingViewModel.RESTORE -> RestoreStep(viewModel)
                     OnboardingViewModel.PROFILE -> ProfileStep(viewModel)
                     OnboardingViewModel.PERMISSIONS -> PermissionsStep()
                     else -> DeviceStep(viewModel)
@@ -143,6 +146,55 @@ private fun WelcomeStep() {
             textAlign = TextAlign.Center,
             modifier = Modifier.widthIn(max = 300.dp),
         )
+    }
+}
+
+@Composable
+private fun RestoreStep(viewModel: OnboardingViewModel) {
+    val scheme = MaterialTheme.colorScheme
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.restoreLocalBackup(uri)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        androidx.compose.material3.Icon(
+            imageVector = Icons.Outlined.Restore,
+            contentDescription = null,
+            tint = scheme.primary,
+            modifier = Modifier.size(52.dp)
+        )
+        Spacer(Modifier.height(22.dp))
+        Text(
+            "Restore Backup?",
+            fontFamily = Geist,
+            fontWeight = FontWeight.Bold,
+            fontSize = 28.sp,
+            color = scheme.onBackground,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(14.dp))
+        Text(
+            "If you have a local backup zip file on this device, you can restore it now. This will skip the rest of the setup.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = scheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 300.dp),
+        )
+        Spacer(Modifier.height(32.dp))
+        Button(
+            onClick = { launcher.launch(arrayOf("application/zip")) },
+            shape = MaterialTheme.shapes.medium,
+        ) {
+            Text("Select Backup File")
+        }
     }
 }
 
@@ -266,18 +318,26 @@ private fun SpecRow(label: String, value: String) {
 
 @Composable
 private fun PermissionRow(title: String, why: String, permission: String) {
+    PermissionGroupRow(title, why, listOf(permission))
+}
+
+@Composable
+private fun PermissionGroupRow(title: String, why: String, permissions: List<String>) {
     val scheme = MaterialTheme.colorScheme
     val context = androidx.compose.ui.platform.LocalContext.current
     var isGranted by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf(
-            androidx.core.content.ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            permissions.all { permission ->
+                androidx.core.content.ContextCompat.checkSelfPermission(context, permission) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
         )
     }
     
     val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        isGranted = granted
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        isGranted = permissions.all { grants[it] == true }
     }
 
     Column(
@@ -296,7 +356,7 @@ private fun PermissionRow(title: String, why: String, permission: String) {
             if (isGranted) {
                 Text("Granted", color = scheme.primary, fontWeight = FontWeight.Medium, fontSize = 13.sp)
             } else {
-                TextButton(onClick = { launcher.launch(permission) }) {
+                TextButton(onClick = { launcher.launch(permissions.toTypedArray()) }) {
                     Text("Allow")
                 }
             }
@@ -322,7 +382,11 @@ private fun PermissionsStep() {
         }
         PermissionRow("Location", "Location-aware answers and reminders", Manifest.permission.ACCESS_FINE_LOCATION)
         PermissionRow("Contacts", "Look up and message people you name", Manifest.permission.READ_CONTACTS)
-        PermissionRow("Calendar", "Read and schedule events", Manifest.permission.READ_CALENDAR)
+        PermissionGroupRow(
+            "Calendar",
+            "Read and schedule events",
+            listOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR),
+        )
         PermissionRow("Camera", "Capture and analyze images on request", Manifest.permission.CAMERA)
         PermissionRow("Termux Commands", "Let Hermes run the full agent in Termux", "com.termux.permission.RUN_COMMAND")
         Spacer(Modifier.height(6.dp))
@@ -387,7 +451,11 @@ private fun NavBar(step: Int, viewModel: OnboardingViewModel) {
                 TextButton(onClick = { viewModel.skip() }, enabled = !saving) { Text("Skip setup") }
             }
             Spacer(Modifier.weight(1f))
-            if (step < OnboardingViewModel.DEVICE) {
+            if (step == OnboardingViewModel.RESTORE) {
+                Button(onClick = { viewModel.next() }, shape = MaterialTheme.shapes.medium, enabled = !saving) {
+                    Text("Skip Restore")
+                }
+            } else if (step < OnboardingViewModel.DEVICE) {
                 Button(onClick = { viewModel.next() }, shape = MaterialTheme.shapes.medium, enabled = !saving) {
                     Text(if (step == OnboardingViewModel.WELCOME) "Get started" else "Continue")
                 }

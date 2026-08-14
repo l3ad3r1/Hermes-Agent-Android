@@ -54,6 +54,7 @@ class EncryptedSettingsRepository @Inject constructor(
         return plain.copy(
             cloudApiKey = decryptSecret(plain.cloudApiKey, KeystoreManager.ALIAS_CLOUD_API_KEY),
             auxApiKey = decryptSecret(plain.auxApiKey, KeystoreManager.ALIAS_AUX_API_KEY),
+            cloudProviderProfiles = decryptProviderProfiles(plain.cloudProviderProfiles),
             githubPat = decryptSecret(plain.githubPat, KeystoreManager.ALIAS_GITHUB_PAT),
             apiServerKey = decryptSecret(plain.apiServerKey, KeystoreManager.ALIAS_API_SERVER_KEY),
             sshPassword = decryptSecret(plain.sshPassword, KeystoreManager.ALIAS_SSH_PASSWORD)
@@ -65,6 +66,7 @@ class EncryptedSettingsRepository @Inject constructor(
             plain.copy(
                 cloudApiKey = decryptSecret(plain.cloudApiKey, KeystoreManager.ALIAS_CLOUD_API_KEY),
                 auxApiKey = decryptSecret(plain.auxApiKey, KeystoreManager.ALIAS_AUX_API_KEY),
+                cloudProviderProfiles = decryptProviderProfiles(plain.cloudProviderProfiles),
                 githubPat = decryptSecret(plain.githubPat, KeystoreManager.ALIAS_GITHUB_PAT),
                 apiServerKey = decryptSecret(plain.apiServerKey, KeystoreManager.ALIAS_API_SERVER_KEY),
                 sshPassword = decryptSecret(plain.sshPassword, KeystoreManager.ALIAS_SSH_PASSWORD)
@@ -77,6 +79,26 @@ class EncryptedSettingsRepository @Inject constructor(
 
     override suspend fun setAuxApiKey(key: String) {
         delegate.setAuxApiKey(encryptSecret(key, KeystoreManager.ALIAS_AUX_API_KEY))
+    }
+
+    override suspend fun setCloudProviderProfiles(
+        profiles: List<com.hermes.agent.data.settings.CloudProviderProfile>,
+    ) {
+        delegate.setCloudProviderProfiles(
+            profiles.map { profile ->
+                profile.copy(
+                    apiKey = encryptSecret(profile.apiKey, KeystoreManager.ALIAS_PROVIDER_API_KEYS),
+                )
+            },
+        )
+    }
+
+    private fun decryptProviderProfiles(
+        profiles: List<com.hermes.agent.data.settings.CloudProviderProfile>,
+    ): List<com.hermes.agent.data.settings.CloudProviderProfile> = profiles.map { profile ->
+        profile.copy(
+            apiKey = decryptSecret(profile.apiKey, KeystoreManager.ALIAS_PROVIDER_API_KEYS),
+        )
     }
 
     override suspend fun setGithubPat(pat: String) {

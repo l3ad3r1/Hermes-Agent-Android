@@ -2,8 +2,10 @@ package com.hermes.agent.data.llm
 
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.data.settings.CloudProviderProfile
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import java.io.IOException
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -25,6 +27,12 @@ class HybridLlmRouterTest {
         specialised = mockk(relaxed = true)
         local = mockk(relaxed = true)
         settings = mockk(relaxed = true)
+        every { cloud.name } returns "Primary cloud"
+        every { cloud.model } returns "primary-model"
+        every { specialised.name } returns "Specialist cloud"
+        every { specialised.model } returns "specialist-model"
+        every { local.name } returns "Local"
+        every { local.model } returns "local-model"
     }
 
     @Test
@@ -41,11 +49,14 @@ class HybridLlmRouterTest {
         coEvery { local.complete(messages) } returns localResponse
 
         val router = HybridLlmRouter(cloud, specialised, local, settings)
-        val decision = router.route(messages)
+        val decision = router.route(
+            messages,
+            RoutingContext(requiresReliableToolCalls = true),
+        )
 
         assertTrue("expected Ready decision", decision is RoutingDecision.Ready)
         val provider = (decision as RoutingDecision.Ready).provider
-        assertTrue(provider is FailoverLlmProvider)
+        assertTrue(provider is RoutedProviderChain)
         assertEquals(localResponse, provider.complete(messages))
         coVerify(exactly = 1) { cloud.complete(messages) }
         coVerify(exactly = 1) { local.complete(messages) }
@@ -64,7 +75,9 @@ class HybridLlmRouterTest {
         val decision = router.route(listOf(LlmMessage("user", "Please analyze and compare these options")))
 
         assertTrue(decision is RoutingDecision.Ready)
-        assertEquals(specialised, (decision as RoutingDecision.Ready).provider)
+        val routed = (decision as RoutingDecision.Ready).provider
+        assertTrue(routed is RoutedProviderChain)
+        assertEquals(specialised.model, routed.model)
     }
 
     @Test
@@ -80,7 +93,97 @@ class HybridLlmRouterTest {
         val decision = router.route(listOf(LlmMessage("user", "hi")))
 
         assertTrue(decision is RoutingDecision.Ready)
-        assertEquals(cloud, (decision as RoutingDecision.Ready).provider)
+        val routed = (decision as RoutingDecision.Ready).provider
+        assertTrue(routed is RoutedProviderChain)
+        assertEquals(cloud.model, routed.model)
+    }
+
+    @Test
+    fun `keeps local model as final fallback even for simple tasks`() = runTest {
+        coEvery { settings.current() } returns UserSettings(
+            cloudEnabled = true,
+            cloudApiKey = "sk-test",
+            selectedModelId = "llama-3.2-1b-q4km",
+        )
+        coEvery { cloud.isAvailable() } returns true
+        coEvery { specialised.isAvailable() } returns true
+        coEvery { local.isAvailable() } returns true
+
+        val router = HybridLlmRouter(cloud, specialised, local, settings)
+        val decision = router.route(listOf(LlmMessage("user", "hi")))
+
+        assertTrue(decision is RoutingDecision.Ready)
+        val routed = (decision as RoutingDecision.Ready).provider
+        assertTrue(routed is RoutedProviderChain)
+        assertEquals(cloud.model, routed.model)
+    }
+
+    @Test
+    fun `routes tool-dependent phone tasks away from the local model`() = runTest {
+        coEvery { settings.current() } returns UserSettings(
+            cloudEnabled = true,
+            cloudApiKey = "sk-test",
+            selectedModelId = "llama-3.2-1b-q4km",
+        )
+        coEvery { cloud.isAvailable() } returns true
+        coEvery { specialised.isAvailable() } returns true
+        coEvery { local.isAvailable() } returns true
+
+        val router = HybridLlmRouter(cloud, specialised, local, settings)
+        val decision = router.route(
+            listOf(LlmMessage("user", "Create a calendar event today at 3 PM")),
+            RoutingContext(requiresReliableToolCalls = true),
+        )
+
+        assertTrue(decision is RoutingDecision.Ready)
+        val routed = (decision as RoutingDecision.Ready).provider
+        assertTrue(routed is RoutedProviderChain)
+        assertEquals(cloud.model, routed.model)
+    }
+
+    @Test
+    fun `routes through an imported provider profile`() = runTest {
+        val profile = CloudProviderProfile(
+            id = "groq",
+            name = "Groq",
+            baseUrl = "https://api.groq.com/openai/v1",
+            model = "moonshotai/kimi-k2-instruct",
+            apiKey = "test-key",
+            quality = 0.88,
+            cost = 0.10,
+            latency = 0.98,
+            toolReliability = 0.94,
+        )
+        val importedProvider = mockk<CloudLlmProvider>(relaxed = true)
+        every { importedProvider.name } returns "Groq"
+        every { importedProvider.model } returns profile.model
+        every { importedProvider.isOnDevice } returns false
+        coEvery { importedProvider.isAvailable() } returns true
+        val factory = mockk<ProfileCloudProviderFactory>()
+        every { factory.create(profile) } returns importedProvider
+        coEvery { settings.current() } returns UserSettings(
+            cloudEnabled = true,
+            cloudProviderProfiles = listOf(profile),
+        )
+        coEvery { cloud.isAvailable() } returns false
+        coEvery { specialised.isAvailable() } returns false
+        coEvery { local.isAvailable() } returns false
+
+        val router = HybridLlmRouter(
+            cloud,
+            specialised,
+            local,
+            settings,
+            factory,
+            QualityAwareLlmRoutingPolicy(),
+        )
+        val decision = router.route(
+            listOf(LlmMessage("user", "Create a calendar event")),
+            RoutingContext(requiresReliableToolCalls = true),
+        )
+
+        assertTrue(decision is RoutingDecision.Ready)
+        assertEquals(importedProvider, (decision as RoutingDecision.Ready).provider)
     }
 
     @Test

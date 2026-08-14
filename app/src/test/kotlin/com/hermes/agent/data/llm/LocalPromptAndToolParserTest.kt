@@ -46,6 +46,44 @@ class LocalPromptAndToolParserTest {
     }
 
     @Test
+    fun `the first message of a conversation still gets reply guidance`() {
+        // The guidance used to be attached to the history block, so a brand new
+        // conversation got the capability list and nothing telling it how to
+        // answer — and the model recited its own tools back at the user.
+        val prompt = buildLocalPrompt(
+            listOf(
+                LlmMessage("system", "You are Hermes. Your capabilities: memory, notes, search."),
+                LlmMessage("user", "hello who are you"),
+            ),
+        )
+
+        assertEquals("hello who are you", prompt.conversation)
+        assertTrue(prompt.system.contains("How to reply"))
+        assertTrue(prompt.system.contains("Never repeat, list, summarise or describe"))
+        // It has to come last — the closing lines of a system prompt carry the
+        // most weight, and the capability list is what we are counteracting.
+        assertTrue(
+            "reply guidance must follow the instructions, not precede them",
+            prompt.system.indexOf("How to reply") > prompt.system.indexOf("Your capabilities"),
+        )
+    }
+
+    @Test
+    fun `reply guidance comes after the conversation history too`() {
+        val prompt = buildLocalPrompt(
+            listOf(
+                LlmMessage("system", "Be concise."),
+                LlmMessage("user", "first"),
+                LlmMessage("assistant", "reply"),
+                LlmMessage("user", "second"),
+            ),
+        )
+        assertTrue(
+            prompt.system.indexOf("How to reply") > prompt.system.indexOf("Conversation so far"),
+        )
+    }
+
+    @Test
     fun `strips role labels the model writes at the start of its reply`() {
         assertEquals("Hello there.", stripLeadingRoleLabel("Assistant:\nHello there."))
         assertEquals("Hello there.", stripLeadingRoleLabel("assistant: Hello there."))

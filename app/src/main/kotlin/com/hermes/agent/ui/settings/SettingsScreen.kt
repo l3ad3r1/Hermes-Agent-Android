@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.SettingsEthernet
 import androidx.compose.material.icons.outlined.Stars
+import androidx.compose.material.icons.outlined.Accessibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -41,6 +42,7 @@ import com.hermes.agent.ui.components.SlimTopBar
 fun SettingsScreen(
     onNavigate: (String) -> Unit = {},
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Scaffold(
         modifier = Modifier.imePadding(),
         topBar = {
@@ -61,7 +63,7 @@ fun SettingsScreen(
                     NavRow(
                         icon = Icons.Outlined.AccountCircle,
                         title = "Assistant",
-                        subtitle = "Cloud LLM provider, models, and chat behaviour",
+                        subtitle = "Custom endpoints, local model, and chat behaviour",
                         onClick = { onNavigate("settings_assistant") },
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -180,6 +182,16 @@ fun SettingsScreen(
                         title = "Logs",
                         subtitle = "View, copy, or share app logs for troubleshooting",
                         onClick = { onNavigate("logs") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.Accessibility,
+                        title = "App Control",
+                        subtitle = "Enable Accessibility Service to let the agent control apps",
+                        onClick = {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            context.startActivity(intent)
+                        },
                     )
                 }
             }

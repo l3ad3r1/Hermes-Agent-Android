@@ -105,7 +105,7 @@ class DelegateChildCapabilitiesTest {
             override suspend fun isAvailable() = true
         }
         val router = mockk<LlmRouter>()
-        coEvery { router.route(any()) } returns RoutingDecision.Ready(provider, "test")
+        coEvery { router.route(any(), any()) } returns RoutingDecision.Ready(provider, "test")
         val calculator = mockk<Tool>()
         every { calculator.descriptor } returns ToolDescriptor(
             name = "calculator",
@@ -159,7 +159,7 @@ class DelegateChildCapabilitiesTest {
         assertTrue(result.output.contains("Queued 1 background task"))
         coVerify(exactly = 1) { tasks.add(any(), "Summarise the weekly report") }
         // No subagent must run: the router is never consulted.
-        coVerify(exactly = 0) { router.route(any()) }
+        coVerify(exactly = 0) { router.route(any(), any()) }
         coVerify(exactly = 0) { executor.execute(any(), any()) }
     }
 }

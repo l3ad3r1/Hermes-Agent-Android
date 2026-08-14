@@ -14,6 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.SaveAlt
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -53,6 +55,7 @@ fun AdvancedSettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val backupState by viewModel.backupState.collectAsStateWithLifecycle()
+    val localBackupState by viewModel.localBackupState.collectAsStateWithLifecycle()
     val exportState by viewModel.exportState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -76,7 +79,15 @@ fun AdvancedSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            SectionHeader(text = "Backup & Restore")
+            SectionHeader(text = "Local Backup & Restore")
+            LocalBackupSection(
+                state = localBackupState,
+                onBackup = viewModel::createLocalBackup,
+                onRestore = viewModel::restoreLocalBackup,
+                onDismiss = viewModel::dismissLocalBackupState,
+            )
+
+            SectionHeader(text = "GitHub Gist Backup")
             BackupSection(
                 githubPat = settings.githubPat,
                 gistId = settings.gistId,
@@ -328,6 +339,89 @@ private fun BackupSection(
                         onClick = onRestore,
                         modifier = Modifier.weight(1f),
                         enabled = githubPat.isNotBlank() && gistId.isNotBlank(),
+                    ) {
+                        Text("Restore")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalBackupSection(
+    state: BackupUiState,
+    onBackup: () -> Unit,
+    onRestore: (android.net.Uri) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            onRestore(uri)
+        }
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.SaveAlt,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text("On-Device Backup", style = MaterialTheme.typography.bodyLarge)
+            }
+            Text(
+                "Creates a complete snapshot of all app data, chats, and settings. " +
+                "The backup is saved to your Internal Storage/Hermes Agent/Backup folder.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            when (state) {
+                is BackupUiState.InProgress -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text("Working…", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                is BackupUiState.Success -> {
+                    Text(
+                        state.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                        Text("Dismiss")
+                    }
+                }
+                is BackupUiState.Error -> {
+                    Text(
+                        state.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                else -> Unit
+            }
+
+            if (state !is BackupUiState.InProgress && state !is BackupUiState.Success) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        onClick = onBackup,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Backup to Device")
+                    }
+                    OutlinedButton(
+                        onClick = { restoreLauncher.launch(arrayOf("application/zip")) },
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text("Restore")
                     }

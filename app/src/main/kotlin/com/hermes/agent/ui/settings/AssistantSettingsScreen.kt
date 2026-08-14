@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -46,6 +47,7 @@ import com.hermes.agent.ui.theme.hermesFieldColors
 @Composable
 fun AssistantSettingsScreen(
     onBack: () -> Unit,
+    onOpenProviders: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -70,8 +72,15 @@ fun AssistantSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            SectionHeader(text = stringResource(R.string.settings_section_cloud))
-            CloudSection(settings = settings, viewModel = viewModel)
+            SectionHeader(text = "Models")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                NavRow(
+                    icon = Icons.Outlined.Cloud,
+                    title = "Providers",
+                    subtitle = "Cloud API keys, available models, and automatic fallback",
+                    onClick = onOpenProviders,
+                )
+            }
 
             SectionHeader(text = "On-Device AI (Local Engine)")
             OnDeviceAiCard(settings = settings, viewModel = viewModel)
@@ -85,6 +94,28 @@ fun AssistantSettingsScreen(
                             "instead of just the final answer",
                         checked = settings.showToolCalls,
                         onCheckedChange = viewModel::setShowToolCalls,
+                    )
+                }
+            }
+
+            SectionHeader(text = "Actions & approvals")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    ToggleRow(
+                        title = "Auto-approve phone actions",
+                        subtitle = "Run alarms, navigation, calls, media, calendar, app launches, " +
+                            "and device controls without asking each time. Shell, Termux, raw settings, " +
+                            "and background actions stay protected.",
+                        checked = settings.autoApprovePhoneActions,
+                        onCheckedChange = viewModel::setAutoApprovePhoneActions,
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    ToggleRow(
+                        title = "Trusted background actions",
+                        subtitle = "Allow scheduled/background calendar, alarm, communication, media, " +
+                            "and device-control actions. Fingerprint or phone passcode is required to enable it.",
+                        checked = settings.trustedBackgroundPhoneActions,
+                        onCheckedChange = viewModel::setTrustedBackgroundPhoneActions,
                     )
                 }
             }
@@ -284,9 +315,10 @@ private fun OnDeviceAiCard(
     }
 }
 
+@Deprecated("Legacy single-provider UI is no longer presented; provider cards are the source of truth.")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CloudSection(
+private fun LegacyCloudSectionRemoved(
     settings: com.hermes.agent.data.settings.UserSettings,
     viewModel: SettingsViewModel,
 ) {
@@ -304,7 +336,7 @@ private fun CloudSection(
             HorizontalDivider()
 
             Text(
-                "Primary provider — general tasks",
+                "Custom endpoint — primary",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -349,7 +381,7 @@ private fun CloudSection(
             HorizontalDivider()
 
             Text(
-                "Specialist provider — complex tasks",
+                "Custom endpoint — specialist",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

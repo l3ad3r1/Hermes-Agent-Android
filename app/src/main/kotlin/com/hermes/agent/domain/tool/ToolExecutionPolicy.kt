@@ -18,13 +18,23 @@ sealed interface ToolExecutionDecision {
  * confirmation timeout with nobody to ask.
  */
 @Singleton
-class ToolExecutionPolicy @Inject constructor() {
+class ToolExecutionPolicy @Inject constructor(
+    private val authorizationSettings: ToolAuthorizationSettings,
+) {
 
-    fun evaluate(
+    suspend fun evaluate(
         origin: ExecutionOrigin,
         toolName: String,
         requiresConfirmation: Boolean,
     ): ToolExecutionDecision = when {
+        origin == ExecutionOrigin.BACKGROUND && toolName in INTERACTIVE_ONLY ->
+            ToolExecutionDecision.Deny(
+                "The '$toolName' tool is available only during an interactive chat run.",
+            )
+        origin == ExecutionOrigin.BACKGROUND &&
+            toolName in TRUSTED_BACKGROUND_TOOLS &&
+            authorizationSettings.trustedBackgroundPhoneActions() ->
+            ToolExecutionDecision.Allow
         origin == ExecutionOrigin.BACKGROUND && toolName in NEVER_AUTONOMOUS ->
             ToolExecutionDecision.Deny(
                 "The '$toolName' tool is never allowed from background runs. " +
@@ -44,6 +54,27 @@ class ToolExecutionPolicy @Inject constructor() {
 
     companion object {
         /** Tools that may run only with a human watching (roadmap v0.13). */
-        val NEVER_AUTONOMOUS = setOf("shell", "termux", "device_settings")
+        val NEVER_AUTONOMOUS = setOf(
+            "shell",
+            "termux",
+            "device_settings",
+            "alarm",
+            "navigation",
+            "communication",
+            "media_control",
+            "device_control",
+        )
+
+        /** UI automation may continue after the user approves app_launch, but never in scheduled runs. */
+        val INTERACTIVE_ONLY = setOf("app_launch", "app_tap", "app_swipe", "app_type")
+
+        /** Background-safe subset unlocked by an explicitly authenticated setting. */
+        val TRUSTED_BACKGROUND_TOOLS = setOf(
+            "alarm",
+            "communication",
+            "media_control",
+            "device_control",
+            "calendar_add_event",
+        )
     }
 }

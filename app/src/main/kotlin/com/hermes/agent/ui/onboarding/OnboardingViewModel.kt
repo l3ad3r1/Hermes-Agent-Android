@@ -6,6 +6,8 @@ import com.hermes.agent.data.device.DeviceProfile
 import com.hermes.agent.data.device.DeviceProfiler
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.domain.repository.MemoryRepository
+import com.hermes.agent.data.backup.LocalBackupManager
+import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +38,7 @@ class OnboardingViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val memory: MemoryRepository,
     private val deviceProfiler: DeviceProfiler,
+    private val localBackupManager: LocalBackupManager,
 ) : ViewModel() {
 
     private val _step = MutableStateFlow(WELCOME)
@@ -99,6 +102,24 @@ class OnboardingViewModel @Inject constructor(
     /** Skip the remaining steps but still persist whatever was entered/scanned. */
     fun skip() = finish()
 
+    fun restoreLocalBackup(uri: Uri) {
+        if (_saving.value) return
+        viewModelScope.launch {
+            _saving.value = true
+            try {
+                _error.value = null
+                val result = localBackupManager.restoreFromZip(uri)
+                if (result.isFailure) {
+                    _error.value = result.exceptionOrNull()?.message ?: "Failed to restore backup"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to restore backup"
+            } finally {
+                _saving.value = false
+            }
+        }
+    }
+
     private suspend fun saveToMemory() {
         val p = _profile.value
         val facts = buildList {
@@ -121,8 +142,9 @@ class OnboardingViewModel @Inject constructor(
 
     companion object {
         const val WELCOME = 0
-        const val PROFILE = 1
-        const val PERMISSIONS = 2
-        const val DEVICE = 3
+        const val RESTORE = 1
+        const val PROFILE = 2
+        const val PERMISSIONS = 3
+        const val DEVICE = 4
     }
 }

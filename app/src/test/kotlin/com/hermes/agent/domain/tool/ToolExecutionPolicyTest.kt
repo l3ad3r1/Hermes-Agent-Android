@@ -4,13 +4,21 @@ import com.hermes.agent.domain.agent.ExecutionOrigin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.mockk.coEvery
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 
 class ToolExecutionPolicyTest {
 
-    private val policy = ToolExecutionPolicy()
+    private fun policy(trustedBackground: Boolean = false): ToolExecutionPolicy {
+        val settings = mockk<ToolAuthorizationSettings>(relaxed = true)
+        coEvery { settings.trustedBackgroundPhoneActions() } returns trustedBackground
+        return ToolExecutionPolicy(settings)
+    }
 
     @Test
-    fun `background denies never-autonomous tools regardless of confirmation flag`() {
+    fun `background denies never-autonomous tools regardless of confirmation flag`() = runTest {
+        val policy = policy()
         for (tool in ToolExecutionPolicy.NEVER_AUTONOMOUS) {
             val decision = policy.evaluate(ExecutionOrigin.BACKGROUND, tool, requiresConfirmation = false)
             assertTrue("$tool must be denied in background", decision is ToolExecutionDecision.Deny)
@@ -22,7 +30,8 @@ class ToolExecutionPolicyTest {
     }
 
     @Test
-    fun `background denies confirmation-required tools instead of waiting on a dialog`() {
+    fun `background denies confirmation-required tools instead of waiting on a dialog`() = runTest {
+        val policy = policy()
         val decision = policy.evaluate(
             ExecutionOrigin.BACKGROUND,
             "calendar_add_event",
@@ -32,7 +41,8 @@ class ToolExecutionPolicyTest {
     }
 
     @Test
-    fun `background allows ordinary tools`() {
+    fun `background allows ordinary tools`() = runTest {
+        val policy = policy()
         assertEquals(
             ToolExecutionDecision.Allow,
             policy.evaluate(ExecutionOrigin.BACKGROUND, "search_notes", requiresConfirmation = false),
@@ -40,7 +50,8 @@ class ToolExecutionPolicyTest {
     }
 
     @Test
-    fun `interactive gates never-autonomous tools even without the descriptor flag`() {
+    fun `interactive gates never-autonomous tools even without the descriptor flag`() = runTest {
+        val policy = policy()
         assertEquals(
             ToolExecutionDecision.Confirm,
             policy.evaluate(ExecutionOrigin.INTERACTIVE, "shell", requiresConfirmation = false),
@@ -48,7 +59,31 @@ class ToolExecutionPolicyTest {
     }
 
     @Test
-    fun `interactive gates confirmation-required tools`() {
+    fun `app automation actions continue without replacing the target window`() = runTest {
+        val policy = policy()
+        for (tool in listOf("app_tap", "app_swipe", "app_type")) {
+            assertTrue(
+                "$tool must be denied in background",
+                policy.evaluate(
+                    ExecutionOrigin.BACKGROUND,
+                    tool,
+                    requiresConfirmation = false,
+                ) is ToolExecutionDecision.Deny,
+            )
+            assertEquals(
+                ToolExecutionDecision.Allow,
+                policy.evaluate(
+                    ExecutionOrigin.INTERACTIVE,
+                    tool,
+                    requiresConfirmation = false,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `interactive gates confirmation-required tools`() = runTest {
+        val policy = policy()
         assertEquals(
             ToolExecutionDecision.Confirm,
             policy.evaluate(ExecutionOrigin.INTERACTIVE, "calendar_add_event", requiresConfirmation = true),
@@ -56,10 +91,31 @@ class ToolExecutionPolicyTest {
     }
 
     @Test
-    fun `interactive allows ordinary tools`() {
+    fun `interactive allows ordinary tools`() = runTest {
+        val policy = policy()
         assertEquals(
             ToolExecutionDecision.Allow,
             policy.evaluate(ExecutionOrigin.INTERACTIVE, "search_notes", requiresConfirmation = false),
+        )
+    }
+
+    @Test
+    fun `authenticated trusted mode allows only the background-safe phone subset`() = runTest {
+        val policy = policy(trustedBackground = true)
+
+        for (tool in ToolExecutionPolicy.TRUSTED_BACKGROUND_TOOLS) {
+            assertEquals(
+                ToolExecutionDecision.Allow,
+                policy.evaluate(ExecutionOrigin.BACKGROUND, tool, requiresConfirmation = true),
+            )
+        }
+        assertTrue(
+            policy.evaluate(ExecutionOrigin.BACKGROUND, "shell", requiresConfirmation = true) is
+                ToolExecutionDecision.Deny,
+        )
+        assertTrue(
+            policy.evaluate(ExecutionOrigin.BACKGROUND, "app_launch", requiresConfirmation = true) is
+                ToolExecutionDecision.Deny,
         )
     }
 }

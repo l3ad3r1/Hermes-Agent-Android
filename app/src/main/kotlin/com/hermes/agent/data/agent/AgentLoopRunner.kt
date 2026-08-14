@@ -140,7 +140,7 @@ class AgentLoopRunner @Inject constructor(
     }
 
     companion object {
-        const val MAX_TOOL_ROUNDS = 5
+        const val MAX_TOOL_ROUNDS = 12
         const val MAX_LOOP_DURATION_MS = 5 * 60 * 1000L
     }
 }

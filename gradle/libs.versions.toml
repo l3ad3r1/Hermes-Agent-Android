@@ -15,6 +15,7 @@ hiltNavigationCompose = "1.2.0"
 datastorePreferences = "1.1.1"
 workRuntimeKtx = "2.10.0"
 hiltWork = "1.2.0"
+biometric = "1.1.0"
 
 # Hilt (2.52 fails on AGP 9: "Android BaseExtension not found")
 hilt = "2.60.1"
@@ -58,6 +59,7 @@ androidx-activity-compose = { group = "androidx.activity", name = "activity-comp
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 
 # Compose (BOM-managed)
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }

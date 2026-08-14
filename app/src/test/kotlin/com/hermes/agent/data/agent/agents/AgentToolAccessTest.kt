@@ -29,7 +29,8 @@ class AgentToolAccessTest {
         "get_current_datetime", "calculator", "web_search", "web_fetch", "notify",
         "device_settings", "notes", "search_conversations", "calendar_add_event",
         "skill_manager", "memory", "scheduler", "shell", "termux", "todo", "speak",
-        "clarify", "delegate", "generate_image",
+        "clarify", "delegate", "generate_image", "app_launch", "app_analyze_screen", "app_tap",
+        "app_swipe", "app_type",
     )
 
     private val agents = listOf(
@@ -44,7 +45,10 @@ class AgentToolAccessTest {
 
     @Test
     fun `new v0_7_x tools are granted to at least one agent`() {
-        for (tool in listOf("todo", "clarify", "delegate", "speak", "generate_image", "web_fetch")) {
+        for (tool in listOf(
+            "todo", "clarify", "delegate", "speak", "generate_image", "web_fetch",
+            "app_launch", "app_analyze_screen", "app_tap", "app_swipe", "app_type",
+        )) {
             assertTrue("'$tool' is not granted to any agent — the LLM can never call it", grantedAnywhere(tool))
         }
     }
@@ -61,5 +65,13 @@ class AgentToolAccessTest {
     fun `creative agent exposes generate_image`() {
         val names = CreativeAgent().availableTools(FakeRegistry(allToolNames)).map { it.name }
         assertTrue(names.contains("generate_image"))
+    }
+
+    @Test
+    fun `device-control agent exposes the complete app automation toolset`() {
+        val names = DeviceControlAgent().availableTools(FakeRegistry(allToolNames)).map { it.name }
+        for (tool in listOf("app_launch", "app_analyze_screen", "app_tap", "app_swipe", "app_type")) {
+            assertTrue("device-control agent missing '$tool'", names.contains(tool))
+        }
     }
 }

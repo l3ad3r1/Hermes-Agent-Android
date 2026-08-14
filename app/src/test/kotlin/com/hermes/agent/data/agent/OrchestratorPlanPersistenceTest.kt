@@ -123,7 +123,7 @@ class OrchestratorPlanPersistenceTest {
         val provider = mockk<LlmProvider>(relaxed = true)
         every { provider.isOnDevice } returns true
         val llmRouter = mockk<LlmRouter>()
-        coEvery { llmRouter.route(any()) } returns RoutingDecision.Ready(provider, "test")
+        coEvery { llmRouter.route(any(), any()) } returns RoutingDecision.Ready(provider, "test")
 
         val loopRunner = mockk<AgentLoopRunner>()
         coEvery { loopRunner.run(any(), any(), any(), any(), any(), any(), any()) } coAnswers {
@@ -144,12 +144,17 @@ class OrchestratorPlanPersistenceTest {
             emptyList()
         }
 
+        val deterministicRouter = mockk<DeterministicPhoneCommandRouter>()
+        every { deterministicRouter.match(any<String>()) } returns null
         val orchestrator = OrchestratorImpl(
             agentRouter = agentRouter,
             agentRegistry = agentRegistry,
             toolRegistry = mockk<ToolRegistry>(relaxed = true),
             llmRouter = llmRouter,
             agentLoopRunner = loopRunner,
+            deterministicPhoneCommandRouter = deterministicRouter,
+            toolCallExecutor = mockk(relaxed = true),
+            toolExecutionPolicy = com.hermes.agent.domain.tool.ToolExecutionPolicy(mockk(relaxed = true)),
             dispatchers = object : DispatcherProvider {
                 override val io = Dispatchers.Unconfined
                 override val default = Dispatchers.Unconfined

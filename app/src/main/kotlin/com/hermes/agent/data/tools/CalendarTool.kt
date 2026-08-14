@@ -1,5 +1,7 @@
 package com.hermes.agent.data.tools
 
+import com.hermes.agent.domain.calendar.CalendarEventGateway
+import com.hermes.agent.domain.calendar.CalendarEventRequest
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolParameter
@@ -9,20 +11,19 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Insert a calendar event into the user's local calendar.
- *
- * Phase 2 ships the tool with a no-op body that simulates success: it
- * validates the arguments and returns a fake event id. This lets the
- * Productivity agent's function-calling flow be developed and demoed
- * end-to-end. Phase 3 wires it to the Android CalendarContract provider
- * (requires `android.permission.WRITE_CALENDAR`).
  */
 @Singleton
-class CalendarTool @Inject constructor() : Tool {
+class CalendarTool @Inject constructor(
+    private val calendarGateway: CalendarEventGateway,
+) : Tool {
 
     override val descriptor = ToolDescriptor(
         name = "calendar_add_event",
@@ -58,33 +59,46 @@ class CalendarTool @Inject constructor() : Tool {
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {
         val start = System.currentTimeMillis()
-        val title = arguments["title"]?.extractString()
+        val title = arguments["title"]?.extractString()?.trim()?.takeIf { it.isNotEmpty() }
             ?: return ToolResult.error("missing required parameter: title")
         val startIso = arguments["start_iso"]?.extractString()
             ?: return ToolResult.error("missing required parameter: start_iso")
         val duration = arguments["duration_minutes"]?.extractString()?.toIntOrNull() ?: 60
-        val location = arguments["location"]?.extractString()
-
-        // Validate ISO-8601 parse.
-        runCatching {
-            java.time.OffsetDateTime.parse(startIso)
-        }.onFailure {
-            runCatching { java.time.LocalDateTime.parse(startIso) }.onFailure {
-                return ToolResult.error("start_iso is not valid ISO-8601: $startIso")
-            }
+        if (duration !in 1..10_080) {
+            return ToolResult.error("duration_minutes must be between 1 and 10080")
         }
+        val location = arguments["location"]?.extractString()?.trim()?.takeIf { it.isNotEmpty() }
 
-        // Phase 3: CalendarContract.Events INSERT via ContentResolver.
-        val fakeId = "evt-${System.currentTimeMillis()}"
-        val summary = buildString {
-            append("event created (id=$fakeId)\n")
-            append("  title: $title\n")
-            append("  start: $startIso\n")
-            append("  duration: ${duration}m")
-            location?.let { append("\n  location: $it") }
-            append("\n[note: Phase 2 mock — event was NOT written to the system calendar.]")
-        }
-        return ToolResult.ok(summary, executionMs = System.currentTimeMillis() - start)
+        val zoneId = ZoneId.systemDefault()
+        val startInstant = runCatching { OffsetDateTime.parse(startIso).toInstant() }
+            .recoverCatching { LocalDateTime.parse(startIso).atZone(zoneId).toInstant() }
+            .getOrElse { return ToolResult.error("start_iso is not valid ISO-8601: $startIso") }
+        val endInstant = startInstant.plusSeconds(duration * 60L)
+
+        return calendarGateway.createEvent(
+            CalendarEventRequest(
+                title = title,
+                start = startInstant,
+                end = endInstant,
+                timeZoneId = zoneId.id,
+                location = location,
+            ),
+        ).fold(
+            onSuccess = { created ->
+                ToolResult.ok(
+                    output = "Event created in ${created.calendarName} " +
+                        "(id=${created.id}): $title, $startIso, ${duration}m",
+                    executionMs = System.currentTimeMillis() - start,
+                )
+            },
+            onFailure = { error ->
+                ToolResult.error(
+                    message = "Failed to create calendar event: " +
+                        (error.message ?: error.javaClass.simpleName),
+                    executionMs = System.currentTimeMillis() - start,
+                )
+            },
+        )
     }
 
     private fun JsonElement.extractString(): String? =

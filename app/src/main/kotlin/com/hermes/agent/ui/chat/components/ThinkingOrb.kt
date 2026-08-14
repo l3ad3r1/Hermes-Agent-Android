@@ -70,6 +70,13 @@ internal data class OrbStyle(
      * makes the rotation legible.
      */
     val cellTone: Float = 0f,
+    /**
+     * Milliseconds for one breath — the sphere swelling and settling — or 0 for
+     * a body that holds its size.
+     */
+    val breathMs: Int = 0,
+    /** How much of the radius the breath takes, as a fraction. */
+    val breathDepth: Float = 0f,
 )
 
 /** Layer twists per [OrbStyle.twistMs] cycle. */
@@ -136,6 +143,30 @@ internal val PUZZLE = OrbStyle(
 )
 
 /**
+ * Listening: the sphere turns slowly and breathes, and nothing twists.
+ *
+ * Deliberately the opposite of [PUZZLE]. Working is busy and fidgety — layers
+ * snapping round, cells in three tones. Waiting for someone to speak should
+ * read as calm and attentive, so the layer twists are gone, the tones are
+ * flattened towards even, and the whole body swells and settles instead.
+ *
+ * Sized a little smaller at rest so the swell has somewhere to go without the
+ * orb overflowing the button it sits in.
+ */
+internal val BREATHING = OrbStyle(
+    rings = 10,
+    equatorPoints = 18,
+    dotScale = 1.0f,
+    radiusScale = 0.80f,
+    jitter = 0f,
+    spinMs = 11000,
+    twistMs = 0,
+    cellTone = 0.30f,
+    breathMs = 2600,
+    breathDepth = 0.18f,
+)
+
+/**
  * A rotating sphere of points, shown while the assistant is busy.
  *
  * Points sit on latitude bands of a unit sphere, spin about the vertical axis,
@@ -163,6 +194,8 @@ fun ThinkingOrb(
     modifier: Modifier = Modifier,
     diameter: Dp = 32.dp,
     color: Color = MaterialTheme.colorScheme.primary,
+    /** Breathe instead of working the puzzle — Hermes is waiting to be spoken to. */
+    listening: Boolean = false,
 ) {
     val context = LocalContext.current
     val animatorScale = Settings.Global.getFloat(
@@ -171,7 +204,7 @@ fun ThinkingOrb(
         1f,
     )
     val reducedMotion = animatorScale == 0f
-    val style = PUZZLE
+    val style = if (listening) BREATHING else PUZZLE
 
     val transition = rememberInfiniteTransition(label = "thinking-orb")
 
@@ -198,13 +231,28 @@ fun ThinkingOrb(
         label = "twist",
     )
 
+    // Reverse, not Restart: a breath has to settle back the way it came. A
+    // sawtooth would snap from full to empty at the loop seam.
+    val breathCycle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(style.breathMs.coerceAtLeast(1), easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "breath",
+    )
+
     // An off-axis angle still reads as a sphere; 0 would line the bands up.
     val rotation = if (reducedMotion) 0.15f else spin
     // Mid-turn, so a still frame shows the puzzle caught in the act.
     val twist = if (reducedMotion) 0.06f else twistCycle
+    // Half-inflated when animations are off, so the still orb is not the
+    // smallest it ever gets.
+    val breath = if (reducedMotion) 0.5f else breathCycle
 
     Canvas(modifier = modifier.size(diameter)) {
-        drawOrb(rotation, color, style, twist)
+        drawOrb(rotation, color, style, twist, breath)
     }
 }
 
@@ -254,8 +302,14 @@ internal fun DrawScope.drawOrb(
     color: Color,
     style: OrbStyle = PUZZLE,
     twist: Float = 0f,
+    /** Breath phase, 0 at rest and 1 fully swelled. Ignored unless the style breathes. */
+    breath: Float = 0f,
 ) {
-    val radius = size.minDimension / 2f * style.radiusScale
+    // Smoothed rather than linear: a breath eases at the top and bottom of its
+    // travel, and a raw ramp reads as a mechanical throb.
+    val eased = breath * breath * (3f - 2f * breath)
+    val swell = 1f + style.breathDepth * eased
+    val radius = size.minDimension / 2f * style.radiusScale * swell
     val mid = center
     val angle = rotation * TWO_PI
     val cosSpin = cos(angle)

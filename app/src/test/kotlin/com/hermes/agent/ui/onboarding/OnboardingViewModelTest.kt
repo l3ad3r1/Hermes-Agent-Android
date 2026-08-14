@@ -38,7 +38,7 @@ class OnboardingViewModelTest {
 
     /** Build a VM with the current 3-arg constructor; memory + profiler relaxed. */
     private fun vm(settings: SettingsRepository = mockSettings()) =
-        OnboardingViewModel(settings, mockk(relaxed = true), mockk(relaxed = true))
+        OnboardingViewModel(settings, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true))
 
     @Test
     fun `initial step is WELCOME`() = runTest {
@@ -48,6 +48,8 @@ class OnboardingViewModelTest {
     @Test
     fun `next advances step`() = runTest {
         val viewModel = vm()
+        viewModel.next()
+        assertEquals(OnboardingViewModel.RESTORE, viewModel.step.value)
         viewModel.next()
         assertEquals(OnboardingViewModel.PROFILE, viewModel.step.value)
         viewModel.next()
@@ -59,7 +61,7 @@ class OnboardingViewModelTest {
     @Test
     fun `next caps at DEVICE`() = runTest {
         val viewModel = vm()
-        repeat(5) { viewModel.next() }
+        repeat(6) { viewModel.next() }
         assertEquals(OnboardingViewModel.DEVICE, viewModel.step.value)
     }
 
@@ -69,7 +71,7 @@ class OnboardingViewModelTest {
         viewModel.next()
         viewModel.next()
         viewModel.back()
-        assertEquals(OnboardingViewModel.PROFILE, viewModel.step.value)
+        assertEquals(OnboardingViewModel.RESTORE, viewModel.step.value)
         viewModel.back()
         viewModel.back()
         assertEquals(OnboardingViewModel.WELCOME, viewModel.step.value)

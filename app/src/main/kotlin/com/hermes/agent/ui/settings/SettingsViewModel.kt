@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hermes.agent.data.backup.GithubBackupService
 import com.hermes.agent.data.llm.CloudModelCatalog
+import com.hermes.agent.data.llm.CloudProviderRegistry
 import com.hermes.agent.data.security.KeystoreManager
 import com.hermes.agent.data.security.KnoxSecurityManager
 import com.hermes.agent.data.settings.SettingsRepository
@@ -13,6 +14,9 @@ import com.hermes.agent.data.export.SessionExporter
 import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
 import com.hermes.agent.core.settings.HermesSettings
+import com.hermes.agent.domain.security.DeviceAuthenticationService
+import com.hermes.agent.data.backup.LocalBackupManager
+import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -76,6 +80,8 @@ class SettingsViewModel @Inject constructor(
     private val sessionExporter: SessionExporter,
     private val cloudModelCatalog: CloudModelCatalog,
     private val localLlmManager: com.hermes.agent.data.llm.LocalLlmManager,
+    private val localBackupManager: LocalBackupManager,
+    private val deviceAuthenticationService: DeviceAuthenticationService = DeviceAuthenticationService(),
 ) : ViewModel() {
 
     // ─── Appearance settings ────────────────────────────────────────────────
@@ -114,6 +120,10 @@ class SettingsViewModel @Inject constructor(
     val specialistModelDiscovery: StateFlow<ModelDiscoveryUiState> = _specialistModelDiscovery.asStateFlow()
 
     private var modelDiscoveryJob: Job? = null
+    private val providerDiscoveryJobs = mutableMapOf<String, Job>()
+    private val _providerModelDiscovery = MutableStateFlow<Map<String, ModelDiscoveryUiState>>(emptyMap())
+    val providerModelDiscovery: StateFlow<Map<String, ModelDiscoveryUiState>> =
+        _providerModelDiscovery.asStateFlow()
 
     val isModelDownloaded = MutableStateFlow(false)
     val isModelDownloading: StateFlow<Boolean> = localLlmManager.isDownloading
@@ -128,6 +138,10 @@ class SettingsViewModel @Inject constructor(
     val defaultModelDirName: String = com.hermes.agent.data.llm.ModelCatalog.DEFAULT_DIR_NAME
 
     init {
+        viewModelScope.launch {
+            repairInvalidProviderBaseUrls()
+            migrateLegacyProviderCredential()
+        }
         viewModelScope.launch {
             isModelDownloaded.value = localLlmManager.isModelDownloaded()
             localLlmManager.isDownloading.collect { downloading ->
@@ -187,6 +201,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _backupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
     val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
+
+    private val _localBackupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
+    val localBackupState: StateFlow<BackupUiState> = _localBackupState.asStateFlow()
 
     private val _exportState = MutableStateFlow<ExportUiState>(ExportUiState.Idle)
     val exportState: StateFlow<ExportUiState> = _exportState.asStateFlow()
@@ -260,6 +277,114 @@ class SettingsViewModel @Inject constructor(
         scheduleModelDiscovery()
     }
 
+    /** Move a recognised legacy custom endpoint into the Desktop-style provider list. */
+    private suspend fun migrateLegacyProviderCredential() {
+        val current = settingsRepository.current()
+        if (current.cloudApiKey.isBlank()) return
+        val legacyHost = runCatching { java.net.URI(current.cloudBaseUrl).host }.getOrNull() ?: return
+        val definition = CloudProviderRegistry.providers.firstOrNull {
+            runCatching { java.net.URI(it.defaultBaseUrl).host }.getOrNull() == legacyHost
+        } ?: return
+        if (current.cloudProviderProfiles.any { it.id == definition.id }) return
+        val migrated = CloudProviderRegistry.profile(definition, current.cloudApiKey).copy(
+            baseUrl = current.cloudBaseUrl,
+            model = current.cloudModel,
+            enabled = current.cloudEnabled,
+        )
+        settingsRepository.setCloudProviderProfiles(current.cloudProviderProfiles + migrated)
+    }
+
+    /** Recover provider URLs damaged by incomplete paste/edit operations. */
+    private suspend fun repairInvalidProviderBaseUrls() {
+        val current = settingsRepository.current()
+        var changed = false
+        val repaired = current.cloudProviderProfiles.map { profile ->
+            val uri = runCatching { java.net.URI(profile.baseUrl) }.getOrNull()
+            val valid = uri?.scheme in setOf("http", "https") && !uri?.host.isNullOrBlank()
+            val definition = CloudProviderRegistry.definition(profile.id)
+            if (!valid && definition != null) {
+                changed = true
+                profile.copy(baseUrl = definition.defaultBaseUrl)
+            } else {
+                profile
+            }
+        }
+        if (changed) settingsRepository.setCloudProviderProfiles(repaired)
+    }
+
+    fun setProviderApiKey(providerId: String, key: String) = viewModelScope.launch {
+        updateProvider(providerId) { it.copy(apiKey = key, enabled = key.isNotBlank()) }
+        if (key.isNotBlank()) settingsRepository.setCloudEnabled(true)
+    }
+
+    fun setProviderEnabled(providerId: String, enabled: Boolean) = viewModelScope.launch {
+        updateProvider(providerId) { it.copy(enabled = enabled && it.apiKey.isNotBlank()) }
+    }
+
+    fun setProviderBaseUrl(providerId: String, baseUrl: String) = viewModelScope.launch {
+        updateProvider(providerId) { it.copy(baseUrl = baseUrl.trim()) }
+    }
+
+    fun setProviderModel(providerId: String, model: String) = viewModelScope.launch {
+        updateProvider(providerId) { it.copy(model = model.trim(), modelAutoSelected = false) }
+    }
+
+    fun refreshProviderModels(providerId: String, debounceMillis: Long = MODEL_DISCOVERY_DEBOUNCE_MS) {
+        providerDiscoveryJobs.remove(providerId)?.cancel()
+        providerDiscoveryJobs[providerId] = viewModelScope.launch {
+            if (debounceMillis > 0) delay(debounceMillis)
+            val current = settingsRepository.current()
+            val profile = current.cloudProviderProfiles.firstOrNull { it.id == providerId }
+                ?: CloudProviderRegistry.definition(providerId)?.let(CloudProviderRegistry::profile)
+                ?: return@launch
+            if (profile.apiKey.isBlank() || profile.baseUrl.isBlank()) {
+                setProviderDiscovery(providerId, ModelDiscoveryUiState.Idle)
+                return@launch
+            }
+            setProviderDiscovery(providerId, ModelDiscoveryUiState.Loading)
+            val state = discoverModels(CloudEndpoint(profile.baseUrl, profile.apiKey))
+            if (state is ModelDiscoveryUiState.Ready) {
+                val definition = requireNotNull(CloudProviderRegistry.definition(providerId))
+                val bestModel = CloudProviderRegistry.bestModel(definition, state.models)
+                val selectedModel = when {
+                    bestModel == null -> profile.model
+                    profile.modelAutoSelected -> bestModel
+                    profile.model !in state.models -> bestModel
+                    else -> profile.model
+                }
+                val ordered = CloudProviderRegistry.orderModels(definition, state.models, selectedModel)
+                if (ordered.isEmpty()) {
+                    setProviderDiscovery(providerId, ModelDiscoveryUiState.Empty)
+                    return@launch
+                }
+                if (profile.model != selectedModel) {
+                    updateProvider(providerId) {
+                        it.copy(model = selectedModel, modelAutoSelected = true)
+                    }
+                }
+                setProviderDiscovery(providerId, ModelDiscoveryUiState.Ready(ordered))
+            } else {
+                setProviderDiscovery(providerId, state)
+            }
+        }
+    }
+
+    private fun setProviderDiscovery(providerId: String, state: ModelDiscoveryUiState) {
+        _providerModelDiscovery.value = _providerModelDiscovery.value + (providerId to state)
+    }
+
+    private suspend fun updateProvider(
+        providerId: String,
+        transform: (com.hermes.agent.data.settings.CloudProviderProfile) -> com.hermes.agent.data.settings.CloudProviderProfile,
+    ) {
+        val current = settingsRepository.current().cloudProviderProfiles
+        val definition = requireNotNull(CloudProviderRegistry.definition(providerId))
+        val existing = current.firstOrNull { it.id == providerId } ?: CloudProviderRegistry.profile(definition)
+        settingsRepository.setCloudProviderProfiles(
+            current.filterNot { it.id == providerId } + transform(existing),
+        )
+    }
+
     fun setCloudApiKey(key: String) = viewModelScope.launch {
         settingsRepository.setCloudApiKey(key)
         scheduleModelDiscovery()
@@ -299,6 +424,22 @@ class SettingsViewModel @Inject constructor(
      *  keep tool use opaque and show only the final reply. */
     fun setShowToolCalls(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setShowToolCalls(enabled)
+    }
+
+    fun setAutoApprovePhoneActions(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setAutoApprovePhoneActions(enabled)
+    }
+
+    fun setTrustedBackgroundPhoneActions(enabled: Boolean) = viewModelScope.launch {
+        if (!enabled) {
+            settingsRepository.setTrustedBackgroundPhoneActions(false)
+            return@launch
+        }
+        val authenticated = deviceAuthenticationService.authenticate(
+            title = "Enable trusted background actions",
+            reason = "Confirm with your fingerprint or phone passcode",
+        )
+        if (authenticated) settingsRepository.setTrustedBackgroundPhoneActions(true)
     }
 
     fun setLocalModelUri(uri: String) = viewModelScope.launch {
@@ -459,6 +600,38 @@ class SettingsViewModel @Inject constructor(
 
     fun dismissBackupState() {
         _backupState.value = BackupUiState.Idle
+    }
+
+    // --- Local On-Device Backup ---
+
+    fun createLocalBackup() {
+        if (_localBackupState.value is BackupUiState.InProgress) return
+        _localBackupState.value = BackupUiState.InProgress
+        viewModelScope.launch {
+            val result = localBackupManager.exportToZip()
+            if (result.isSuccess) {
+                _localBackupState.value = BackupUiState.Success("Local backup saved to Documents/Hermes Agent")
+            } else {
+                _localBackupState.value = BackupUiState.Error(result.exceptionOrNull()?.message ?: "Failed to save backup")
+            }
+        }
+    }
+
+    fun restoreLocalBackup(uri: Uri) {
+        if (_localBackupState.value is BackupUiState.InProgress) return
+        _localBackupState.value = BackupUiState.InProgress
+        viewModelScope.launch {
+            val result = localBackupManager.restoreFromZip(uri)
+            if (result.isSuccess) {
+                _localBackupState.value = BackupUiState.Success("Backup restored. Restarting...")
+            } else {
+                _localBackupState.value = BackupUiState.Error(result.exceptionOrNull()?.message ?: "Failed to restore backup")
+            }
+        }
+    }
+
+    fun dismissLocalBackupState() {
+        _localBackupState.value = BackupUiState.Idle
     }
 
     // --- Session export (for offline self-evolution) ---

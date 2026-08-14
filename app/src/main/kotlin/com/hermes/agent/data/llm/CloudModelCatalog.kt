@@ -22,7 +22,7 @@ class OpenAiCloudModelCatalog @Inject constructor(
 
     override suspend fun listModels(baseUrl: String, apiKey: String): List<String> =
         withContext(dispatchers.io) {
-            val cleanedBaseUrl = baseUrl.filter { it.code >= 0x20 }.trim().trimEnd('/')
+            val cleanedBaseUrl = baseUrl.filter { it.code in 0x21..0x7E }.trim().trimEnd('/')
             val parsed = cleanedBaseUrl.toHttpUrlOrNull()
             require(parsed != null && parsed.scheme in setOf("http", "https")) {
                 "Enter a valid HTTP or HTTPS API URL."
@@ -32,7 +32,7 @@ class OpenAiCloudModelCatalog @Inject constructor(
             } else {
                 "$cleanedBaseUrl/models"
             }
-            val authorization = apiKey.filter { it.code >= 0x20 }.trim()
+            val authorization = apiKey.filter { it.code in 0x21..0x7E }.trim()
                 .takeIf { it.isNotEmpty() }
                 ?.let { "Bearer $it" }
 

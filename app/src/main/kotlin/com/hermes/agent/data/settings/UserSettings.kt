@@ -13,6 +13,9 @@ data class UserSettings(
     val auxModel: String = "gpt-4o-mini",
     val auxBaseUrl: String = "",
     val auxApiKey: String = "",
+    // OpenAI-compatible provider credentials. Provider metadata comes from the
+    // built-in Desktop-compatible registry; API keys are encrypted individually.
+    val cloudProviderProfiles: List<CloudProviderProfile> = emptyList(),
     // Local AI Model
     // A custom .gguf picked via SAF (content:// URI). When set, it overrides the
     // downloaded catalog model.
@@ -34,6 +37,13 @@ data class UserSettings(
     // calendar, etc.) are shown live as the agent works. When false, only the
     // final reply is shown — the agent's tool use stays opaque to the user.
     val showToolCalls: Boolean = true,
+    // Explicit opt-in for hands-free phone actions. This never covers shell,
+    // Termux, or raw settings commands, and background runs remain denied by
+    // ToolExecutionPolicy.
+    val autoApprovePhoneActions: Boolean = false,
+    // Allows a restricted set of phone tools from background agent runs. The
+    // user must authenticate with the device credential before enabling it.
+    val trustedBackgroundPhoneActions: Boolean = false,
     // Local OpenAI-compatible API server (v0.7.26). When enabled, Hermes runs
     // an embedded HTTP server exposing /v1/chat/completions so other apps on
     // the device (or LAN) can use the agent as a backend.

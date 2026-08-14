@@ -87,4 +87,7 @@
     <string name="onboarding_perm_notifications_rationale">For the notification agent (Phase 3.x). Optional.</string>
     <string name="onboarding_perm_granted">Granted</string>
     <string name="onboarding_perm_allow">Allow</string>
+
+    <!-- AppAgent -->
+    <string name="accessibility_service_description">Hermes Agent requires Accessibility access to interact with apps on your behalf.</string>
 </resources>

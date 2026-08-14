@@ -1,9 +1,10 @@
 package com.hermes.agent
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -13,12 +14,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.fragment.app.FragmentActivity
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.ui.navigation.HermesNavGraph
 import com.hermes.agent.ui.onboarding.OnboardingScreen
 import com.hermes.agent.ui.theme.HermesTheme
 import com.hermes.agent.work.OtaUpdateWorker
 import com.hermes.agent.core.settings.HermesSettings
+import com.hermes.agent.domain.security.DeviceAuthenticationService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -32,10 +37,13 @@ import javax.inject.Inject
  * nav graph on subsequent launches.
  */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var settings: SettingsRepository
+
+    @Inject
+    lateinit var deviceAuthenticationService: DeviceAuthenticationService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +56,7 @@ class MainActivity : ComponentActivity() {
         }
 
         handleIntent(intent)
+        installDeviceAuthenticationHost()
 
         setContent {
             val themeMode by HermesSettings.themeModeFlow(this)
@@ -82,6 +91,49 @@ class MainActivity : ComponentActivity() {
                             ) == true,
                         )
                     }
+                }
+            }
+        }
+    }
+
+    private fun installDeviceAuthenticationHost() {
+        var activeRequestId: String? = null
+        val prompt = BiometricPrompt(
+            this,
+            androidx.core.content.ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    activeRequestId?.let { deviceAuthenticationService.submit(it, true) }
+                    activeRequestId = null
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    activeRequestId?.let { deviceAuthenticationService.submit(it, false) }
+                    activeRequestId = null
+                }
+            },
+        )
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                deviceAuthenticationService.pendingRequest.collect { request ->
+                    if (request == null) {
+                        if (activeRequestId != null) prompt.cancelAuthentication()
+                        activeRequestId = null
+                        return@collect
+                    }
+                    if (request.id == activeRequestId) return@collect
+                    activeRequestId = request.id
+                    prompt.authenticate(
+                        BiometricPrompt.PromptInfo.Builder()
+                            .setTitle(request.title)
+                            .setSubtitle(request.reason)
+                            .setAllowedAuthenticators(
+                                BiometricManager.Authenticators.BIOMETRIC_WEAK or
+                                    BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+                            )
+                            .build(),
+                    )
                 }
             }
         }

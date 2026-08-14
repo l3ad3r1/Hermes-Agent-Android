@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity
+            android:name="com.hermes.agent.debug.AppAgentFixtureActivity"
+            android:exported="true"
+            android:theme="@style/Theme.HermesAgent" />
+
         <!-- Debug-only adb test seam for the proactive engine. Exported so
              `adb shell am broadcast` can reach it; this source set never
              ships in a release APK. -->

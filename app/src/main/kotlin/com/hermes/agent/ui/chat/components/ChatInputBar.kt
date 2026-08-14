@@ -149,6 +149,7 @@ fun ChatInputBar(
                 if (isListening && !voiceChatActive) {
                     ThinkingOrb(
                         diameter = 26.dp,
+                        listening = true,
                         modifier = Modifier.semantics {
                             contentDescription = listeningDescription
                         },
@@ -185,9 +186,13 @@ fun ChatInputBar(
                     // conversation in progress is exactly what the orb means
                     // everywhere else in the app.
                     if (voiceChatActive) {
+                        // Breathes while the microphone is open and works the
+                        // puzzle while Hermes is thinking or speaking, so the
+                        // button says whose turn it is.
                         ThinkingOrb(
                             diameter = 30.dp,
                             color = MaterialTheme.colorScheme.onError,
+                            listening = isListening,
                             modifier = Modifier.semantics {
                                 contentDescription = endVoiceChatDescription
                             },

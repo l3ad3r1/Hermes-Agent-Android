@@ -1,6 +1,10 @@
 package com.hermes.agent.domain.tool
 
 import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.security.DeviceAuthenticationService
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
 import kotlinx.coroutines.async
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
@@ -14,9 +18,15 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ToolConfirmationServiceTest {
 
+    private fun service(autoApprovePhoneActions: Boolean = false): ToolConfirmationService {
+        val settings = mockk<ToolAuthorizationSettings>(relaxed = true)
+        coEvery { settings.autoApprovePhoneActions() } returns autoApprovePhoneActions
+        return ToolConfirmationService(settings, mockk(relaxed = true))
+    }
+
     @Test
     fun `concurrent confirmations are queued instead of overwriting each other`() = runTest {
-        val service = ToolConfirmationService()
+        val service = service()
         val firstCall = ToolCall("first", "calendar_add_event", emptyMap())
         val secondCall = ToolCall("second", "device_settings", emptyMap())
 
@@ -44,9 +54,9 @@ class ToolConfirmationServiceTest {
 
     @Test
     fun `a stale request id cannot answer a newer request`() = runTest {
-        val service = ToolConfirmationService()
+        val service = service()
         val firstCall = ToolCall("first", "calendar_add_event", emptyMap())
-        val secondCall = ToolCall("second", "shell", emptyMap())
+        val secondCall = ToolCall("second", "navigation", emptyMap())
 
         val first = async { service.awaitConfirmation(firstCall) }
         runCurrent()
@@ -72,6 +82,27 @@ class ToolConfirmationServiceTest {
 
         service.submitConfirmation(service.pendingRequest.value!!.id, true)
         assertTrue(second.await())
+        assertNull(service.pendingRequest.value)
+    }
+
+    @Test
+    fun `opt-in auto approval covers phone tools without creating a pending request`() = runTest {
+        val service = service(autoApprovePhoneActions = true)
+
+        assertTrue(service.awaitConfirmation(ToolCall("phone", "device_control", emptyMap())))
+        assertNull(service.pendingRequest.value)
+    }
+
+    @Test
+    fun `shell uses device authentication even when phone auto approval is enabled`() = runTest {
+        val settings = mockk<ToolAuthorizationSettings>(relaxed = true)
+        coEvery { settings.autoApprovePhoneActions() } returns true
+        val deviceAuth = mockk<DeviceAuthenticationService>()
+        coEvery { deviceAuth.authenticate(any(), any()) } returns false
+        val service = ToolConfirmationService(settings, deviceAuth)
+
+        assertFalse(service.awaitConfirmation(ToolCall("danger", "shell", emptyMap())))
+        coVerify(exactly = 1) { deviceAuth.authenticate(any(), any()) }
         assertNull(service.pendingRequest.value)
     }
 }

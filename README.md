@@ -2,7 +2,7 @@
 
 A privacy-first, on-device AI agent platform for Android, built per the [Technical Architecture Plan][plan] (June 2026).
 
-> **Status:** v0.3.0 — Connect, Delegate & Experiment. All four plan phases
+> **Status:** v0.9.0 — Android AppAgent bridge, cloud-first LLM routing, deterministic phone actions, and authenticated automation. All four plan phases
 > are implemented plus three new Hermes Agent features: **Connect** (Webhook /
 > Telegram / Discord platform integrations with an LLM-callable `notify` tool),
 > **Delegate** (one-shot background agent tasks via WorkManager), and
@@ -77,6 +77,41 @@ and **[docs/PHASE4.md](docs/PHASE4.md)** for what each phase added on top.
 See **[docs/BUILD.md](docs/BUILD.md)** for full build instructions, IDE setup,
 and how to swap the cloud LLM endpoint (OpenAI → Azure → vLLM → Ollama).
 
+## Android automation and approvals
+
+The Android port keeps the assistant's action model explicit and inspectable:
+
+- Supported phone actions (calendar, alarms, communication, media, device
+  controls, and navigation) use deterministic local command parsing before an
+  LLM is involved.
+- Cloud models are selected by the quality-aware router first; configured cloud
+  providers fail over in ranked order, and the on-device model is used only as
+  the final fallback.
+- Auto-approval is user-controlled under **Settings → Assistant → Actions &
+  approvals**. Trusted background mode is limited to the safe phone-action
+  subset.
+- Screen automation, app launching, shell, and Termux operations stay
+  interactive. Shell and Termux require Android biometric or device-PIN
+  authentication for every execution.
+
+See [docs/LLM_ROUTER_ANDROID.md](docs/LLM_ROUTER_ANDROID.md),
+[docs/APPAGENT_DEVICE_TEST.md](docs/APPAGENT_DEVICE_TEST.md), and
+[docs/BUGS.md](docs/BUGS.md) for the routing contract, device test procedure,
+and known limitations.
+
+## Release APK
+
+The unsigned release artifact is produced with:
+
+```powershell
+.\gradlew.bat assembleRelease
+```
+
+The APK is written to `app/build/outputs/apk/release/app-release-unsigned.apk`.
+For a distributable signed build, provide the `hermes.signing.*` properties
+described in `app/build.gradle.kts` through the local properties file; signing
+credentials are never committed.
+
 ## Project layout
 
 ```
@@ -147,3 +182,15 @@ is a self-contained Kotlin implementation; it does not depend on or include
 source from that project.
 
 [hermes-repo]: https://github.com/NousResearch/hermes-agent
+
+### Credits
+
+Project direction and Android integration: **l3ad3r1**.
+
+The Android router is inspired by [U-Lab's LLMRouter][llmrouter] (routing
+concepts only; its Python/PyTorch runtime is not bundled). The agent design is
+conceptually aligned with [NousResearch/hermes-agent][hermes-repo]. Android
+platform components are provided by the Android Open Source Project and
+AndroidX. Implementation and test assistance: **OpenAI Codex**.
+
+[llmrouter]: https://github.com/ulab-uiuc/LLMRouter

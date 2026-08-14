@@ -38,6 +38,7 @@ import com.hermes.agent.ui.settings.AboutSettingsScreen
 import com.hermes.agent.ui.settings.AdvancedSettingsScreen
 import com.hermes.agent.ui.settings.AppearanceSettingsScreen
 import com.hermes.agent.ui.settings.AssistantSettingsScreen
+import com.hermes.agent.ui.settings.ProvidersSettingsScreen
 import com.hermes.agent.ui.settings.ConnectionsSettingsScreen
 import com.hermes.agent.ui.settings.ProactiveSettingsScreen
 import com.hermes.agent.ui.settings.SettingsScreen
@@ -149,7 +150,13 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(onNavigate = { route -> navController.navigate(route) })
             }
-            composable("settings_assistant") { AssistantSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_assistant") {
+                AssistantSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenProviders = { navController.navigate("settings_providers") },
+                )
+            }
+            composable("settings_providers") { ProvidersSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_appearance") { AppearanceSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_connections") { ConnectionsSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_advanced") { AdvancedSettingsScreen(onBack = { navController.popBackStack() }) }

@@ -2,6 +2,7 @@ package com.hermes.agent.data.tools
 
 import com.hermes.agent.data.llm.LlmMessage
 import com.hermes.agent.data.llm.LlmRouter
+import com.hermes.agent.data.llm.RoutingContext
 import com.hermes.agent.data.llm.RoutingDecision
 import com.hermes.agent.data.llm.ToolCall
 import com.hermes.agent.data.tool.ToolCallExecutor
@@ -159,7 +160,10 @@ class DelegateTool @Inject constructor(
             ),
             LlmMessage(role = "user", content = goal),
         )
-        val decision = router.route(messages)
+        val decision = router.route(
+            messages,
+            RoutingContext(requiresReliableToolCalls = true),
+        )
         if (decision is RoutingDecision.Unavailable) {
             return "[subagent unavailable: ${decision.reason}]"
         }

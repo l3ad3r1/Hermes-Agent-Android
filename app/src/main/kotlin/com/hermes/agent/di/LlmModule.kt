@@ -10,6 +10,10 @@ import com.hermes.agent.data.llm.CloudModelSource
 import com.hermes.agent.data.llm.LlmProvider
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.HybridLlmRouter
+import com.hermes.agent.data.llm.LlmRoutingPolicy
+import com.hermes.agent.data.llm.QualityAwareLlmRoutingPolicy
+import com.hermes.agent.data.llm.CloudProviderFactory
+import com.hermes.agent.data.llm.ProfileCloudProviderFactory
 import com.hermes.agent.data.remote.OpenAiApi
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.domain.repository.ChatRepository
@@ -48,6 +52,14 @@ abstract class LlmModule {
     @Binds
     @Singleton
     abstract fun bindLlmRouter(impl: HybridLlmRouter): LlmRouter
+
+    @Binds
+    @Singleton
+    abstract fun bindLlmRoutingPolicy(impl: QualityAwareLlmRoutingPolicy): LlmRoutingPolicy
+
+    @Binds
+    @Singleton
+    abstract fun bindProfileCloudProviderFactory(impl: CloudProviderFactory): ProfileCloudProviderFactory
 
     @Binds
     @Singleton

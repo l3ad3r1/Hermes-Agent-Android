@@ -13,6 +13,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,6 +36,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val AUX_MODEL = stringPreferencesKey("aux_model")
         val AUX_BASE_URL = stringPreferencesKey("aux_base_url")
         val AUX_API_KEY = stringPreferencesKey("aux_api_key")
+        val CLOUD_PROVIDER_PROFILES = stringPreferencesKey("cloud_provider_profiles")
         val LOCAL_MODEL_URI = stringPreferencesKey("local_model_uri")
         val SELECTED_MODEL_ID = stringPreferencesKey("selected_model_id")
         val MODEL_DOWNLOAD_DIR = stringPreferencesKey("model_download_dir")
@@ -42,6 +45,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
         val TERMUX_HERMES_INSTALLED = booleanPreferencesKey("termux_hermes_installed")
         val SHOW_TOOL_CALLS = booleanPreferencesKey("show_tool_calls")
+        val AUTO_APPROVE_PHONE_ACTIONS = booleanPreferencesKey("auto_approve_phone_actions")
+        val TRUSTED_BACKGROUND_PHONE_ACTIONS = booleanPreferencesKey("trusted_background_phone_actions")
         val API_SERVER_ENABLED = booleanPreferencesKey("api_server_enabled")
         val API_SERVER_PORT = intPreferencesKey("api_server_port")
         val API_SERVER_KEY = stringPreferencesKey("api_server_key")
@@ -95,6 +100,11 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.AUX_API_KEY] = key }
     }
 
+    override suspend fun setCloudProviderProfiles(profiles: List<CloudProviderProfile>) {
+        val encoded = profilesJson.encodeToString(ListSerializer(CloudProviderProfile.serializer()), profiles)
+        context.hermesDataStore.edit { it[Keys.CLOUD_PROVIDER_PROFILES] = encoded }
+    }
+
     override suspend fun setLocalModelUri(uri: String) {
         context.hermesDataStore.edit { it[Keys.LOCAL_MODEL_URI] = uri }
     }
@@ -133,6 +143,14 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setShowToolCalls(enabled: Boolean) {
         context.hermesDataStore.edit { it[Keys.SHOW_TOOL_CALLS] = enabled }
+    }
+
+    override suspend fun setAutoApprovePhoneActions(enabled: Boolean) {
+        context.hermesDataStore.edit { it[Keys.AUTO_APPROVE_PHONE_ACTIONS] = enabled }
+    }
+
+    override suspend fun setTrustedBackgroundPhoneActions(enabled: Boolean) {
+        context.hermesDataStore.edit { it[Keys.TRUSTED_BACKGROUND_PHONE_ACTIONS] = enabled }
     }
 
     override suspend fun setApiServerEnabled(enabled: Boolean) {
@@ -178,6 +196,7 @@ class SettingsRepositoryImpl @Inject constructor(
             auxModel = this[Keys.AUX_MODEL] ?: "gpt-4o-mini",
             auxBaseUrl = this[Keys.AUX_BASE_URL] ?: "",
             auxApiKey = this[Keys.AUX_API_KEY] ?: "",
+            cloudProviderProfiles = decodeProviderProfiles(this[Keys.CLOUD_PROVIDER_PROFILES]),
             localModelUri = this[Keys.LOCAL_MODEL_URI] ?: "",
             selectedModelId = this[Keys.SELECTED_MODEL_ID] ?: "",
             modelDownloadDir = this[Keys.MODEL_DOWNLOAD_DIR] ?: "",
@@ -186,6 +205,8 @@ class SettingsRepositoryImpl @Inject constructor(
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,
             termuxHermesInstalled = this[Keys.TERMUX_HERMES_INSTALLED] ?: false,
             showToolCalls = this[Keys.SHOW_TOOL_CALLS] ?: true,
+            autoApprovePhoneActions = this[Keys.AUTO_APPROVE_PHONE_ACTIONS] ?: false,
+            trustedBackgroundPhoneActions = this[Keys.TRUSTED_BACKGROUND_PHONE_ACTIONS] ?: false,
             apiServerEnabled = this[Keys.API_SERVER_ENABLED] ?: false,
             apiServerPort = this[Keys.API_SERVER_PORT] ?: 8642,
             apiServerKey = this[Keys.API_SERVER_KEY] ?: "",
@@ -195,5 +216,16 @@ class SettingsRepositoryImpl @Inject constructor(
             sshUser = this[Keys.SSH_USER] ?: "",
             sshPassword = this[Keys.SSH_PASSWORD] ?: "",
         )
+    }
+
+    private fun decodeProviderProfiles(raw: String?): List<CloudProviderProfile> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return runCatching {
+            profilesJson.decodeFromString(ListSerializer(CloudProviderProfile.serializer()), raw)
+        }.getOrDefault(emptyList())
+    }
+
+    private companion object {
+        val profilesJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     }
 }

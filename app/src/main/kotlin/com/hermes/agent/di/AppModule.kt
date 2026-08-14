@@ -1,9 +1,13 @@
 package com.hermes.agent.di
 
+import com.hermes.agent.data.calendar.AndroidCalendarEventGateway
 import com.hermes.agent.data.security.EncryptedSettingsRepository
 import com.hermes.agent.data.security.KeystoreManager
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.data.settings.SettingsRepositoryImpl
+import com.hermes.agent.data.settings.SettingsToolAuthorizationSettings
+import com.hermes.agent.domain.calendar.CalendarEventGateway
+import com.hermes.agent.domain.tool.ToolAuthorizationSettings
 import com.hermes.agent.util.DefaultDispatcherProvider
 import com.hermes.agent.util.DispatcherProvider
 import dagger.Binds
@@ -34,6 +38,16 @@ abstract class AppModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: EncryptedSettingsRepository): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCalendarEventGateway(impl: AndroidCalendarEventGateway): CalendarEventGateway
+
+    @Binds
+    @Singleton
+    abstract fun bindToolAuthorizationSettings(
+        impl: SettingsToolAuthorizationSettings,
+    ): ToolAuthorizationSettings
 }
 
 /**

@@ -16,6 +16,7 @@ interface SettingsRepository {
     suspend fun setAuxModel(model: String)
     suspend fun setAuxBaseUrl(url: String)
     suspend fun setAuxApiKey(key: String)
+    suspend fun setCloudProviderProfiles(profiles: List<CloudProviderProfile>)
     suspend fun setLocalModelUri(uri: String)
     suspend fun setSelectedModelId(id: String)
     suspend fun setModelDownloadDir(dir: String)
@@ -31,6 +32,8 @@ interface SettingsRepository {
     suspend fun setTermuxHermesInstalled(installed: Boolean)
 
     suspend fun setShowToolCalls(enabled: Boolean)
+    suspend fun setAutoApprovePhoneActions(enabled: Boolean)
+    suspend fun setTrustedBackgroundPhoneActions(enabled: Boolean)
 
     // Local API server
     suspend fun setApiServerEnabled(enabled: Boolean)
