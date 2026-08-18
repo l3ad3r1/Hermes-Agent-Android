@@ -6,9 +6,9 @@ import com.hermes.agent.data.remote.dto.ChatCompletionRequest
 import com.hermes.agent.data.remote.dto.ChatMessage
 import com.hermes.agent.data.remote.dto.ToolCallDto
 import com.hermes.agent.data.remote.dto.FunctionCallDto
+import com.hermes.agent.data.settings.CloudProviderProfile
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.data.settings.UserSettings
-import com.hermes.agent.data.settings.CloudProviderProfile
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.delay
@@ -57,7 +57,7 @@ import javax.inject.Singleton
  * used for specialised tasks. Both share the same API key and base URL.
  */
 /**
- * Selects which configured model id a [CloudLlmProvider] instance targets.
+ * Discriminates between the primary cloud model and the specialised cloud model.
  * PRIMARY → [UserSettings.cloudModel]; AUX → [UserSettings.auxModel].
  */
 enum class CloudModelSource { PRIMARY, AUX }
@@ -227,6 +227,46 @@ class CloudLlmProvider @Inject constructor(
             Timber.tag("CloudLlm").w(t, "SSE stream failed; falling back to fake stream")
             // Fallback: fake-stream a non-streaming completion.
             fakeStream(messages).collect { emit(it) }
+        }
+    }.flowOn(dispatchers.io)
+
+    fun streamWithModelOverride(messages: List<LlmMessage>, modelOverride: String): Flow<LlmStreamChunk> = flow {
+        val s = settings.current()
+        if (s.activeApiKey().isBlank()) {
+            emit(LlmStreamChunk.Error("cloud API key not set"))
+            return@flow
+        }
+
+        val request = ChatCompletionRequest(
+            model = modelOverride.cleaned(),
+            messages = messages.map { it.toDto() },
+            stream = true,
+        )
+        val auth = "Bearer ${s.activeApiKey().cleaned()}"
+
+        try {
+            val body = api.streamCompletion(chatUrl(s.activeBaseUrl()), auth, request)
+            body.use { consumeSseBody(it) { chunk -> emit(LlmStreamChunk.Delta(chunk.deltaContent)) } }
+            emit(LlmStreamChunk.Done)
+        } catch (t: Throwable) {
+            Timber.tag("CloudLlm").w(t, "SSE stream failed; falling back to fake stream")
+            val resp = try {
+                val req = ChatCompletionRequest(
+                    model = modelOverride.cleaned(),
+                    messages = messages.map { it.toDto() },
+                    stream = false,
+                )
+                api.completion(chatUrl(s.activeBaseUrl()), auth, req)
+            } catch (err: Throwable) {
+                emit(LlmStreamChunk.Error(err.message ?: "Cloud completion failed", err))
+                return@flow
+            }
+            val tokens = resp.firstContent.split(" ").map { if (it.endsWith('\n')) it else "$it " }
+            for (tok in tokens) {
+                delay(15L)
+                emit(LlmStreamChunk.Delta(tok))
+            }
+            emit(LlmStreamChunk.Done)
         }
     }.flowOn(dispatchers.io)
 

@@ -13,11 +13,28 @@ sealed class RoutingDecision {
     data class Unavailable(override val provider: LlmProvider, val reason: String) : RoutingDecision()
 }
 
+/** Which provider and model a turn would run on, resolved without a request. */
+data class ActiveTarget(
+    val providerName: String,
+    val model: String,
+    val isOnDevice: Boolean,
+)
+
 interface LlmRouter {
     suspend fun route(
         messages: List<LlmMessage>,
         context: RoutingContext = RoutingContext(),
     ): RoutingDecision
+
+    /**
+     * The provider a turn would run on right now. Null when nothing is
+     * available.
+     *
+     * For display only. It ranks with no prompt and a default context, so a
+     * real turn carrying tools or a long prompt can still rank differently —
+     * this answers "what would run", not "what will run".
+     */
+    suspend fun activeTarget(context: RoutingContext = RoutingContext()): ActiveTarget?
 }
 
 @Singleton
@@ -51,8 +68,16 @@ class HybridLlmRouter @Inject constructor(
         messages: List<LlmMessage>,
         context: RoutingContext,
     ): RoutingDecision {
+        // cloudOnly callers must never silently land on the on-device model.
+        val localAvailable = available(local) && !context.cloudOnly
+        
+        // OMH Maestro alias enforcement
+        if (context.requiredAlias == "quick" && localAvailable) {
+            Timber.tag("LlmRouter").d("Route=ON_DEVICE, reason=OMH alias 'quick' requested")
+            return RoutingDecision.Ready(local, "OMH alias 'quick' requested")
+        }
+        
         val s = settings.current()
-        val localAvailable = available(local)
         val cloudCandidates = buildList {
             val primaryRepresentedInRegistry = s.cloudProviderProfiles.any {
                 it.enabled && it.apiKey.isNotBlank() &&
@@ -121,10 +146,13 @@ class HybridLlmRouter @Inject constructor(
                 Timber.tag("LlmRouter").d("No cloud provider is available; using final local fallback")
                 return RoutingDecision.Ready(local, "all cloud providers unavailable → local fallback")
             }
-            val reason = if (!s.cloudEnabled) {
-                "Cloud is disabled and local model is not downloaded. Configure a Cloud LLM or download the local model in Settings."
-            } else {
-                "Cloud is enabled but no API key is set, and local model is not downloaded. Add one in Settings."
+            val reason = when {
+                context.cloudOnly ->
+                    "No cloud model is reachable. This needs a working Cloud LLM — check Settings → Cloud."
+                !s.cloudEnabled ->
+                    "Cloud is disabled and local model is not downloaded. Configure a Cloud LLM or download the local model in Settings."
+                else ->
+                    "Cloud is enabled but no API key is set, and local model is not downloaded. Add one in Settings."
             }
             return RoutingDecision.Unavailable(cloud, reason)
         }
@@ -156,6 +184,21 @@ class HybridLlmRouter @Inject constructor(
         Timber.tag("LlmRouter").d("Route=%s, score=%.3f, %s", candidate.tier, selected.score, reason)
         return RoutingDecision.Ready(target, reason)
     }
+
+    /**
+      * Resolved through [route] rather than a parallel ranking path, so the card
+      * and the router can never disagree: a chain reports its head, which is the
+      * candidate that would actually be tried first.
+      */
+    override suspend fun activeTarget(context: RoutingContext): ActiveTarget? =
+        when (val decision = route(emptyList(), context)) {
+            is RoutingDecision.Unavailable -> null
+            is RoutingDecision.Ready -> ActiveTarget(
+                providerName = decision.provider.name,
+                model = decision.provider.model,
+                isOnDevice = decision.provider.isOnDevice,
+            )
+        }
 
     private suspend fun available(provider: LlmProvider): Boolean =
         runCatching { provider.isAvailable() }

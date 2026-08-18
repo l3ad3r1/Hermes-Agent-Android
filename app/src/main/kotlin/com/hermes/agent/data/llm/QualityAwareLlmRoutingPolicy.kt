@@ -6,6 +6,18 @@ import javax.inject.Singleton
 /** Extra execution requirements that cannot be inferred from chat text alone. */
 data class RoutingContext(
     val requiresReliableToolCalls: Boolean = false,
+    val requiredAlias: String? = null,
+    /**
+     * Drop the on-device model from the routed chain, so a request either runs
+     * on a cloud provider or fails.
+     *
+     * Self-modification uses this. Chat degrading to the local 1B model is a
+     * reasonable last resort — a weaker answer still beats no answer — but a 1B
+     * model rewriting a skill body or an agent's operating notes writes that
+     * damage to durable state, where it outlives the request. Failing cleanly
+     * is the better outcome there.
+     */
+    val cloudOnly: Boolean = false,
 )
 
 /** The role and normalized operating characteristics of one runnable model. */
@@ -72,7 +84,7 @@ class QualityAwareLlmRoutingPolicy @Inject constructor() : LlmRoutingPolicy {
             val satisfies = candidate.quality >= requiredQuality &&
                 candidate.toolReliability >= minimumToolReliability
             val qualitySurplus = candidate.quality - requiredQuality
-            val score = if (satisfies) {
+            var score = if (satisfies) {
                 // Among models good enough for this request, favor efficiency.
                 (1.0 - candidate.cost) * 0.50 +
                     candidate.latency * 0.20 +
@@ -83,6 +95,13 @@ class QualityAwareLlmRoutingPolicy @Inject constructor() : LlmRoutingPolicy {
                 candidate.quality * 0.65 +
                     candidate.toolReliability * (if (context.requiresReliableToolCalls) 0.25 else 0.0) +
                     (1.0 - candidate.cost) * 0.10
+            }
+            
+            // OMH Maestro alias boosting
+            if (context.requiredAlias == "ultrabrain" && candidate.tier == LlmModelTier.SPECIALIST_CLOUD) {
+                score += 10.0 // heavily boost specialist cloud
+            } else if (context.requiredAlias == "quick" && candidate.tier == LlmModelTier.PRIMARY_CLOUD) {
+                score += 5.0 // boost primary cloud for fast responses
             }
             ScoredLlmRoute(candidate, score, requiredQuality, satisfies)
         }
@@ -100,9 +119,13 @@ class QualityAwareLlmRoutingPolicy @Inject constructor() : LlmRoutingPolicy {
     }
 
     private fun requiredQuality(prompt: String, context: RoutingContext): Double {
-        val complexityFloor = when (ComplexityClassifier.classify(prompt)) {
-            RequestComplexity.SIMPLE -> 0.48
-            RequestComplexity.COMPLEX -> 0.85
+        if (context.requiredAlias == "ultrabrain") {
+            return 0.90
+        }
+        val complexityFloor = when {
+            context.requiredAlias == "quick" -> 0.48
+            ComplexityClassifier.classify(prompt) == RequestComplexity.COMPLEX -> 0.85
+            else -> 0.48
         }
         return if (context.requiresReliableToolCalls) {
             maxOf(complexityFloor, 0.76)

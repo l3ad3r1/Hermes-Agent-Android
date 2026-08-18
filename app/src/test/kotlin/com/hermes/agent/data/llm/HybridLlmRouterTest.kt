@@ -36,6 +36,54 @@ class HybridLlmRouterTest {
     }
 
     @Test
+    fun `cloudOnly keeps the on-device model out of the chain`() = runTest {
+        coEvery { settings.current() } returns UserSettings(
+            cloudEnabled = true,
+            cloudApiKey = "sk-test",
+        )
+        coEvery { cloud.isAvailable() } returns true
+        coEvery { local.isAvailable() } returns true
+        val messages = listOf(LlmMessage("user", "refine this"))
+        coEvery { cloud.complete(messages) } throws IOException("network down")
+
+        val router = HybridLlmRouter(cloud, specialised, local, settings)
+        val decision = router.route(messages, RoutingContext(cloudOnly = true))
+
+        assertTrue("expected Ready decision", decision is RoutingDecision.Ready)
+        // Without the local fallback the only cloud provider fails outright,
+        // rather than quietly handing a refinement to the 1B on-device model.
+        val provider = (decision as RoutingDecision.Ready).provider
+        var threw = false
+        try {
+            provider.complete(messages)
+        } catch (e: IOException) {
+            threw = true
+        }
+        assertTrue("cloudOnly must not fall back to local", threw)
+        coVerify(exactly = 0) { local.complete(any()) }
+    }
+
+    @Test
+    fun `cloudOnly reports unavailable when no cloud provider is configured`() = runTest {
+        coEvery { settings.current() } returns UserSettings(cloudEnabled = false)
+        coEvery { cloud.isAvailable() } returns false
+        coEvery { specialised.isAvailable() } returns false
+        coEvery { local.isAvailable() } returns true
+
+        val router = HybridLlmRouter(cloud, specialised, local, settings)
+        val decision = router.route(
+            listOf(LlmMessage("user", "refine this")),
+            RoutingContext(cloudOnly = true),
+        )
+
+        // A local model being ready must not turn into a Ready decision here.
+        assertTrue("expected Unavailable", decision is RoutingDecision.Unavailable)
+        assertTrue(
+            (decision as RoutingDecision.Unavailable).reason.contains("Cloud", ignoreCase = true),
+        )
+    }
+
+    @Test
     fun `routes through cloud-first failover when local is also available`() = runTest {
         coEvery { settings.current() } returns UserSettings(
             cloudEnabled = true,
@@ -60,6 +108,25 @@ class HybridLlmRouterTest {
         assertEquals(localResponse, provider.complete(messages))
         coVerify(exactly = 1) { cloud.complete(messages) }
         coVerify(exactly = 1) { local.complete(messages) }
+    }
+
+    @Test
+    fun `routes directly to local when quick alias is specified and local is available`() = runTest {
+        coEvery { settings.current() } returns UserSettings(
+            cloudEnabled = true,
+            cloudApiKey = "sk-test",
+        )
+        coEvery { cloud.isAvailable() } returns true
+        coEvery { local.isAvailable() } returns true
+
+        val router = HybridLlmRouter(cloud, specialised, local, settings)
+        val decision = router.route(
+            listOf(LlmMessage("user", "Analyze and compare these options")),
+            RoutingContext(requiredAlias = "quick"),
+        )
+
+        assertTrue(decision is RoutingDecision.Ready)
+        assertEquals(local, (decision as RoutingDecision.Ready).provider)
     }
 
     @Test

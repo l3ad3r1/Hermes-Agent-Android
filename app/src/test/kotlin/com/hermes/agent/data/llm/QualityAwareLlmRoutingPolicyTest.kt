@@ -60,6 +60,28 @@ class QualityAwareLlmRoutingPolicyTest {
         assertFalse(ranked.single().satisfiesRequirements)
     }
 
+    @Test
+    fun `ultrabrain alias boosts specialist cloud even for simple requests`() {
+        val ranked = policy.rank(
+            messages = listOf(LlmMessage("user", "hello")),
+            context = RoutingContext(requiredAlias = "ultrabrain"),
+            candidates = candidates(),
+        )
+
+        assertEquals(LlmModelTier.SPECIALIST_CLOUD, ranked.first().candidate.tier)
+    }
+
+    @Test
+    fun `quick alias boosts primary cloud for complex tasks`() {
+        val ranked = policy.rank(
+            messages = listOf(LlmMessage("user", "Analyze and compare these options")),
+            context = RoutingContext(requiredAlias = "quick"),
+            candidates = candidates(),
+        )
+
+        assertEquals(LlmModelTier.PRIMARY_CLOUD, ranked.first().candidate.tier)
+    }
+
     private fun candidates(): List<LlmRouteCandidate> = listOf(
         candidate(LlmModelTier.ON_DEVICE, quality = 0.48, cost = 0.0, latency = 0.65, tools = 0.50),
         candidate(LlmModelTier.PRIMARY_CLOUD, quality = 0.78, cost = 0.35, latency = 0.80, tools = 0.90),
