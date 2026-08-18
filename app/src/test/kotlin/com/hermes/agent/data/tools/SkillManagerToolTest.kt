@@ -35,7 +35,7 @@ class SkillManagerToolTest {
         coEvery { repo.getByName(any()) } returns null
         val contentSlot = slot<String>()
         coEvery {
-            repo.upsert(any(), any(), capture(contentSlot), any(), any(), any(), any(), any())
+            repo.upsert(any(), any(), capture(contentSlot), any(), any(), any(), any(), any(), any())
         } returns mockk<Skill>(relaxed = true)
 
         val result = tool.execute(
@@ -54,6 +54,7 @@ class SkillManagerToolTest {
                 name = "git-explainer", // kebab-cased
                 description = any(), content = any(), category = any(),
                 tags = any(), version = any(), requiresTools = any(), fallbackForTools = any(),
+                revisionNote = any(),
             )
         }
         // Content carries agentskills.io frontmatter.
@@ -76,7 +77,7 @@ class SkillManagerToolTest {
 
         assertFalse(result.success)
         coVerify(exactly = 0) {
-            repo.upsert(any(), any(), any(), any(), any(), any(), any(), any())
+            repo.upsert(any(), any(), any(), any(), any(), any(), any(), any(), any())
         }
     }
 

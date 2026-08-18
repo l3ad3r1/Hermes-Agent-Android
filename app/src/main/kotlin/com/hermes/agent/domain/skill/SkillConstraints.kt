@@ -17,13 +17,20 @@ object SkillConstraints {
     /** A body must have real content, not a stub. */
     const val MIN_BODY_LENGTH = 50
 
+    /** A description must say something; one or two words cannot describe a skill. */
+    const val MIN_DESCRIPTION_LENGTH = 10
+
     data class Result(val name: String, val passed: Boolean, val message: String)
 
     /**
      * Validate a candidate [body]. When [baselineBody] is supplied, also checks
      * that the rewrite didn't grow disproportionately.
      */
-    fun validate(body: String, baselineBody: String? = null): List<Result> {
+    fun validate(
+        body: String,
+        baselineBody: String? = null,
+        description: String? = null,
+    ): List<Result> {
         val results = mutableListOf<Result>()
 
         val bytes = body.toByteArray(Charsets.UTF_8).size
@@ -46,6 +53,24 @@ object SkillConstraints {
                 "growth",
                 ratio <= MAX_GROWTH_RATIO,
                 "×${"%.2f".format(ratio)} of baseline",
+            )
+        }
+
+        if (description != null) {
+            // The description is the retrieval surface SkillMatcher scores
+            // against, and it lives on a single YAML frontmatter line: a
+            // newline here would truncate the scalar and split the document.
+            val singleLine = description.lines().size == 1
+            val sized = description.trim().length in
+                MIN_DESCRIPTION_LENGTH..SkillDoc.MAX_DESCRIPTION_LENGTH
+            results += Result(
+                "description",
+                singleLine && sized,
+                when {
+                    !singleLine -> "must be a single line"
+                    else -> "${description.trim().length} chars " +
+                        "(allowed $MIN_DESCRIPTION_LENGTH..${SkillDoc.MAX_DESCRIPTION_LENGTH})"
+                },
             )
         }
 

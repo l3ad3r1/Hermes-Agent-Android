@@ -43,4 +43,44 @@ class SkillConstraintsTest {
         val res = result(body)
         assertFalse(res.first { it.name == "structure" }.passed)
     }
+
+    // The description gate only runs when a description is supplied, so
+    // body-only callers keep their existing set of gates.
+    private val goodBody = "# Purpose\nDo the thing.\n\n## Steps\n1. First\n2. Second"
+
+    @Test
+    fun `no description gate when none is supplied`() {
+        assertTrue(result(goodBody).none { it.name == "description" })
+    }
+
+    @Test
+    fun `sensible description passes`() {
+        val res = SkillConstraints.validate(
+            goodBody,
+            description = "Explains git commands in two sentences",
+        )
+        assertTrue(SkillConstraints.allPass(res))
+    }
+
+    @Test
+    fun `multi-line description fails`() {
+        // A newline would terminate the YAML scalar and split the frontmatter.
+        val res = SkillConstraints.validate(goodBody, description = "First line\nSecond line")
+        assertFalse(res.first { it.name == "description" }.passed)
+    }
+
+    @Test
+    fun `too-short description fails`() {
+        val res = SkillConstraints.validate(goodBody, description = "git")
+        assertFalse(res.first { it.name == "description" }.passed)
+    }
+
+    @Test
+    fun `over-long description fails`() {
+        val res = SkillConstraints.validate(
+            goodBody,
+            description = "x".repeat(SkillDoc.MAX_DESCRIPTION_LENGTH + 1),
+        )
+        assertFalse(res.first { it.name == "description" }.passed)
+    }
 }

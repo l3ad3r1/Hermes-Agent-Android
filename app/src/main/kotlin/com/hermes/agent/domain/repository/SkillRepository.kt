@@ -1,6 +1,7 @@
 package com.hermes.agent.domain.repository
 
 import com.hermes.agent.domain.model.Skill
+import com.hermes.agent.domain.model.SkillRevision
 import kotlinx.coroutines.flow.Flow
 
 interface SkillRepository {
@@ -16,7 +17,37 @@ interface SkillRepository {
         version: String = "1.0.0",
         requiresTools: List<String> = emptyList(),
         fallbackForTools: List<String> = emptyList(),
-    ): Skill
+        /**
+         * Why this edit happened. When a skill already exists and its content
+         * or description actually changes, the outgoing version is archived
+         * with this note so [restore] can bring it back. Pass null for edits
+         * not worth keeping history for.
+         */
+        revisionNote: String? = null,
+    ): Skill = upsert(name, description, content, category, tags, version, requiresTools, fallbackForTools)
+
+    suspend fun upsert(
+        name: String,
+        description: String,
+        content: String,
+        category: String,
+        tags: List<String>,
+        version: String,
+        requiresTools: List<String>,
+        fallbackForTools: List<String>,
+    ): Skill = error("Implemented in SkillRepositoryImpl")
+
+    /** Archived prior versions of a skill, newest first. */
+    suspend fun revisions(skillName: String, limit: Int = 20): List<SkillRevision> = emptyList()
+
+    /**
+     * Roll a skill back to an archived revision. The version moves *forward*
+     * (a patch bump) rather than back to the archived string, so the history
+     * still reads in order, and the version being replaced is itself archived
+     * — restoring is undoable too. Returns null if the revision or its skill
+     * is gone.
+     */
+    suspend fun restore(revisionId: String): Skill? = null
     suspend fun delete(id: String)
     suspend fun seedBuiltIn()
 
