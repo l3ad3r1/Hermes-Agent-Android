@@ -16,6 +16,12 @@ import com.hermes.agent.data.local.dao.KanbanTicketDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
+import com.hermes.agent.data.local.dao.PromptRevisionDao
+import com.hermes.agent.data.local.dao.SkillRevisionDao
+import com.hermes.agent.data.local.dao.SupplementalPromptDao
+import com.hermes.agent.data.local.entity.PromptRevisionEntity
+import com.hermes.agent.data.local.entity.SkillRevisionEntity
+import com.hermes.agent.data.local.entity.SupplementalPromptEntity
 import com.hermes.agent.data.local.dao.SkillDao
 import com.hermes.agent.data.local.entity.ActivityLedgerEntity
 import com.hermes.agent.data.local.entity.AgentTaskEntity
@@ -42,12 +48,15 @@ import com.hermes.agent.data.local.entity.SkillEntity
         ConnectorEntity::class,
         AgentTaskEntity::class,
         SkillEntity::class,
+        SkillRevisionEntity::class,
+        SupplementalPromptEntity::class,
+        PromptRevisionEntity::class,
         KanbanTicketEntity::class,
         ExecutionPlanEntity::class,
         ExecutionStepEntity::class,
         ActivityLedgerEntity::class,
     ],
-    version = 12,
+    version = 14,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -60,6 +69,9 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun connectorDao(): ConnectorDao
     abstract fun agentTaskDao(): AgentTaskDao
     abstract fun skillDao(): SkillDao
+    abstract fun skillRevisionDao(): SkillRevisionDao
+    abstract fun supplementalPromptDao(): SupplementalPromptDao
+    abstract fun promptRevisionDao(): PromptRevisionDao
     abstract fun kanbanTicketDao(): KanbanTicketDao
     abstract fun executionPlanDao(): ExecutionPlanDao
     abstract fun activityLedgerDao(): ActivityLedgerDao
@@ -429,5 +441,67 @@ abstract class HermesDatabase : RoomDatabase() {
             }
         }
 
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN evidence_state TEXT")
+            }
+        }
+
+        /**
+         * Schema version 14:
+         * 1) Skill revision history table (`skill_revisions`)
+         * 2) Supplemental prompts table (`supplemental_prompts`)
+         * 3) Supplemental prompt revision history table (`prompt_revisions`)
+         */
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS skill_revisions (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        skillId TEXT NOT NULL,
+                        skillName TEXT NOT NULL,
+                        version TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        note TEXT NOT NULL,
+                        replacedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_skill_revisions_skillId_replacedAt " +
+                        "ON skill_revisions(skillId, replacedAt)",
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS supplemental_prompts (
+                        roleName TEXT NOT NULL PRIMARY KEY,
+                        content TEXT NOT NULL,
+                        version TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS prompt_revisions (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        roleName TEXT NOT NULL,
+                        version TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        note TEXT NOT NULL,
+                        replacedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_prompt_revisions_roleName_replacedAt " +
+                        "ON prompt_revisions(roleName, replacedAt)",
+                )
+            }
+        }
     }
 }

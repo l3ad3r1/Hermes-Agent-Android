@@ -15,8 +15,11 @@ import com.hermes.agent.data.local.dao.ExecutionPlanDao
 import com.hermes.agent.data.local.dao.KanbanTicketDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
+import com.hermes.agent.data.local.dao.PromptRevisionDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
 import com.hermes.agent.data.local.dao.SkillDao
+import com.hermes.agent.data.local.dao.SkillRevisionDao
+import com.hermes.agent.data.local.dao.SupplementalPromptDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,6 +51,8 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_9_10,
                 HermesDatabase.MIGRATION_10_11,
                 HermesDatabase.MIGRATION_11_12,
+                HermesDatabase.MIGRATION_12_13,
+                HermesDatabase.MIGRATION_13_14,
             )
             // conversation_fts is not a Room entity, so a fresh install creates
             // its schema from the entity list and runs no migrations at all —
@@ -69,6 +74,9 @@ object DatabaseModule {
     @Provides fun provideConnectorDao(db: HermesDatabase): ConnectorDao = db.connectorDao()
     @Provides fun provideAgentTaskDao(db: HermesDatabase): AgentTaskDao = db.agentTaskDao()
     @Provides fun provideSkillDao(db: HermesDatabase): SkillDao = db.skillDao()
+    @Provides fun provideSkillRevisionDao(db: HermesDatabase): SkillRevisionDao = db.skillRevisionDao()
+    @Provides fun provideSupplementalPromptDao(db: HermesDatabase): SupplementalPromptDao = db.supplementalPromptDao()
+    @Provides fun providePromptRevisionDao(db: HermesDatabase): PromptRevisionDao = db.promptRevisionDao()
     @Provides fun provideKanbanTicketDao(db: HermesDatabase): KanbanTicketDao = db.kanbanTicketDao()
     @Provides fun provideExecutionPlanDao(db: HermesDatabase): ExecutionPlanDao = db.executionPlanDao()
     @Provides fun provideActivityLedgerDao(db: HermesDatabase): ActivityLedgerDao = db.activityLedgerDao()

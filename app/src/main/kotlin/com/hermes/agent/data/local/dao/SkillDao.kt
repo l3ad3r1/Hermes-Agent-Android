@@ -17,6 +17,9 @@ interface SkillDao {
     @Query("SELECT * FROM skills WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): SkillEntity?
 
+    @Query("SELECT * FROM skills WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): SkillEntity?
+
     @Upsert
     suspend fun upsert(skill: SkillEntity)
 
