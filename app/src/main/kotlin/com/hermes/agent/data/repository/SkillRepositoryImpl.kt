@@ -1,10 +1,14 @@
 package com.hermes.agent.data.repository
 
 import com.hermes.agent.data.local.dao.SkillDao
+import com.hermes.agent.data.local.dao.SkillRevisionDao
 import com.hermes.agent.data.local.entity.SkillEntity
+import com.hermes.agent.data.local.entity.SkillRevisionEntity
 import com.hermes.agent.domain.model.Skill
 import com.hermes.agent.domain.model.SkillLifecycle
+import com.hermes.agent.domain.model.SkillRevision
 import com.hermes.agent.domain.repository.SkillRepository
+import com.hermes.agent.domain.skill.SkillDoc
 import com.hermes.agent.util.IdGenerator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -16,6 +20,7 @@ import javax.inject.Singleton
 @Singleton
 class SkillRepositoryImpl @Inject constructor(
     private val dao: SkillDao,
+    private val revisionDao: SkillRevisionDao,
 ) : SkillRepository {
 
     override fun observe(): Flow<List<Skill>> =
@@ -34,9 +39,31 @@ class SkillRepositoryImpl @Inject constructor(
         version: String,
         requiresTools: List<String>,
         fallbackForTools: List<String>,
+        revisionNote: String?,
     ): Skill {
         val existing = dao.getByName(name)
         val now = System.currentTimeMillis()
+
+        // Archive before overwriting, but only when something restorable
+        // actually changed — a re-seed or a metadata-only touch would
+        // otherwise fill the history with identical snapshots.
+        if (existing != null &&
+            (existing.content != content || existing.description != description)
+        ) {
+            revisionDao.insert(
+                SkillRevisionEntity(
+                    id = IdGenerator.newId(),
+                    skillId = existing.id,
+                    skillName = existing.name,
+                    version = existing.version,
+                    description = existing.description,
+                    content = existing.content,
+                    note = revisionNote ?: "Edited",
+                    replacedAt = now,
+                ),
+            )
+            revisionDao.prune(existing.id, MAX_REVISIONS_PER_SKILL)
+        }
         val entity = SkillEntity(
             id = existing?.id ?: IdGenerator.newId(),
             name = name,
@@ -61,7 +88,32 @@ class SkillRepositoryImpl @Inject constructor(
         return entity.toDomain()
     }
 
-    override suspend fun delete(id: String) = dao.delete(id)
+    override suspend fun delete(id: String) {
+        revisionDao.deleteForSkill(id)
+        dao.delete(id)
+    }
+
+    override suspend fun revisions(skillName: String, limit: Int): List<SkillRevision> {
+        val skill = dao.getByName(skillName) ?: return emptyList()
+        return revisionDao.getForSkill(skill.id, limit).map { it.toDomain() }
+    }
+
+    override suspend fun restore(revisionId: String): Skill? {
+        val revision = revisionDao.getById(revisionId) ?: return null
+        // Resolved by id, not name: a rename must not orphan the history.
+        val current = dao.getById(revision.skillId) ?: return null
+        return upsert(
+            name = current.name,
+            description = revision.description,
+            content = revision.content,
+            category = current.category,
+            tags = current.toDomain().tags,
+            version = SkillDoc.bumpPatch(current.version),
+            requiresTools = current.toDomain().requiresTools,
+            fallbackForTools = current.toDomain().fallbackForTools,
+            revisionNote = "Restored v${revision.version}",
+        )
+    }
 
     override suspend fun seedBuiltIn() {
         dao.deleteAllBuiltIn()
@@ -98,6 +150,11 @@ class SkillRepositoryImpl @Inject constructor(
             }
         }
         return staled to archived
+    }
+
+    private companion object {
+        /** Keep the newest N snapshots per skill; older ones are pruned. */
+        const val MAX_REVISIONS_PER_SKILL = 10
     }
 }
 

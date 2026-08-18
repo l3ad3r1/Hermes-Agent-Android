@@ -24,21 +24,10 @@ interface SkillRepository {
          * not worth keeping history for.
          */
         revisionNote: String? = null,
-    ): Skill = upsert(name, description, content, category, tags, version, requiresTools, fallbackForTools)
-
-    suspend fun upsert(
-        name: String,
-        description: String,
-        content: String,
-        category: String,
-        tags: List<String>,
-        version: String,
-        requiresTools: List<String>,
-        fallbackForTools: List<String>,
-    ): Skill = error("Implemented in SkillRepositoryImpl")
+    ): Skill
 
     /** Archived prior versions of a skill, newest first. */
-    suspend fun revisions(skillName: String, limit: Int = 20): List<SkillRevision> = emptyList()
+    suspend fun revisions(skillName: String, limit: Int = 20): List<SkillRevision>
 
     /**
      * Roll a skill back to an archived revision. The version moves *forward*
@@ -47,7 +36,7 @@ interface SkillRepository {
      * — restoring is undoable too. Returns null if the revision or its skill
      * is gone.
      */
-    suspend fun restore(revisionId: String): Skill? = null
+    suspend fun restore(revisionId: String): Skill?
     suspend fun delete(id: String)
     suspend fun seedBuiltIn()
 
