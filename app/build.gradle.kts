@@ -238,6 +238,9 @@ dependencies {
     // --- Logging ---
     implementation(libs.timber)
 
+    // --- ONNX Runtime (on-device embeddings) ---
+    implementation(libs.onnxruntime.android)
+
     // --- Unit tests ---
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
