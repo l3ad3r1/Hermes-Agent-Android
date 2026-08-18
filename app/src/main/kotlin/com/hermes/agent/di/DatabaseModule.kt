@@ -52,7 +52,6 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_10_11,
                 HermesDatabase.MIGRATION_11_12,
                 HermesDatabase.MIGRATION_12_13,
-                HermesDatabase.MIGRATION_13_14,
             )
             // conversation_fts is not a Room entity, so a fresh install creates
             // its schema from the entity list and runs no migrations at all —

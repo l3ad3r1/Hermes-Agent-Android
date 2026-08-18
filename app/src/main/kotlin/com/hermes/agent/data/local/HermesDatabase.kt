@@ -56,7 +56,7 @@ import com.hermes.agent.data.local.entity.SkillEntity
         ExecutionStepEntity::class,
         ActivityLedgerEntity::class,
     ],
-    version = 14,
+    version = 13,
     exportSchema = false,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -442,19 +442,13 @@ abstract class HermesDatabase : RoomDatabase() {
         }
 
 
-        val MIGRATION_12_13 = object : Migration(12, 13) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE messages ADD COLUMN evidence_state TEXT")
-            }
-        }
-
         /**
-         * Schema version 14:
+         * Schema version 13:
          * 1) Skill revision history table (`skill_revisions`)
          * 2) Supplemental prompts table (`supplemental_prompts`)
          * 3) Supplemental prompt revision history table (`prompt_revisions`)
          */
-        val MIGRATION_13_14 = object : Migration(13, 14) {
+        val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
