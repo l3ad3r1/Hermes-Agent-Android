@@ -63,4 +63,17 @@ data class UserSettings(
     val sshPort: Int = 22,
     val sshUser: String = "",
     val sshPassword: String = "",
+    /**
+     * Passphrase that protects credentials inside a backup archive.
+     *
+     * Generated once and remembered so routine backups need no interaction.
+     * It is what makes a backup portable: the per-install keystore key cannot
+     * leave the device, so anything encrypted with it is dead on arrival
+     * elsewhere. This travels with the user instead.
+     */
+    val backupPassphrase: String = "",
+    // Telegram Bot Gateway: 24/7 self-hosted Telegram bot running in background service
+    val telegramBotEnabled: Boolean = false,
+    val telegramBotToken: String = "",
+    val telegramAllowedUserIds: String = "",
 )

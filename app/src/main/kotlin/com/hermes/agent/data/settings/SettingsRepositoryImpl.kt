@@ -43,6 +43,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val GITHUB_PAT = stringPreferencesKey("github_pat")
         val GIST_ID = stringPreferencesKey("gist_id")
         val LAST_BACKUP_TS = longPreferencesKey("last_backup_ts")
+        val BACKUP_PASSPHRASE = stringPreferencesKey("backup_passphrase")
         val TERMUX_HERMES_INSTALLED = booleanPreferencesKey("termux_hermes_installed")
         val SHOW_TOOL_CALLS = booleanPreferencesKey("show_tool_calls")
         val AUTO_APPROVE_PHONE_ACTIONS = booleanPreferencesKey("auto_approve_phone_actions")
@@ -55,6 +56,9 @@ class SettingsRepositoryImpl @Inject constructor(
         val SSH_PORT = intPreferencesKey("ssh_port")
         val SSH_USER = stringPreferencesKey("ssh_user")
         val SSH_PASSWORD = stringPreferencesKey("ssh_password")
+        val TELEGRAM_BOT_ENABLED = booleanPreferencesKey("telegram_bot_enabled")
+        val TELEGRAM_BOT_TOKEN = stringPreferencesKey("telegram_bot_token")
+        val TELEGRAM_ALLOWED_USER_IDS = stringPreferencesKey("telegram_allowed_user_ids")
     }
 
     override fun observe(): Flow<UserSettings> = context.hermesDataStore.data.map { prefs ->
@@ -118,7 +122,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun isOnboardingCompleted(): Boolean {
-        return context.hermesDataStore.data.map { it[Keys.ONBOARDING_COMPLETED] ?: false }.first()
+        return context.hermesDataStore.data.first()[Keys.ONBOARDING_COMPLETED] ?: false
     }
 
     override suspend fun setOnboardingCompleted(completed: Boolean) {
@@ -126,15 +130,19 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setGithubPat(pat: String) {
-        context.hermesDataStore.edit { it[Keys.GITHUB_PAT] = pat }
+        context.hermesDataStore.edit { it[Keys.GITHUB_PAT] = pat.trim() }
     }
 
     override suspend fun setGistId(gistId: String) {
-        context.hermesDataStore.edit { it[Keys.GIST_ID] = gistId }
+        context.hermesDataStore.edit { it[Keys.GIST_ID] = gistId.trim() }
     }
 
     override suspend fun setLastBackupTimestamp(ts: Long) {
         context.hermesDataStore.edit { it[Keys.LAST_BACKUP_TS] = ts }
+    }
+
+    override suspend fun setBackupPassphrase(passphrase: String) {
+        context.hermesDataStore.edit { it[Keys.BACKUP_PASSPHRASE] = passphrase }
     }
 
     override suspend fun setTermuxHermesInstalled(installed: Boolean) {
@@ -185,6 +193,18 @@ class SettingsRepositoryImpl @Inject constructor(
         context.hermesDataStore.edit { it[Keys.SSH_PASSWORD] = password }
     }
 
+    override suspend fun setTelegramBotEnabled(enabled: Boolean) {
+        context.hermesDataStore.edit { it[Keys.TELEGRAM_BOT_ENABLED] = enabled }
+    }
+
+    override suspend fun setTelegramBotToken(token: String) {
+        context.hermesDataStore.edit { it[Keys.TELEGRAM_BOT_TOKEN] = token.trim() }
+    }
+
+    override suspend fun setTelegramAllowedUserIds(userIds: String) {
+        context.hermesDataStore.edit { it[Keys.TELEGRAM_ALLOWED_USER_IDS] = userIds.trim() }
+    }
+
     private fun Preferences.toUserSettings(): UserSettings {
         return UserSettings(
             cloudEnabled = this[Keys.CLOUD_ENABLED] ?: false,
@@ -203,6 +223,7 @@ class SettingsRepositoryImpl @Inject constructor(
             githubPat = this[Keys.GITHUB_PAT] ?: "",
             gistId = this[Keys.GIST_ID] ?: "",
             lastBackupTimestamp = this[Keys.LAST_BACKUP_TS] ?: 0L,
+            backupPassphrase = this[Keys.BACKUP_PASSPHRASE] ?: "",
             termuxHermesInstalled = this[Keys.TERMUX_HERMES_INSTALLED] ?: false,
             showToolCalls = this[Keys.SHOW_TOOL_CALLS] ?: true,
             autoApprovePhoneActions = this[Keys.AUTO_APPROVE_PHONE_ACTIONS] ?: false,
@@ -215,6 +236,9 @@ class SettingsRepositoryImpl @Inject constructor(
             sshPort = this[Keys.SSH_PORT] ?: 22,
             sshUser = this[Keys.SSH_USER] ?: "",
             sshPassword = this[Keys.SSH_PASSWORD] ?: "",
+            telegramBotEnabled = this[Keys.TELEGRAM_BOT_ENABLED] ?: false,
+            telegramBotToken = this[Keys.TELEGRAM_BOT_TOKEN] ?: "",
+            telegramAllowedUserIds = this[Keys.TELEGRAM_ALLOWED_USER_IDS] ?: "",
         )
     }
 

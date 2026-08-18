@@ -28,6 +28,7 @@ interface SettingsRepository {
     suspend fun setGithubPat(pat: String)
     suspend fun setGistId(gistId: String)
     suspend fun setLastBackupTimestamp(ts: Long)
+    suspend fun setBackupPassphrase(passphrase: String)
 
     suspend fun setTermuxHermesInstalled(installed: Boolean)
 
@@ -46,4 +47,9 @@ interface SettingsRepository {
     suspend fun setSshPort(port: Int)
     suspend fun setSshUser(user: String)
     suspend fun setSshPassword(password: String)
+
+    // Telegram Bot Gateway
+    suspend fun setTelegramBotEnabled(enabled: Boolean)
+    suspend fun setTelegramBotToken(token: String)
+    suspend fun setTelegramAllowedUserIds(userIds: String)
 }
