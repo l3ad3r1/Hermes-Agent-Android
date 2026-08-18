@@ -1,5 +1,6 @@
 package com.hermes.agent.data.evolution
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,6 +12,31 @@ class TraceHeuristicsTest {
         assertTrue(TraceHeuristics.containsSecret("my key is sk-ant-api03-abcdefghijklmnop"))
         assertTrue(TraceHeuristics.containsSecret("token = abcdef0123456789xyz"))
         assertTrue(TraceHeuristics.containsSecret("ghp_0123456789abcdefABCDEF"))
+    }
+
+    @Test
+    fun `redact strips secrets but keeps the surrounding text`() {
+        val redacted = TraceHeuristics.redact("deploy with ghp_0123456789abcdefABCDEF then restart")
+
+        assertFalse(TraceHeuristics.containsSecret(redacted))
+        assertTrue(redacted.contains(TraceHeuristics.REDACTION))
+        // The point of redacting rather than dropping: the trace stays useful.
+        assertTrue(redacted.startsWith("deploy with "))
+        assertTrue(redacted.endsWith(" then restart"))
+    }
+
+    @Test
+    fun `redact handles several secrets in one message`() {
+        val redacted = TraceHeuristics.redact(
+            "key sk-ant-api03-abcdefghijklmnop and also ghp_0123456789abcdefABCDEF",
+        )
+        assertFalse(TraceHeuristics.containsSecret(redacted))
+    }
+
+    @Test
+    fun `redact leaves clean prose untouched`() {
+        val clean = "please summarize this arxiv paper for me"
+        assertEquals(clean, TraceHeuristics.redact(clean))
     }
 
     @Test

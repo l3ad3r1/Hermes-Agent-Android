@@ -27,6 +27,20 @@ object TraceHeuristics {
 
     fun containsSecret(text: String): Boolean = SECRET.containsMatchIn(text)
 
+    /** Placeholder written in place of anything [SECRET] matches. */
+    const val REDACTION = "[REDACTED]"
+
+    /**
+     * Replace every secret-looking span with [REDACTION].
+     *
+     * The on-device refiners drop a whole trace when it looks like it contains
+     * a credential, which is the right call when the trace is only evidence.
+     * Anything that *leaves* the device needs the other behaviour — keep the
+     * text, lose the secret — so both share these patterns rather than growing
+     * a second, drifting copy.
+     */
+    fun redact(text: String): String = SECRET.replace(text, REDACTION)
+
     /**
      * Keyword-overlap relevance between a message and a skill. Mirrors the
      * upstream pre-filter: full-name match, any skill-name word > 3 chars, or
