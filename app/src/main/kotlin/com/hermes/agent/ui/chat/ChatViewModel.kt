@@ -17,6 +17,7 @@ import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.ConversationRepository
 import com.hermes.agent.domain.repository.ExecutionPlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -172,6 +173,12 @@ class ChatViewModel @Inject constructor(
                 chatRepository.sendMessageOrchestrated(conversationId, trimmed, ExecutionOrigin.INTERACTIVE).collect { event ->
                     handleOrchestratorEvent(event)
                 }
+            } catch (cancelled: CancellationException) {
+                // Stopping a reply, or sending the next one while this is still
+                // streaming, cancels this job. Swallowing that here would
+                // overwrite the state [cancel] just cleared and show the user
+                // "StandaloneCoroutine was cancelled" as if the turn failed.
+                throw cancelled
             } catch (t: Throwable) {
                 Timber.tag("ChatVM").w(t, "sendMessageOrchestrated failed")
                 _ephemeral.value = _ephemeral.value.copy(

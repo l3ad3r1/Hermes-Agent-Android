@@ -296,4 +296,56 @@ class ChatViewModelTest {
         // The reply itself still streams — opacity hides tools, not the answer.
         assertEquals("Searching…", streaming.text)
     }
+
+    @Test
+    fun `cancel does not surface the cancellation as an error`() = runTest {
+        val conversationId = "conv-1"
+        val eventFlow = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 10)
+        val chatRepo = mockk<ChatRepository>()
+        every { chatRepo.sendMessageOrchestrated(conversationId, any(), any()) } returns eventFlow
+
+        val vm = buildViewModel(conversationId, chatRepo)
+        backgroundScope.launch { vm.uiState.collect { } }
+        advanceUntilIdle()
+
+        vm.sendMessage("count to five")
+        advanceUntilIdle()
+        eventFlow.emit(OrchestratorEvent.ReplyToken("one "))
+        advanceUntilIdle()
+
+        // "Stop generating reply". The job's CancellationException must not be
+        // caught and shown: on device this put the literal text
+        // "StandaloneCoroutine was cancelled" in the conversation.
+        vm.cancel()
+        advanceUntilIdle()
+
+        assertNull("cancelling a reply is not an error", vm.uiState.value.errorMessage)
+        assertFalse("expected isSending=false after cancel", vm.uiState.value.isSending)
+        assertNull("expected streamingText=null after cancel", vm.uiState.value.streamingText)
+    }
+
+    @Test
+    fun `sending again mid-stream does not surface the cancellation as an error`() = runTest {
+        val conversationId = "conv-1"
+        val first = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 10)
+        val chatRepo = mockk<ChatRepository>()
+        every { chatRepo.sendMessageOrchestrated(conversationId, any(), any()) } returns first
+
+        val vm = buildViewModel(conversationId, chatRepo)
+        backgroundScope.launch { vm.uiState.collect { } }
+        advanceUntilIdle()
+
+        vm.sendMessage("first")
+        advanceUntilIdle()
+        first.emit(OrchestratorEvent.ReplyToken("partial"))
+        advanceUntilIdle()
+
+        // The in-flight job is cancelled to make way for this turn.
+        vm.cancel()
+        vm.sendMessage("second")
+        advanceUntilIdle()
+
+        assertNull("starting a new turn is not an error", vm.uiState.value.errorMessage)
+        assertTrue("expected the new turn to be sending", vm.uiState.value.isSending)
+    }
 }
