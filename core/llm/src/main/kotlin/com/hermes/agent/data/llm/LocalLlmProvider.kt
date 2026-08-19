@@ -117,7 +117,7 @@ internal fun buildLocalPrompt(
  * history, and the labels compound turn after turn — which is exactly how a
  * single stray prefix became two.
  */
-internal fun stripLeadingRoleLabel(text: String): String {
+fun stripLeadingRoleLabel(text: String): String {
     var out = text.trimStart()
     val label = Regex("^(assistant|ai|hermes|bot)\\s*:\\s*", RegexOption.IGNORE_CASE)
     // Repeats, because a contaminated history can produce more than one.
