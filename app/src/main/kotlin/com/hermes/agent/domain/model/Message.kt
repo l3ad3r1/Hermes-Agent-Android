@@ -30,4 +30,5 @@ data class Message(
     val timestamp: Long,
     val tokens: Int = 0,
     val isOnDevice: Boolean = true,
+    val evidenceState: EvidenceState? = null,
 )

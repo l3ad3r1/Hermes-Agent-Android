@@ -447,9 +447,18 @@ abstract class HermesDatabase : RoomDatabase() {
          * 1) Skill revision history table (`skill_revisions`)
          * 2) Supplemental prompts table (`supplemental_prompts`)
          * 3) Supplemental prompt revision history table (`prompt_revisions`)
+         * 4) `messages.evidence_state`, backing [MessageEntity.evidenceState]
+         *
+         * The column ships here rather than in a later migration because 13 has
+         * never been released: the only build in the field is 0.9.3 at version
+         * 12, so there is no database anywhere that stopped at an intermediate
+         * 13 without it.
          */
         val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                // Nullable with no default, matching the entity: an older row
+                // simply has no recorded evidence state.
+                db.execSQL("ALTER TABLE messages ADD COLUMN evidence_state TEXT")
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS skill_revisions (

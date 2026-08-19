@@ -52,4 +52,7 @@ data class MessageEntity(
 
     @ColumnInfo(name = "is_on_device")
     val isOnDevice: Boolean = true,
+
+    @ColumnInfo(name = "evidence_state")
+    val evidenceState: String? = null,
 )

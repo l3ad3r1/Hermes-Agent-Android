@@ -75,6 +75,7 @@ class ConversationRepositoryImpl @Inject constructor(
                 timestamp = message.timestamp.takeIf { it > 0 } ?: now,
                 tokens = message.tokens,
                 isOnDevice = message.isOnDevice,
+                evidenceState = message.evidenceState?.name,
             )
             messageDao.upsert(entity)
             conversationDao.touchAfterMessage(
@@ -122,4 +123,5 @@ private fun MessageEntity.toDomain() = Message(
     timestamp = timestamp,
     tokens = tokens,
     isOnDevice = isOnDevice,
+    evidenceState = evidenceState?.let { runCatching { com.hermes.agent.domain.model.EvidenceState.valueOf(it) }.getOrNull() },
 )
