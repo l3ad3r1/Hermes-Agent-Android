@@ -89,34 +89,72 @@ Extraction was executed sequentially in discrete commits with both test suites g
 
 ## 3. Step 2 Capability-Based Tool Access Arithmetic
 
-Every role's capability set was mapped directly to the pre-change baseline:
+Hermes defines 5 agent roles in [`com.hermes.agent.domain.model.AgentRole`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/core/domain/src/main/kotlin/com/hermes/agent/domain/model/AgentRole.kt):
+`CONVERSATIONAL`, `PRODUCTIVITY`, `RESEARCH`, `DEVICE_CONTROL`, and `CREATIVE`.
 
-| Agent Role | Granted Capabilities | Effective Tool Count | Baseline Match |
+Per [`AgentToolAccess.kt`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/app/src/main/kotlin/com/hermes/agent/data/agent/agents/AgentToolAccess.kt), capability grants are mapped to roles, and tools advertise their capabilities via `ToolDescriptor.capabilities`. Every role's effective tool set matches the pre-change baseline as pinned in [`AgentToolAccessTest.kt`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/app/src/test/kotlin/com/hermes/agent/data/agent/agents/AgentToolAccessTest.kt):
+
+| Agent Role (`AgentRole`) | Granted Capabilities (`AgentToolAccess.ROLE_CAPABILITIES`) | Effective Tool Count | Pinned Test Assertion |
 |---|---|---|---|
-| `CONVERSATIONAL` | `general:*`, `system:time`, `system:battery`, `system:volume`, `system:alarm`, `system:shell`, `system:termux`, `comms:all`, `web:*`, `memory:*`, `schedule:*`, `evolution:*`, `tasks:*`, `skills:*` | **18** | **Exact Parity (18)** |
-| `DEVICE_CONTROL` | `general:*`, `system:*`, `comms:all`, `web:*`, `memory:*`, `schedule:*`, `evolution:*`, `tasks:*`, `skills:*`, `app:*` | **18** | **Exact Parity (18)** |
-| `JOTTER_AI` | `general:*`, `notes:*`, `search:notes`, `web:*`, `system:tts` | **11** | **Exact Parity (11)** |
-| `BUTLER_AI` | `general:*`, `schedule:*`, `system:alarm`, `system:volume`, `system:battery`, `system:tts`, `notes:*`, `search:notes`, `comms:all`, `web:*` | **20** | **Exact Parity (20)** |
-| `SUBAGENT` | `general:*`, `system:time`, `web:*`, `memory:recall`, `tasks:*`, `skills:*` | **11** | **Exact Parity (11)** |
+| `CONVERSATIONAL` | `common`, `datetime`, `memory`, `notes`, `search_conversations`, `skill_manager`, `scheduler`, `web`, `calculator`, `delegate`, `media:image`, `media:tts`, `notifications`, `system:shell`, `system:termux` | **18** | `conversational agent exposes expected 18 tools` |
+| `PRODUCTIVITY` | `common`, `datetime`, `calendar`, `memory`, `notes`, `search_conversations`, `skill_manager`, `scheduler`, `calculator`, `web`, `delegate`, `notifications`, `contacts`, `device:navigation` | **18** | `productivity agent exposes expected 18 tools` |
+| `RESEARCH` | `common`, `web`, `search_conversations`, `memory`, `notes`, `skill_manager`, `calculator`, `delegate` | **11** | `research agent exposes expected 11 tools` |
+| `DEVICE_CONTROL` | `common`, `datetime`, `memory`, `media:tts`, `contacts`, `device:settings`, `system:shell`, `system:termux`, `device:app_automation`, `device:alarm`, `device:navigation`, `device:media`, `device:control` | **20** | `device control agent exposes expected 20 tools including full app automation` |
+| `CREATIVE` | `common`, `memory`, `notes`, `search_conversations`, `skill_manager`, `media:image`, `web`, `media:tts` | **11** | `creative agent exposes expected 11 tools` |
+
+### Detailed Tool-to-Capability Breakdown (All 31 Tools)
+
+1. `todo` -> `common`, `productivity`
+2. `kanban` -> `common`, `productivity`
+3. `clarify` -> `common`, `communication`
+4. `get_current_datetime` -> `datetime`, `information`
+5. `search_conversations` -> `search_conversations`, `information`
+6. `web_search` -> `web`, `information`
+7. `web_fetch` -> `web`, `information`
+8. `generate_image` -> `media:image`, `creative`
+9. `calculator` -> `calculator`, `productivity`
+10. `memory` -> `memory`, `productivity`
+11. `notes` -> `notes`, `productivity`
+12. `skill_manager` -> `skill_manager`, `productivity`
+13. `scheduler` -> `scheduler`, `productivity`
+14. `delegate` -> `delegate`, `productivity`
+15. `calendar_add_event` -> `calendar`, `productivity`
+16. `speak` -> `media:tts`, `communication`
+17. `notify` -> `notifications`, `communication`
+18. `communication` -> `contacts`, `communication`
+19. `contact_lookup` -> `contacts`, `communication`
+20. `shell` -> `system:shell`, `device`
+21. `termux` -> `system:termux`, `device`
+22. `device_settings` -> `device:settings`, `device`
+23. `alarm` -> `device:alarm`, `device`
+24. `navigation` -> `device:navigation`, `device`
+25. `media_control` -> `device:media`, `device`
+26. `device_control` -> `device:control`, `device`
+27. `app_launch` -> `device:app_automation`, `device`
+28. `app_analyze_screen` -> `device:app_automation`, `device`
+29. `app_tap` -> `device:app_automation`, `device`
+30. `app_swipe` -> `device:app_automation`, `device`
+31. `app_type` -> `device:app_automation`, `device`
 
 ---
 
 ## 4. Dangerous Tools & Capability Security Audit
 
-An explicit audit was conducted on all high-privilege capabilities:
+An explicit audit was conducted on all high-privilege capabilities and security boundaries:
 
 1. **`system:shell` and `system:termux` Grants**:
    - Granted to **`CONVERSATIONAL`** and **`DEVICE_CONTROL`**.
    - This matches the pre-change contract where `CONVERSATIONAL` had both `shell` and `termux` in its default tool set.
-   - `JOTTER_AI`, `BUTLER_AI`, and `SUBAGENT` are strictly denied `system:shell` and `system:termux`.
+   - `PRODUCTIVITY`, `RESEARCH`, and `CREATIVE` are strictly denied `system:shell` and `system:termux` (guarded by `dangerous tool families are not silently widened`).
 
-2. **`app_*` Device Automation Grants**:
-   - `app_tap`, `app_swipe`, `app_type`, `app_launch`, `app_analyze_screen` require `app:tap`, `app:swipe`, `app:type`, `app:launch`, `app:analyze` (or wildcard `app:*`).
+2. **`device:app_automation` Grants (`app_*` tools)**:
+   - `app_launch`, `app_analyze_screen`, `app_tap`, `app_swipe`, and `app_type` require `device:app_automation`.
    - Granted **strictly to `DEVICE_CONTROL`**.
-   - `CONVERSATIONAL`, `JOTTER_AI`, `BUTLER_AI`, and `SUBAGENT` are strictly denied `app:*`.
+   - `CONVERSATIONAL`, `PRODUCTIVITY`, `RESEARCH`, and `CREATIVE` are strictly denied `device:app_automation` (guarded by `dangerous tool families are not silently widened`).
 
-3. **Subagent Delegation Bounds**:
-   - Subagents spawned via `DelegateTool` are denied `subagent:delegate`, preventing unbounded recursive fork loops.
+3. **Complete Coverage & Boundary Isolation**:
+   - All 31 registered tools are mapped to at least one agent role (`all 31 tools are granted to at least one agent`).
+   - Runtime plugins dynamically loaded into `InProcessPluginSandbox` only reach personas whose granted capability set intersects the plugin's declared tool capabilities (`runtime plugin tool registered via InProcessPluginSandbox reaches agent descriptor list`).
 
 ---
 
@@ -141,24 +179,40 @@ A comprehensive search of `:core:domain` confirms:
 
 All 479 unit tests pass across the entire multi-module project (0 failures, 0 skipped, 0 errors).
 
-Key unit test methods verifying the refactored architecture:
-- `AgentToolAccessTest`:
-  - `dangerous tool families are not silently widened` (verifies capability boundary)
-  - `role tool set arithmetic matches pre-change baseline` (verifies 18/18/11/20/11 counts)
-  - `runtime plugin tool registered via InProcessPluginSandbox reaches agent descriptor list` (verifies dynamic plugin integration)
-- `ToolRegistryImplTest`:
-  - `constructor initial tools are registered and sorted deterministically` (verifies alphabetical ordering of multibound tools)
-  - `duplicate tool name registration replaces prior tool`
-- `PluginRegistryImplTest`:
+Verbatim test method names from the test suites verifying the refactored architecture:
+
+- **[`AgentToolAccessTest`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/app/src/test/kotlin/com/hermes/agent/data/agent/agents/AgentToolAccessTest.kt)**:
+  - `all 31 tools are granted to at least one agent`
+  - `conversational agent exposes expected 18 tools`
+  - `productivity agent exposes expected 18 tools`
+  - `research agent exposes expected 11 tools`
+  - `device control agent exposes expected 20 tools including full app automation`
+  - `creative agent exposes expected 11 tools`
+  - `dangerous tool families are not silently widened`
+  - `runtime plugin tool registered via InProcessPluginSandbox reaches agent descriptor list`
+
+- **[`ToolRegistryImplTest`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/core/tools/src/test/kotlin/com/hermes/agent/data/tool/ToolRegistryImplTest.kt)**:
+  - `constructor initial tools are registered and sorted deterministically`
+  - `re-registering replaces the existing tool`
+  - `all returns tools sorted by category then name`
+  - `register and look up by name`
+  - `unregister removes the tool`
+
+- **[`PluginRegistryImplTest`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/core/plugin/src/test/kotlin/com/hermes/agent/data/plugin/PluginRegistryImplTest.kt)**:
   - `registerFirstParty adds plugin in INSTALLED state`
-  - `enablePlugin registers tools in sandbox and tool registry`
-  - `disablePlugin unregisters tools from sandbox and tool registry`
-- `EncryptedSettingsRepositoryTest`:
-  - `roundtrips settings through encryption`
-- `UserModelServiceTest`:
-  - `conversation count triggers rebuild when threshold reached`
-- `CloudLlmProviderTest`:
-  - `complete returns parsed assistant response`
+  - `activate moves plugin to ACTIVE state and registers its tools`
+  - `suspend_ moves plugin to SUSPENDED state`
+  - `uninstall removes plugin and unloads its tools`
+
+- **[`EncryptedSettingsRepositoryTest`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/core/settings/src/test/kotlin/com/hermes/agent/data/security/EncryptedSettingsRepositoryTest.kt)**:
+  - `key round-trips through encrypt and decrypt`
+  - `undecryptable marked ciphertext reads as unset, never as the blob`
+
+- **[`UserModelServiceTest`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/core/memory/src/test/kotlin/com/hermes/agent/data/memory/UserModelServiceTest.kt)**:
+  - `rebuilds and advances marker once the threshold is crossed`
+
+- **[`CloudLlmProviderTest`](file:///E:/claude-projects/Hermes%20Agent%20Android%20App/core/llm/src/test/kotlin/com/hermes/agent/data/llm/CloudLlmProviderTest.kt)**:
+  - `complete parses response content and tokens`
 
 ### Per-Module Test Breakdown
 
@@ -204,11 +258,29 @@ List of devices attached
 
 ---
 
-## 8. Conclusion
+## 8. Source Verification Audit Trail (Task D)
+
+Every role name, capability string, unit test method name, and tool count cited in this report was verified against the source code via repository grep prior to document finalization:
+
+- **Agent Roles Verified in `AgentRole.kt`**: `CONVERSATIONAL`, `PRODUCTIVITY`, `RESEARCH`, `DEVICE_CONTROL`, `CREATIVE` (5/5 present).
+- **Capability Strings Verified in `AgentToolAccess.kt` & Tool Descriptors**: `common`, `datetime`, `memory`, `notes`, `search_conversations`, `skill_manager`, `scheduler`, `web`, `calculator`, `delegate`, `media:image`, `media:tts`, `notifications`, `system:shell`, `system:termux`, `calendar`, `contacts`, `device:navigation`, `device:settings`, `device:app_automation`, `device:alarm`, `device:media`, `device:control` (23/23 present).
+- **Test Method Names Verified in Test Classes**:
+  - `AgentToolAccessTest`: `all 31 tools are granted to at least one agent`, `conversational agent exposes expected 18 tools`, `productivity agent exposes expected 18 tools`, `research agent exposes expected 11 tools`, `device control agent exposes expected 20 tools including full app automation`, `creative agent exposes expected 11 tools`, `dangerous tool families are not silently widened`, `runtime plugin tool registered via InProcessPluginSandbox reaches agent descriptor list`.
+  - `ToolRegistryImplTest`: `constructor initial tools are registered and sorted deterministically`, `re-registering replaces the existing tool`, `all returns tools sorted by category then name`, `register and look up by name`, `unregister removes the tool`.
+  - `PluginRegistryImplTest`: `registerFirstParty adds plugin in INSTALLED state`, `activate moves plugin to ACTIVE state and registers its tools`, `suspend_ moves plugin to SUSPENDED state`, `uninstall removes plugin and unloads its tools`.
+  - `EncryptedSettingsRepositoryTest`: `key round-trips through encrypt and decrypt`, `undecryptable marked ciphertext reads as unset, never as the blob`.
+  - `UserModelServiceTest`: `rebuilds and advances marker once the threshold is crossed`.
+  - `CloudLlmProviderTest`: `complete parses response content and tokens`.
+- **Per-Role Tool Counts Verified in `AgentToolAccessTest.kt`**: Conversational (18), Productivity (18), Research (11), Device Control (20), Creative (11).
+- **Per-Module Test Counts Verified via JUnit XML Reports**: app (208), core:domain (82), core:util (5), core:theme (0), core:plugin (12), core:settings (16), core:persistence (0), core:memory (21), core:llm (86), core:tools (49) = 479 total.
+
+---
+
+## 9. Conclusion
 
 All 4 steps of `ANTIGRAVITY-MODULARIZE-TASK.md` are complete:
-- 31 tools cleanly multibound.
-- Capabilities implemented and validated with 100% role count parity.
+- 31 tools cleanly multibound via Hilt `@Binds @IntoSet`.
+- Capabilities implemented and verified against exact per-role count assertions (18/18/11/20/11).
 - 0 domain leaks.
-- 9 independent, clean core library modules extracted and compiling cleanly.
+- 9 independent core modules extracted and compiling cleanly.
 - Baseline 479 unit tests fully preserved with zero failures.
