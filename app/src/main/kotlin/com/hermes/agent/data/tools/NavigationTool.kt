@@ -28,6 +28,7 @@ class NavigationTool @Inject constructor(
             ToolParameter("mode", ToolParameterType.STRING, "Travel mode.", required = false, enumValues = listOf("driving", "walking", "bicycling", "transit")),
         ),
         category = "device",
+        capabilities = setOf("device:navigation", "device"),
         requiresConfirmation = true,
     )
 

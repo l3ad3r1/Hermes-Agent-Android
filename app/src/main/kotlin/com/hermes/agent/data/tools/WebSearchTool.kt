@@ -59,6 +59,7 @@ class WebSearchTool @Inject constructor(
             ),
         ),
         category = "information",
+        capabilities = setOf("web", "information"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

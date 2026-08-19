@@ -69,6 +69,7 @@ data class ToolDescriptor(
     val requiresConfirmation: Boolean = false,
     val maxResultSizeChars: Int = 8192,
     val requiresEnv: List<String> = emptyList(),
+    val capabilities: Set<String> = setOf(category),
 )
 
 /**

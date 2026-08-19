@@ -107,6 +107,7 @@ class KanbanTool @Inject constructor(
             ),
         ),
         category = "productivity",
+        capabilities = setOf("common", "productivity"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

@@ -56,6 +56,7 @@ class TtsTool @Inject constructor(
             ),
         ),
         category = "communication",
+        capabilities = setOf("media:tts", "communication"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

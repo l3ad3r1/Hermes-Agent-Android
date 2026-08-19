@@ -44,6 +44,7 @@ class CalculatorTool @Inject constructor() : Tool {
             ),
         ),
         category = "productivity",
+        capabilities = setOf("calculator", "productivity"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

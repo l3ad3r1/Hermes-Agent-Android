@@ -1,65 +1,57 @@
 package com.hermes.agent.data.agent.agents
 
+import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolRegistry
 
 /**
- * Per-agent tool access lists. Centralized here so the access policy
- * is auditable in one place — Section 6.1 of the plan specifies that
- * "each agent maintains its own context window, tool access permissions,
- * and response formatting preferences."
+ * Per-agent capability-based tool access policy.
  *
- * Access policy: every agent gets [COMMON] (todo, clarify) plus a
- * persona-specific set (see [ACCESS] below). When a new tool is added it MUST
- * be granted to at least one agent here, or the LLM is never told it exists and
- * can never call it.
- *
- * Phase 3 will move this to a per-agent config file (YAML or JSON) so
- * plugin authors can declare their own agent personas with custom tool
- * sets.
+ * Each [AgentRole] grants a set of capabilities rather than hardcoding tool names.
+ * Tools advertise their capabilities via [ToolDescriptor.capabilities].
+ * A tool is accessible to an agent if any of its declared capabilities intersect
+ * with the agent role's granted capabilities.
  */
 internal object AgentToolAccess {
 
-    // `todo`, `kanban`, and `clarify` are useful to every agent (plan/track work; ask the
-    // user when ambiguous), so they're granted across the board. The richer
-    // tools added in v0.7.4+ (delegate/speak/generate_image/web_fetch) are
-    // granted where they fit the persona.
-    private val COMMON = setOf("todo", "kanban", "clarify")
+    private val COMMON_CAPABILITIES = setOf("common")
 
-    private val ACCESS: Map<com.hermes.agent.domain.model.AgentRole, Set<String>> = mapOf(
-        com.hermes.agent.domain.model.AgentRole.CONVERSATIONAL to COMMON + setOf(
-            "get_current_datetime", "memory", "notes", "search_conversations",
-            "skill_manager", "scheduler", "web_search", "web_fetch", "calculator",
-            "shell", "termux", "delegate", "speak", "generate_image", "notify",
+    val ROLE_CAPABILITIES: Map<AgentRole, Set<String>> = mapOf(
+        AgentRole.CONVERSATIONAL to COMMON_CAPABILITIES + setOf(
+            "datetime", "memory", "notes", "search_conversations",
+            "skill_manager", "scheduler", "web", "calculator", "delegate",
+            "media:image", "media:tts", "notifications",
+            "system:shell", "system:termux",
         ),
-        com.hermes.agent.domain.model.AgentRole.PRODUCTIVITY to COMMON + setOf(
-            "get_current_datetime", "calendar_add_event", "memory", "notes",
+        AgentRole.PRODUCTIVITY to COMMON_CAPABILITIES + setOf(
+            "datetime", "calendar", "memory", "notes",
             "search_conversations", "skill_manager", "scheduler", "calculator",
-            "web_search", "web_fetch", "delegate", "notify", "communication",
-            "contact_lookup", "navigation",
+            "web", "delegate", "notifications", "contacts", "device:navigation",
         ),
-        com.hermes.agent.domain.model.AgentRole.RESEARCH to COMMON + setOf(
-            "web_search", "web_fetch", "search_conversations", "memory", "notes",
+        AgentRole.RESEARCH to COMMON_CAPABILITIES + setOf(
+            "web", "search_conversations", "memory", "notes",
             "skill_manager", "calculator", "delegate",
         ),
-        com.hermes.agent.domain.model.AgentRole.DEVICE_CONTROL to COMMON + setOf(
-            "device_settings", "get_current_datetime", "memory", "shell", "termux", "speak",
-            "app_launch", "app_analyze_screen", "app_tap", "app_swipe", "app_type",
-            "alarm", "navigation", "media_control", "device_control", "communication",
-            "contact_lookup",
+        AgentRole.DEVICE_CONTROL to COMMON_CAPABILITIES + setOf(
+            "datetime", "memory", "media:tts", "contacts",
+            "device:settings", "system:shell", "system:termux",
+            "device:app_automation", "device:alarm", "device:navigation",
+            "device:media", "device:control",
         ),
-        com.hermes.agent.domain.model.AgentRole.CREATIVE to COMMON + setOf(
+        AgentRole.CREATIVE to COMMON_CAPABILITIES + setOf(
             "memory", "notes", "search_conversations", "skill_manager",
-            "generate_image", "web_search", "web_fetch", "speak",
+            "media:image", "web", "media:tts",
         ),
     )
 
     /** Look up the tool descriptors this agent is allowed to invoke. */
     fun ToolRegistry.toolsFor(
-        role: com.hermes.agent.domain.model.AgentRole,
+        role: AgentRole,
     ): List<ToolDescriptor> {
-        val allowed = ACCESS[role] ?: emptySet()
-        return descriptors().filter { it.name in allowed }
+        val granted = ROLE_CAPABILITIES[role] ?: emptySet()
+        return descriptors().filter { descriptor ->
+            descriptor.capabilities.any { it in granted }
+        }
     }
 
     /** Convenience overload for the common "by name list" case. */

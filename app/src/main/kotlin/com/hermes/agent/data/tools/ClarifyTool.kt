@@ -56,6 +56,7 @@ class ClarifyTool @Inject constructor(
             ),
         ),
         category = "communication",
+        capabilities = setOf("common", "communication"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

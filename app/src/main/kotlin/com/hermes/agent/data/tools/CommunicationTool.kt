@@ -32,6 +32,7 @@ class CommunicationTool @Inject constructor(
             ToolParameter("email", ToolParameterType.STRING, "Email address for a new contact.", required = false),
         ),
         category = "communication",
+        capabilities = setOf("contacts", "communication"),
         requiresConfirmation = true,
     )
 

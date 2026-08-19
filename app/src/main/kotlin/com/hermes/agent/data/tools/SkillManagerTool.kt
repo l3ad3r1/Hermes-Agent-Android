@@ -100,6 +100,7 @@ class SkillManagerTool @Inject constructor(
             ),
         ),
         category = "productivity",
+        capabilities = setOf("skill_manager", "productivity"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

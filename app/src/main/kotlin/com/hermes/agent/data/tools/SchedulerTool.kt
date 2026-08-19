@@ -84,6 +84,7 @@ class SchedulerTool @Inject constructor(
             ),
         ),
         category = "productivity",
+        capabilities = setOf("scheduler", "productivity"),
         requiresConfirmation = false,
     )
 

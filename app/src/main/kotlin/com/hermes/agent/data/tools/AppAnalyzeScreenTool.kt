@@ -24,6 +24,7 @@ class AppAnalyzeScreenTool @Inject constructor(
         description = "Analyze the current screen to find actionable UI elements. Returns a list of elements with numeric tags that can be used for tapping or typing.",
         parameters = emptyList(),
         category = "device",
+        capabilities = setOf("device:app_automation", "device"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

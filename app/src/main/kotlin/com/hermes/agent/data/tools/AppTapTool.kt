@@ -45,6 +45,7 @@ class AppTapTool @Inject constructor(
             )
         ),
         category = "device",
+        capabilities = setOf("device:app_automation", "device"),
         // The user approves the target app once through app_launch. Keeping the
         // automation screen visible is required for tag-based interaction.
         requiresConfirmation = false,

@@ -61,6 +61,7 @@ class ConversationSearchTool @Inject constructor(
             ),
         ),
         category = "information",
+        capabilities = setOf("search_conversations", "information"),
     )
 
     override suspend fun execute(arguments: Map<String, JsonElement>): ToolResult {

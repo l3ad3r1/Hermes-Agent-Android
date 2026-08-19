@@ -53,6 +53,7 @@ class NotesTool @Inject constructor(
             ),
         ),
         category = "productivity",
+        capabilities = setOf("notes", "productivity"),
         requiresConfirmation = false,
     )
 
