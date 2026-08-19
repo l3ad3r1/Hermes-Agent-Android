@@ -150,6 +150,13 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
+                        icon = Icons.Outlined.Science,
+                        title = "Agent operating notes",
+                        subtitle = "Learned guidance layered on each agent's built-in prompt",
+                        onClick = { onNavigate("refine_prompts") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
                         icon = Icons.Outlined.Link,
                         title = "Messaging",
                         subtitle = "Configure Telegram, Discord, Signal, WhatsApp",

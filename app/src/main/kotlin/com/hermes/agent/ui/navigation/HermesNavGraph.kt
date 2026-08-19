@@ -24,6 +24,7 @@ import com.hermes.agent.ui.conversations.ConversationsScreen
 import com.hermes.agent.ui.cron.CronScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
 import com.hermes.agent.ui.documents.DocumentsScreen
+import com.hermes.agent.ui.evolution.RefinePromptScreen
 import com.hermes.agent.ui.evolution.RefineSkillScreen
 import com.hermes.agent.ui.experiment.ExperimentScreen
 import com.hermes.agent.ui.home.HomeScreen
@@ -100,6 +101,12 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                     onNewChat = { navController.navigate(TopLevelDestination.chatRoute(it)) },
                     onOpenConnections = { navController.navigate(TopLevelDestination.CONNECT.route) },
                     onOpenSettings = { navController.navigate(TopLevelDestination.SETTINGS.route) },
+                    onOpenKanban = { navController.navigate(TopLevelDestination.KANBAN.route) },
+                    onOpenMemory = { navController.navigate(TopLevelDestination.MEMORY.route) },
+                    onOpenSkills = { navController.navigate(TopLevelDestination.SKILLS.route) },
+                    onOpenSchedule = { navController.navigate(TopLevelDestination.SCHEDULE.route) },
+                    onOpenExperiment = { navController.navigate(TopLevelDestination.EXPERIMENT.route) },
+                    onOpenDocuments = { navController.navigate(TopLevelDestination.DOCUMENTS.route) },
                 )
             }
             composable(TopLevelDestination.CONVERSATIONS.route) {
@@ -144,7 +151,8 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
             composable(TopLevelDestination.CONNECT.route)  { ConnectScreen(onBack = { navController.popBackStack() }) }
             composable(TopLevelDestination.SCHEDULE.route) { CronScreen(onBack = { navController.popBackStack() }) }
             composable(TopLevelDestination.DELEGATE.route) { DelegateScreen() }
-            composable(TopLevelDestination.EXPERIMENT.route) { ExperimentScreen() }
+            composable(TopLevelDestination.EXPERIMENT.route) { ExperimentScreen(onBack = { navController.popBackStack() }) }
+            composable(TopLevelDestination.DOCUMENTS.route) { DocumentsScreen(onBack = { navController.popBackStack() }) }
             
             // Settings parent and children
             composable(TopLevelDestination.SETTINGS.route) {
@@ -167,6 +175,7 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
             composable("activity_ledger") { LedgerScreen(onBack = { navController.popBackStack() }) }
             composable("learning") { LearningScreen(onBack = { navController.popBackStack() }) }
             composable("refine_skills") { RefineSkillScreen(onBack = { navController.popBackStack() }) }
+            composable("refine_prompts") { RefinePromptScreen(onBack = { navController.popBackStack() }) }
         }
     }
 }
