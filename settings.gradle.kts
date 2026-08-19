@@ -38,3 +38,4 @@ rootProject.name = "Hermes Agent"
 include(":app")
 include(":core:util")
 include(":core:domain")
+include(":core:theme")

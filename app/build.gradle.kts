@@ -202,6 +202,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":core:theme"))
     implementation(project(":core:domain"))
     implementation(project(":core:util"))
     // --- AndroidX core ---

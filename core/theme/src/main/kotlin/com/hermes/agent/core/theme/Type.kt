@@ -7,7 +7,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.hermes.agent.R
+import com.hermes.agent.core.theme.R
+
 
 /**
  * Geist + Geist Mono — the Hermes Agent design system typefaces
