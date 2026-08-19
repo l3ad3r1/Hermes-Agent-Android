@@ -74,8 +74,12 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // res/xml cannot see manifest placeholders, so the launcher
+            // shortcuts get the variant's real application id this way.
+            resValue("string", "shortcut_target_package", "com.hermes.agent.debug")
         }
         release {
+            resValue("string", "shortcut_target_package", "com.hermes.agent")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -161,6 +165,9 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        // shortcuts.xml resolves the variant's application id through a
+        // generated string resource.
+        resValues = true
     }
     packaging {
         resources {
