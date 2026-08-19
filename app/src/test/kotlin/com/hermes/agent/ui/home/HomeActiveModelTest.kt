@@ -1,5 +1,7 @@
 package com.hermes.agent.ui.home
 
+import com.hermes.agent.data.llm.ActiveTarget
+import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.LocalLlmManager
 import com.hermes.agent.data.llm.ModelCatalog
 import com.hermes.agent.data.memory.UserModelService
@@ -48,6 +50,8 @@ class HomeActiveModelTest {
     private fun viewModel(
         settings: UserSettings,
         localDownloaded: Boolean,
+        /** What the router says would run; null when nothing is available. */
+        target: ActiveTarget? = null,
     ): HomeViewModel {
         val settingsRepository = mockk<SettingsRepository>(relaxed = true) {
             every { observe() } returns flowOf(settings)
@@ -61,7 +65,10 @@ class HomeActiveModelTest {
         val memories = mockk<MemoryRepository>(relaxed = true) {
             every { observeMemories() } returns flowOf(emptyList())
         }
-        return HomeViewModel(conversations, settingsRepository, localLlmManager, memories)
+        val router = mockk<LlmRouter>(relaxed = true) {
+            coEvery { activeTarget(any()) } returns target
+        }
+        return HomeViewModel(conversations, settingsRepository, localLlmManager, router, memories)
     }
 
     @Test
@@ -74,6 +81,7 @@ class HomeActiveModelTest {
                 selectedModelId = "",
             ),
             localDownloaded = true,
+            target = ActiveTarget("On-device model", "local", isOnDevice = true),
         )
         assertEquals(ModelCatalog.DEFAULT.displayName, vm.modelName.first { it.isNotEmpty() })
     }
@@ -89,6 +97,7 @@ class HomeActiveModelTest {
                 cloudModel = "gpt-4o-mini",
             ),
             localDownloaded = true,
+            target = ActiveTarget("On-device model", "local", isOnDevice = true),
         )
         assertEquals(ModelCatalog.DEFAULT.displayName, vm.modelName.first { it.isNotEmpty() })
     }
@@ -102,8 +111,25 @@ class HomeActiveModelTest {
                 cloudModel = "gpt-4o-mini",
             ),
             localDownloaded = true,
+            target = ActiveTarget("Hermes-Cloud", "gpt-4o-mini", isOnDevice = false),
         )
         assertEquals("gpt-4o-mini", vm.modelName.first { it.isNotEmpty() })
+    }
+
+    @Test
+    fun `names the provider the router picked, not the primary slot`() = runTest {
+        // A turn served by a provider profile was previously labelled with
+        // whatever sat in cloudModel, because the card read the field directly.
+        val vm = viewModel(
+            settings = UserSettings(
+                cloudEnabled = true,
+                cloudApiKey = "sk-something",
+                cloudModel = "gpt-4o-mini",
+            ),
+            localDownloaded = true,
+            target = ActiveTarget("NVIDIA NIM", "z-ai/glm-5.2", isOnDevice = false),
+        )
+        assertEquals("z-ai/glm-5.2", vm.modelName.first { it.isNotEmpty() })
     }
 
     @Test
@@ -114,6 +140,7 @@ class HomeActiveModelTest {
                 localModelUri = "content://com.android.providers.downloads/document/qwen2.5-3b.gguf",
             ),
             localDownloaded = true,
+            target = ActiveTarget("On-device model", "local", isOnDevice = true),
         )
         assertEquals("qwen2.5-3b.gguf", vm.modelName.first { it.isNotEmpty() })
     }

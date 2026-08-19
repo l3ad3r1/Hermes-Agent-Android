@@ -53,6 +53,10 @@ class HermesApp : Application(), Configuration.Provider {
     @Inject
     lateinit var executionPlanRepositoryProvider: Provider<ExecutionPlanRepository>
 
+    @Inject
+    lateinit var encryptedSettingsProvider:
+        Provider<com.hermes.agent.data.security.EncryptedSettingsRepository>
+
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCreate() {
@@ -63,6 +67,15 @@ class HermesApp : Application(), Configuration.Provider {
         Timber.plant(FileLogTree(logManager))
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+        }
+
+        // Secrets restored from another install are sealed with that install's
+        // keystore key and can never be read here. Left in place they are handed
+        // to providers as API keys, which comes back as "invalid key" from every
+        // provider at once and hides the real cause.
+        applicationScope.launch {
+            runCatching { encryptedSettingsProvider.get().clearUnreadableSecrets() }
+                .onFailure { Timber.tag("Settings").w(it, "secret sweep unavailable") }
         }
 
         applicationScope.launch {

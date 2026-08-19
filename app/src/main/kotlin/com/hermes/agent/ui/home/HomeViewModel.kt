@@ -3,6 +3,7 @@ package com.hermes.agent.ui.home
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.LocalLlmManager
 import com.hermes.agent.data.llm.ModelCatalog
 import com.hermes.agent.data.memory.UserModelService
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,6 +36,7 @@ class HomeViewModel @Inject constructor(
     private val conversationRepository: ConversationRepository,
     private val settings: SettingsRepository,
     private val localLlmManager: LocalLlmManager,
+    private val llmRouter: LlmRouter,
     memoryRepository: MemoryRepository,
 ) : ViewModel() {
 
@@ -56,13 +60,20 @@ class HomeViewModel @Inject constructor(
     val modelName: StateFlow<String> =
         settings.observe()
             .map { s ->
-                val cloudActive = s.cloudEnabled && s.cloudApiKey.isNotBlank()
+                // Ask the router rather than reading cloudModel: it ranks every
+                // configured provider, so the primary slot is often not the one
+                // that actually runs.
+                val target = runCatching { llmRouter.activeTarget() }.getOrNull()
                 when {
-                    cloudActive -> s.cloudModel.ifBlank { "not configured" }
-                    localLlmManager.isModelDownloaded() -> localModelLabel(s)
-                    else -> "not configured"
+                    target == null ->
+                        if (localLlmManager.isModelDownloaded()) localModelLabel(s) else "not configured"
+                    target.isOnDevice -> localModelLabel(s)
+                    else -> target.model.ifBlank { "not configured" }
                 }
             }
+            // A cloud provider resolves its model id with a blocking settings
+            // read, so this must stay off the main thread.
+            .flowOn(Dispatchers.IO)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
     /**
