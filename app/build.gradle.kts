@@ -202,6 +202,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":core:domain"))
+    implementation(project(":core:util"))
     // --- AndroidX core ---
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

@@ -93,12 +93,14 @@ fun MessageBubble(
             },
         horizontalAlignment = alignment,
     ) {
-        if (!isUser && message.agentRole != null) {
+        val role = message.agentRole
+        if (!isUser && role != null) {
             AgentRoleBadge(
-                role = message.agentRole,
+                role = role,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
         }
+
 
         message.evidenceState?.let { evidence ->
             EvidenceStateBadge(

@@ -223,8 +223,10 @@ class KanbanTool @Inject constructor(
                     list.forEach { t ->
                         append("• #${t.id} [${t.priority}] ${t.title}")
                         if (t.tags.isNotEmpty()) append(" [${t.tags.joinToString(", ")}]")
-                        if (t.result != null) append("\n  Result: ${t.result.take(100)}")
+                        val res = t.result
+                        if (res != null) append("\n  Result: ${res.take(100)}")
                         append("\n")
+
                     }
                 }
             }
