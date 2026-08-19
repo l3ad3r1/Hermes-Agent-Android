@@ -16,7 +16,12 @@ class UiAutomationAppAutomationGateway(
     private val context: Context,
 ) : AppAutomationGateway {
 
-    override fun activeWindowRoot(): AccessibilityNodeInfo? = uiAutomation.rootInActiveWindow
+    override fun activeWindowRoot(): AccessibilityNodeInfo? =
+        uiAutomation.windows.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION }?.root
+            ?: uiAutomation.rootInActiveWindow
+            ?: uiAutomation.windows.firstOrNull()?.root
+
+
 
     override fun screenBounds(): Rect? =
         context.getSystemService(WindowManager::class.java)?.maximumWindowMetrics?.bounds?.let(::Rect)

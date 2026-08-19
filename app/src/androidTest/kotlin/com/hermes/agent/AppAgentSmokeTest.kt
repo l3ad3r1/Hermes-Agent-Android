@@ -62,6 +62,8 @@ class AppAgentSmokeTest {
             assertNotNull("Fixture tap target was not visible to UiAutomation", tapNode)
             assertNotNull("Fixture text target was not visible to UiAutomation", textNode)
 
+
+
             val analyzeResult = AppAnalyzeScreenTool(observations).execute(emptyMap())
             assertTrue(analyzeResult.errorMessage.orEmpty(), analyzeResult.success)
             assertTrue(
@@ -111,11 +113,19 @@ class AppAgentSmokeTest {
         automation: UiAutomationAppAutomationGateway,
     ): android.view.accessibility.AccessibilityNodeInfo {
         repeat(DEVICE_WAIT_ATTEMPTS) {
-            automation.activeWindowRoot()?.let { return it }
+            val root = automation.activeWindowRoot()
+            if (root != null) {
+                val nodes = ScreenAnalyzer.analyze(root, null).nodes
+                if (nodes.any { AppAgentFixtureActivity.TAP_TARGET_DESCRIPTION in it.description }) {
+                    return root
+                }
+            }
             delay(DEVICE_WAIT_MS)
         }
-        error("UiAutomation did not expose an active-window root.")
+        return automation.activeWindowRoot() ?: error("UiAutomation did not expose an active-window root.")
     }
+
+
 
     private suspend fun awaitActivityState(
         scenario: ActivityScenario<AppAgentFixtureActivity>,
