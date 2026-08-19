@@ -1,8 +1,8 @@
 # Antigravity Modularization Task Report
 
-**Target Device:** Samsung Galaxy S24 Ultra (SM-S928B, Android 16)
+**Target Device:** Samsung Galaxy S24 Ultra (SM-S928B, Android 16, Serial `RZCY51R2A8D`)
 **Package Scope:** `com.hermes.agent.debug` (Release package `com.hermes.agent` untouched)
-**Baseline Test Count:** 479 Unit Tests (0 failures, 0 skipped, 0 errors) | 10 Instrumented Tests (0 failures)
+**Baseline Test Count:** 479 Unit Tests (0 failures, 0 skipped, 0 errors) | 10 Instrumented Tests (0 failures, 0 skipped, 0 errors)
 
 ---
 
@@ -14,6 +14,8 @@ The modularization task defined in `ANTIGRAVITY-MODULARIZE-TASK.md` and informed
 2. **Step 2 — Capability-Based Tool Access**: Added `ToolDescriptor.capabilities` and resolved per-role access via capabilities in `AgentToolAccess.kt`, preserving exact per-role tool count parity (18/18/11/20/11) and establishing runtime plugin tool resolution through `InProcessPluginSandbox`.
 3. **Step 3 — Clean Domain/Data Leaks**: Hoisted LLM protocols (`LlmProvider`, `LlmMessage`, `LlmResponse`, `ToolCall`, `ChatContext`) and settings contracts (`SettingsRepository`, `UserSettings`, `CloudProviderProfile`) into `:core:domain`, reducing Domain-to-Data dependencies to **0 files**.
 4. **Step 4 — Multi-Module Extraction (9 Submodules)**: Extracted all 9 shared core modules prescribed in the architecture specification with clean build configuration, verified one-by-one with green test suites and atomic commits.
+
+Both test suites are 100% green on physical hardware (Samsung Galaxy S24 Ultra, SM-S928B, Android 16).
 
 ---
 
@@ -233,28 +235,33 @@ TOTAL:               479 tests, 0 failures, 0 skipped, 0 errors
 
 ---
 
-## 7. Instrumented Test Evidence
+## 7. Connected Device Instrumented Test Evidence
 
-### Test Suite Composition
-The instrumented test suite in `app/src/androidTest` contains **10 tests**:
-1. `AppAgentSmokeTest.kt`: 1 test
-2. `CodexFeaturesVerificationOnDeviceTest.kt`: 6 tests
-3. `HermesDatabaseMigrationTest.kt`: 1 test
-4. `DesktopFeaturesOnDeviceSmokeTest.kt`: 1 test
-5. `KanbanOnDeviceSmokeTest.kt`: 1 test
-**Total:** 10 tests
+**Target Hardware:** Samsung Galaxy S24 Ultra (SM-S928B, Android 16, Serial: `RZCY51R2A8D`)
+**Task Executed:** `./gradlew :app:connectedDebugAndroidTest`
+**Result:** **10 / 10 Tests Passed (0 Failures, 0 Errors, 0 Skipped)** in 5.798s
 
-### Connected Device Status
-**Status:** `NOT TESTED (Device not connected)`
+### On-Device Test Execution Breakdown
 
-**Raw `adb devices` Output:**
+| Test Suite Class | Test Method Name | Duration | Status |
+|---|---|---|---|
+| `AppAgentSmokeTest` | `analyzeTapAndTypeThroughUiAutomation` | 4.073s | **PASSED** |
+| `CodexFeaturesVerificationOnDeviceTest` | `verifySettingsAndTelegramGatewayLogicOnDevice` | 0.070s | **PASSED** |
+| `CodexFeaturesVerificationOnDeviceTest` | `verifyDocumentChunkingOnDevice` | 0.002s | **PASSED** |
+| `CodexFeaturesVerificationOnDeviceTest` | `verifyArtifactExtractionOnDevice` | 0.002s | **PASSED** |
+| `CodexFeaturesVerificationOnDeviceTest` | `verifySessionMarkdownExportOnDevice` | 0.037s | **PASSED** |
+| `CodexFeaturesVerificationOnDeviceTest` | `verifyKanbanFullLifecycleOnDevice` | 0.064s | **PASSED** |
+| `CodexFeaturesVerificationOnDeviceTest` | `verifySlashCommandsAndInterceptorOnDevice` | 0.003s | **PASSED** |
+| `DesktopFeaturesOnDeviceSmokeTest` | `testDesktopPortedFeaturesOnDevice` | 0.072s | **PASSED** |
+| `KanbanOnDeviceSmokeTest` | `testKanbanBatchDecompositionAndLifecycleOnDevice` | 0.003s | **PASSED** |
+| `HermesDatabaseMigrationTest` | `migrate12To13_createsTheNewTablesAndKeepsExistingData` | 0.102s | **PASSED** |
+
+### Release Package Integrity Confirmation
 ```
-* daemon not running; starting now at tcp:5037
-* daemon started successfully
-List of devices attached
-
+$ adb shell dumpsys package com.hermes.agent | grep versionName
+versionName=0.9.3
 ```
-*Note: The physical Samsung S24 Ultra device was disconnected during this test cycle. As instructed, connected instrumented tests were not run to prevent build hangs or failures.*
+*Confirmed: The release package `com.hermes.agent` (v0.9.3) remains untouched.*
 
 ---
 
@@ -278,9 +285,10 @@ Every role name, capability string, unit test method name, and tool count cited 
 
 ## 9. Conclusion
 
-All 4 steps of `ANTIGRAVITY-MODULARIZE-TASK.md` are complete:
+All 4 steps of `ANTIGRAVITY-MODULARIZE-TASK.md` are complete and verified on hardware:
 - 31 tools cleanly multibound via Hilt `@Binds @IntoSet`.
 - Capabilities implemented and verified against exact per-role count assertions (18/18/11/20/11).
 - 0 domain leaks.
 - 9 independent core modules extracted and compiling cleanly.
-- Baseline 479 unit tests fully preserved with zero failures.
+- 479/479 unit tests green (0 failures, 0 skipped, 0 errors).
+- 10/10 connected on-device instrumented tests green on Samsung Galaxy S24 Ultra (Android 16).
