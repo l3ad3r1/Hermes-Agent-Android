@@ -60,6 +60,13 @@ object DatabaseModule {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     HermesDatabase.createSearchIndex(db)
                 }
+
+                // A restored backup arrives at the current version, so no
+                // migration runs; if the install it came from had no search
+                // index, neither does this one. Cheap check, self-healing.
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    HermesDatabase.ensureSearchIndex(db)
+                }
             })
             .build()
     }

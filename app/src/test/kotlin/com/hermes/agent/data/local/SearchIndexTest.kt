@@ -183,6 +183,32 @@ class SearchIndexTest {
     }
 
     @Test
+    fun `ensure builds the index when a database arrives without one`() {
+        // What a restored backup looks like: already at the current version, so
+        // no migration runs, and the index the archive never carried is absent.
+        addConversation("c1", "Notes")
+        addMessage("c1", "restored from a backup")
+
+        HermesDatabase.ensureSearchIndex(db)
+
+        assertEquals(listOf("c1"), search("restored"))
+    }
+
+    @Test
+    fun `ensure leaves an existing index alone`() {
+        addConversation("c1", "Notes")
+        HermesDatabase.createSearchIndex(db)
+        addMessage("c1", "written after the index was built")
+
+        // Rebuilding drops and repopulates, which would be wasteful on every
+        // open and — while the write is in flight — briefly unsearchable.
+        HermesDatabase.ensureSearchIndex(db)
+
+        assertEquals(1, ftsRowCount("c1"))
+        assertEquals(listOf("c1"), search("written"))
+    }
+
+    @Test
     fun `timestamps are not searchable`() {
         // created_at and updated_at are notindexed, so a bare number must not
         // drag in every conversation that happens to contain it in an epoch.

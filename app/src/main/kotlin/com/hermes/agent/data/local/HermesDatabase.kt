@@ -504,7 +504,29 @@ abstract class HermesDatabase : RoomDatabase() {
                     "CREATE INDEX IF NOT EXISTS index_prompt_revisions_roleName_replacedAt " +
                         "ON prompt_revisions(roleName, replacedAt)",
                 )
+
+                // Not every v12 database has a search index. MIGRATION_11_12
+                // only rebuilt it when it actually rewrote a row, so an install
+                // that reached 12 with nothing to scrub arrived without one,
+                // and searching Chats then fails with "no such table:
+                // conversation_fts". Rebuilding here is idempotent.
+                createSearchIndex(db)
             }
+        }
+
+        /**
+         * The search index is not a Room entity, so nothing in Room's own
+         * machinery guarantees it exists: a database can arrive at the current
+         * version without one — most easily by restoring a backup taken from an
+         * install that never had it, which runs no migration at all. Checked on
+         * every open so that path self-heals rather than failing at the first
+         * search.
+         */
+        fun ensureSearchIndex(db: SupportSQLiteDatabase) {
+            val present = db.query(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'conversation_fts'",
+            ).use { it.moveToFirst() }
+            if (!present) createSearchIndex(db)
         }
     }
 }

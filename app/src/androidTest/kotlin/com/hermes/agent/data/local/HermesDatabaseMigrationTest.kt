@@ -55,8 +55,12 @@ class HermesDatabaseMigrationTest {
             )
         }
 
+        // `validateDroppedTables = false`: the search index is a hand-built FTS4
+        // virtual table, deliberately outside Room's entity list, and the strict
+        // check rejects any table it does not recognise. Every entity table is
+        // still validated against the exported schema, which is the point.
         val db = helper.runMigrationsAndValidate(
-            TEST_DB, 13, true, HermesDatabase.MIGRATION_12_13,
+            TEST_DB, 13, false, HermesDatabase.MIGRATION_12_13,
         )
 
         db.query(
@@ -73,6 +77,16 @@ class HermesDatabaseMigrationTest {
             ).use { cursor ->
                 assertTrue("migration must create $table", cursor.moveToFirst())
             }
+        }
+
+        // Not a Room entity, so `runMigrationsAndValidate` above cannot see it
+        // missing: a v12 database that arrived without a search index kept
+        // crossing into 13 without one, and the first search then failed with
+        // "no such table: conversation_fts".
+        db.query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'conversation_fts'",
+        ).use { cursor ->
+            assertTrue("migration must leave a search index behind", cursor.moveToFirst())
         }
 
         listOf(
