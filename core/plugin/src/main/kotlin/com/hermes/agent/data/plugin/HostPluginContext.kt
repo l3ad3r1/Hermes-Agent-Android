@@ -37,5 +37,6 @@ class HostPluginContext @Inject constructor(
         else -> null
     }
 
-    override fun hostAppVersion(): Int = com.hermes.agent.BuildConfig.VERSION_CODE
+    override fun hostAppVersion(): Int = com.hermes.agent.core.plugin.BuildConfig.VERSION_CODE
 }
+

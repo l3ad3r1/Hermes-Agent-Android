@@ -12,7 +12,6 @@ import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.domain.tool.ToolResult
-import com.hermes.agent.data.tool.ToolRegistryImpl
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonElement
 import org.junit.Assert.assertEquals
@@ -27,6 +26,14 @@ class PluginRegistryImplTest {
         override fun log(tag: String, level: com.hermes.agent.domain.plugin.LogLevel, message: String, throwable: Throwable?) {}
         override suspend fun hostSetting(key: String): String? = null
         override fun hostAppVersion(): Int = 1
+    }
+
+    private class FakeToolRegistry : ToolRegistry {
+        private val map = mutableMapOf<String, Tool>()
+        override fun register(tool: Tool) { map[tool.descriptor.name] = tool }
+        override fun unregister(name: String) { map.remove(name) }
+        override fun byName(name: String): Tool? = map[name]
+        override fun all(): List<Tool> = map.values.toList()
     }
 
     private fun makePlugin(id: String): Plugin = object : Plugin {
@@ -64,8 +71,8 @@ class PluginRegistryImplTest {
         override suspend fun onUnload() = PluginLifecycleResult.Success
     }
 
-    private fun makeRegistry(): Pair<PluginRegistryImpl, ToolRegistryImpl> {
-        val toolRegistry = ToolRegistryImpl()
+    private fun makeRegistry(): Pair<PluginRegistryImpl, FakeToolRegistry> {
+        val toolRegistry = FakeToolRegistry()
         val sandbox = InProcessPluginSandbox(toolRegistry)
         val grpc = GrpcPluginSandbox()
         val monitor = PluginResourceMonitor()
