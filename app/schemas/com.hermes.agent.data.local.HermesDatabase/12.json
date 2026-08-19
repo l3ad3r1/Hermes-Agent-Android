@@ -65,7 +65,7 @@
       },
       {
         "tableName": "messages",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversation_id` TEXT NOT NULL, `role` TEXT NOT NULL, `content` TEXT NOT NULL, `agent_role` TEXT, `timestamp` INTEGER NOT NULL, `tokens` INTEGER NOT NULL, `is_on_device` INTEGER NOT NULL, `evidence_state` TEXT, PRIMARY KEY(`id`), FOREIGN KEY(`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `conversation_id` TEXT NOT NULL, `role` TEXT NOT NULL, `content` TEXT NOT NULL, `agent_role` TEXT, `timestamp` INTEGER NOT NULL, `tokens` INTEGER NOT NULL, `is_on_device` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -113,11 +113,6 @@
             "columnName": "is_on_device",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "evidenceState",
-            "columnName": "evidence_state",
-            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
