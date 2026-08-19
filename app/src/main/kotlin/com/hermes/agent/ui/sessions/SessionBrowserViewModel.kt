@@ -106,4 +106,18 @@ class SessionBrowserViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Export session as Markdown text.
+     */
+    fun exportMarkdown(sessionId: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val markdown = sessionRepository.exportToMarkdown(sessionId)
+                onResult(markdown)
+            } catch (e: Exception) {
+                _uiState.value = SessionBrowserUiState.Error(e.message ?: "Export failed")
+            }
+        }
+    }
 }

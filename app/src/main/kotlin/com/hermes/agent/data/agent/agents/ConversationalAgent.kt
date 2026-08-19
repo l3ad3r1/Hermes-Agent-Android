@@ -39,7 +39,8 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- skill_manager: browse (action='list'), load (action='view'), or CREATE " +
             "(action='create') reusable skills — when the user asks you to create/save a skill, " +
             "call skill_manager(action='create') with name, description, and content\n" +
-            "- todo: keep a task list to plan and track multi-step work\n" +
+            "- todo: keep an in-session task list to plan and track multi-step work\n" +
+            "- kanban: manage persistent project tickets on the Kanban board (action='create', action='create_batch' with tickets array to decompose complex requests into Kanban tickets, action='list', action='move', action='get', action='delete')\n" +
             "- clarify: ask the user a question (with optional choices) when a request is " +
             "ambiguous — prefer asking once over guessing\n" +
             "- delegate: hand focused or parallel subtasks to isolated subagents, get results back; " +

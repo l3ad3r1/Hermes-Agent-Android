@@ -1,6 +1,7 @@
 package com.hermes.agent.ui.memory
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +39,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.model.Memory
 import com.hermes.agent.ui.components.DestructiveActionDialog
 
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.List
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoryScreen(
@@ -47,16 +51,26 @@ fun MemoryScreen(
     val memories by viewModel.memories.collectAsStateWithLifecycle()
     var newMemory by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<String?>(null) }
+    var isStarmapView by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Long-term Memory") },
+                title = { Text(if (isStarmapView) "Starmap Knowledge Graph" else "Long-term Memory") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Navigate back"
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { isStarmapView = !isStarmapView }) {
+                        Icon(
+                            imageVector = if (isStarmapView) Icons.Outlined.List else Icons.Outlined.AutoAwesome,
+                            contentDescription = if (isStarmapView) "List View" else "Starmap View",
+                            tint = if (isStarmapView) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },
@@ -67,20 +81,34 @@ fun MemoryScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (newMemory.isNotBlank()) {
-                        viewModel.addMemory(newMemory)
-                        newMemory = ""
-                    }
-                },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = "Add memory")
+            if (!isStarmapView) {
+                FloatingActionButton(
+                    onClick = {
+                        if (newMemory.isNotBlank()) {
+                            viewModel.addMemory(newMemory)
+                            newMemory = ""
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(Icons.Outlined.Add, contentDescription = "Add memory")
+                }
             }
         },
     ) { innerPadding ->
+        if (isStarmapView) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                StarmapCanvas(
+                    memories = memories,
+                    onDeleteMemory = viewModel::deleteMemory,
+                )
+            }
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -118,6 +146,7 @@ fun MemoryScreen(
             }
         }
     }
+}
 
     if (deleteTarget != null) {
         DestructiveActionDialog(

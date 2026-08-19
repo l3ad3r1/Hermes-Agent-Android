@@ -20,11 +20,11 @@ import com.hermes.agent.domain.tool.ToolRegistry
  */
 internal object AgentToolAccess {
 
-    // `todo` and `clarify` are useful to every agent (plan/track work; ask the
+    // `todo`, `kanban`, and `clarify` are useful to every agent (plan/track work; ask the
     // user when ambiguous), so they're granted across the board. The richer
     // tools added in v0.7.4+ (delegate/speak/generate_image/web_fetch) are
     // granted where they fit the persona.
-    private val COMMON = setOf("todo", "clarify")
+    private val COMMON = setOf("todo", "kanban", "clarify")
 
     private val ACCESS: Map<com.hermes.agent.domain.model.AgentRole, Set<String>> = mapOf(
         com.hermes.agent.domain.model.AgentRole.CONVERSATIONAL to COMMON + setOf(

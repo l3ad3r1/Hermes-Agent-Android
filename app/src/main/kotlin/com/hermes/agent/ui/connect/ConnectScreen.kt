@@ -39,6 +39,7 @@ fun ConnectScreen(
     onBack: () -> Unit = {},
 ) {
     val connectors by viewModel.connectors.collectAsStateWithLifecycle()
+    val userSettings by viewModel.userSettings.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<String?>(null) }
 
@@ -93,6 +94,17 @@ fun ConnectScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
+            }
+
+            item {
+                TelegramGatewayCard(
+                    enabled = userSettings.telegramBotEnabled,
+                    token = userSettings.telegramBotToken,
+                    allowedUserIds = userSettings.telegramAllowedUserIds,
+                    onToggleEnabled = viewModel::setTelegramBotEnabled,
+                    onTokenChanged = viewModel::setTelegramBotToken,
+                    onAllowedUserIdsChanged = viewModel::setTelegramAllowedUserIds,
+                )
             }
             if (connectors.isEmpty()) {
                 item { EmptyConnectState() }
@@ -373,5 +385,102 @@ private fun EmptyConnectState(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodyMedium,
             color = scheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
+}
+
+@Composable
+private fun TelegramGatewayCard(
+    enabled: Boolean,
+    token: String,
+    allowedUserIds: String,
+    onToggleEnabled: (Boolean) -> Unit,
+    onTokenChanged: (String) -> Unit,
+    onAllowedUserIdsChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showToken by remember { mutableStateOf(false) }
+    val scheme = MaterialTheme.colorScheme
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Link,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(8.dp),
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Telegram 24/7 Bot Gateway",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = if (enabled) "● Active in Background Service" else "○ Inactive / Standby",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = onToggleEnabled,
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Host a personal 24/7 Hermes bot on your phone. Message your bot from Telegram to chat with your phone agent anywhere.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = token,
+                onValueChange = onTokenChanged,
+                label = { Text("Telegram Bot Token (@BotFather)") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = if (showToken) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showToken = !showToken }) {
+                        Icon(
+                            imageVector = if (showToken) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (showToken) "Hide token" else "Show token",
+                        )
+                    }
+                },
+                singleLine = true,
+            )
+
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = allowedUserIds,
+                onValueChange = onAllowedUserIdsChanged,
+                label = { Text("Allowed User IDs (Optional whitelist, comma-separated)") },
+                placeholder = { Text("e.g. 12345678, 87654321") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+        }
     }
 }

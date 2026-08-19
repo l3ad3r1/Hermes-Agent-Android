@@ -376,7 +376,7 @@ private fun LocalBackupSection(
             }
             Text(
                 "Creates a complete snapshot of all app data, chats, and settings. " +
-                "The backup is saved to your Internal Storage/Hermes Agent/Backup folder.",
+                "The backup is saved to your Download/Hermes Agent/Backup folder.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

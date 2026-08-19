@@ -29,6 +29,7 @@ import com.hermes.agent.data.tools.AppAnalyzeScreenTool
 import com.hermes.agent.data.tools.AppLaunchTool
 import com.hermes.agent.data.tools.AppTapTool
 import com.hermes.agent.data.tools.AppSwipeTool
+import com.hermes.agent.data.tools.KanbanTool
 import com.hermes.agent.data.tools.AppTypeTool
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolRegistry
@@ -76,6 +77,7 @@ object ToolsModule {
         shellTool: ShellTool,
         termuxTool: TermuxTool,
         todoTool: TodoTool,
+        kanbanTool: KanbanTool,
         ttsTool: TtsTool,
         clarifyTool: ClarifyTool,
         delegateTool: DelegateTool,
@@ -109,6 +111,7 @@ object ToolsModule {
             shellTool,
             termuxTool,
             todoTool,
+            kanbanTool,
             ttsTool,
             clarifyTool,
             delegateTool,

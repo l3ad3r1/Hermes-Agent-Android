@@ -1,5 +1,6 @@
 package com.hermes.agent.ui.sessions
 
+import android.content.Intent
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -77,6 +80,7 @@ fun SessionBrowserScreen(
     viewModel: SessionBrowserViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<SessionWithMessageCount?>(null) }
 
@@ -164,6 +168,17 @@ fun SessionBrowserScreen(
                                         item = item,
                                         onClick = { onOpenSession(item.session.id) },
                                         onDelete = { pendingDelete = item },
+                                        onExport = {
+                                            viewModel.exportMarkdown(item.session.id) { markdown ->
+                                                val sendIntent = Intent().apply {
+                                                    action = Intent.ACTION_SEND
+                                                    putExtra(Intent.EXTRA_TEXT, markdown)
+                                                    type = "text/plain"
+                                                }
+                                                val shareIntent = Intent.createChooser(sendIntent, "Export Chat Transcript")
+                                                context.startActivity(shareIntent)
+                                            }
+                                        },
                                     )
                                 }
                             }
@@ -219,6 +234,7 @@ private fun SessionRow(
     item: SessionWithMessageCount,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onExport: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -275,12 +291,21 @@ private fun SessionRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
                 
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete session",
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onExport) {
+                        Icon(
+                            imageVector = Icons.Outlined.Share,
+                            contentDescription = "Export & Share",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Delete session",
+                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+                        )
+                    }
                 }
             }
         }

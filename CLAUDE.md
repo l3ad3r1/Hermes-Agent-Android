@@ -13,5 +13,8 @@ Hermes Agent Android: Kotlin, Jetpack Compose, Hilt, and Room. Package `com.herm
 - `versionCode`/`versionName` and the OTA `updateRepo` live in `gradle.properties` (`hermes.*`), not hardcoded in the build file.
 - Signed artifact: `./gradlew :app:assembleRelease`; signing uses gitignored `hermes.local.properties` and `hermes-release.jks` at the repository root. Never move or regenerate the keystore; signer SHA-256 starts `99255c31`.
 - A new agent tool requires registration in `di/ToolsModule`, access in `data/agent/agents/AgentToolAccess`, and mention in persona prompts.
+- `KanbanTool` (`kanban`) manages persistent project tickets (`KanbanTicketEntity` in Room v13) and supports `create_batch` for complex task breakdown.
+- `EvidenceState` tracks execution state (PREPARED, RUNNING, VERIFIED) via `EvidenceStateBadge` and Room `MIGRATION_12_13`.
+- `HybridLlmRouter` supports Maestro routing aliases (`ultrabrain` boosts specialist cloud, `quick` enforces fast/on-device).
 - `CloudLlmProvider` is OpenAI-compatible. Nous/Hermes models emit tool calls as text tags; retain the fallback parser.
 - `SkillGuard` vets skill content. Rewrites preserve frontmatter; `SkillConstraints` enforces 15 KB and 1.5x growth limits.

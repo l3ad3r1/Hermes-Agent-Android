@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,6 +56,12 @@ fun HomeScreen(
     onNewChat: (conversationId: String) -> Unit,
     onOpenConnections: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenKanban: () -> Unit = {},
+    onOpenMemory: () -> Unit = {},
+    onOpenSkills: () -> Unit = {},
+    onOpenSchedule: () -> Unit = {},
+    onOpenExperiment: () -> Unit = {},
+    onOpenDocuments: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val threads by viewModel.recentThreads.collectAsStateWithLifecycle()
@@ -65,12 +72,12 @@ fun HomeScreen(
 
     Column(
         modifier = Modifier
+            .fillMaxSize()
             .background(scheme.background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp)
-            .padding(top = 8.dp, bottom = 26.dp),
+            .padding(16.dp),
     ) {
-        // Header: Hermes's face (expressive eyes) + context-aware greeting.
+        // Presence header: poked eyes + status line + settings icon
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -112,11 +119,13 @@ fun HomeScreen(
                 Icon(
                     imageVector = Icons.Outlined.Settings,
                     contentDescription = null,
-                    tint = scheme.onBackground,
-                    modifier = Modifier.size(22.dp),
+                    tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
+
+        Spacer(Modifier.height(14.dp))
 
         // Active-model card
         Column(
@@ -141,19 +150,73 @@ fun HomeScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Quick actions
+        // Agent Superpower Hub Grid
+        SectionLabel("Agent Superpowers")
+        Spacer(Modifier.height(10.dp))
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             QuickAction(
-                title = "New chat",
+                title = "New Chat",
                 subtitle = "Ask or delegate",
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.createNewConversation(onNewChat) },
             )
             QuickAction(
-                title = "Messaging",
-                subtitle = "Link a platform",
+                title = "Kanban Board",
+                subtitle = "Background task queue",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenKanban,
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickAction(
+                title = "Starmap Memory",
+                subtitle = "2D Knowledge graph",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenMemory,
+            )
+            QuickAction(
+                title = "Skill Studio",
+                subtitle = "Custom tools & agents",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenSkills,
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickAction(
+                title = "CRON Routines",
+                subtitle = "Scheduled triggers",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenSchedule,
+            )
+            QuickAction(
+                title = "Messaging & Bot",
+                subtitle = "Telegram 24/7 gateway",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenConnections,
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            QuickAction(
+                title = "A/B Benchmark",
+                subtitle = "Live latency & tok/s",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenExperiment,
+            )
+            QuickAction(
+                title = "Knowledge Base",
+                subtitle = "SAF documents & RAG",
+                modifier = Modifier.weight(1f),
+                onClick = onOpenDocuments,
             )
         }
 

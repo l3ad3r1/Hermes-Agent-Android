@@ -32,7 +32,10 @@ class ProductivityAgent @Inject constructor() : Agent {
             "- skill_manager: browse, load, or create reusable skills " +
             "(action='create' with name, description, content when the user asks to save one)\n" +
             "- calculator: arithmetic\n" +
-            "- todo: maintain a task list to break down and track multi-step work\n" +
+            "- todo: maintain an in-session task list to track steps during the current turn\n" +
+            "- kanban: manage persistent project tickets on the Kanban board. Use action='create' or " +
+            "action='create_batch' (with tickets array) to break complex projects into structured tickets (TODO/IN_PROGRESS/DONE) " +
+            "that the user can see on their board and the background agent can execute\n" +
             "- clarify: ask the user a short question (with optional choices) when a request is ambiguous\n" +
             "- delegate: hand focused or parallel subtasks to isolated subagents and get results back; " +
             "pass background=true for long tasks — the user is notified when done\n" +
@@ -40,7 +43,8 @@ class ProductivityAgent @Inject constructor() : Agent {
             "Signal, WhatsApp, webhook) when asked to forward or push something externally\n" +
             "- web_search / web_fetch: look things up online or read a specific URL\n\n" +
             "Be action-oriented: confirm what you did, not what you could do. " +
-            "For multi-step requests, use todo to plan and track the steps. " +
+            "For complex or multi-phase tasks/projects, use kanban(action='create_batch', tickets=[...]) to break them down into structured Kanban tickets. " +
+            "For quick in-session tracking, use todo. " +
             "For recurring requests use scheduler(action='create') with the appropriate schedule. " +
             "For one-off events use calendar_add_event. " +
             "If timing is ambiguous, ask one short clarifying question."

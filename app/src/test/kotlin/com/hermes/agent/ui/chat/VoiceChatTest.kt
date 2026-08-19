@@ -84,6 +84,9 @@ class VoiceChatTest {
             settingsRepository = settings,
             toolConfirmationService = mockk<ToolConfirmationService>(relaxed = true),
             executionPlanRepository = plans,
+            ultraSkillInterceptor = mockk<com.hermes.agent.domain.agent.UltraSkillInterceptor>(relaxed = true).also {
+                io.mockk.coEvery { it.intercept(any(), any()) } returns false
+            },
         )
     }
 

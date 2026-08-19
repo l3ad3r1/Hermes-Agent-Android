@@ -12,6 +12,7 @@ import com.hermes.agent.data.voice.VoiceOutputManager
 import com.hermes.agent.data.settings.SettingsRepository
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.OrchestratorEvent
+import com.hermes.agent.domain.model.Message
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.ConversationRepository
 import com.hermes.agent.domain.repository.ExecutionPlanRepository
@@ -44,6 +45,7 @@ class ChatViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val toolConfirmationService: com.hermes.agent.domain.tool.ToolConfirmationService,
     private val executionPlanRepository: ExecutionPlanRepository,
+    private val ultraSkillInterceptor: com.hermes.agent.domain.agent.UltraSkillInterceptor,
 ) : ViewModel() {
 
     val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
@@ -134,6 +136,19 @@ class ChatViewModel @Inject constructor(
 
     val state: StateFlow<ChatUiState> get() = uiState
 
+    fun editMessage(message: Message) {
+        _inputPrefill.value = message.content
+    }
+
+    fun retryWithAlias(message: Message, alias: String) {
+        val cleanContent = message.content
+            .removePrefix("[ultrabrain] ")
+            .removePrefix("[quick] ")
+            .trim()
+        val prompt = "[$alias] $cleanContent"
+        sendMessage(prompt)
+    }
+
     fun sendMessage(content: String) {
         val trimmed = content.trim()
         if (trimmed.isEmpty() || _ephemeral.value.isSending) return
@@ -149,6 +164,11 @@ class ChatViewModel @Inject constructor(
 
         sendJob = viewModelScope.launch {
             try {
+                if (ultraSkillInterceptor.intercept(conversationId, trimmed)) {
+                    _ephemeral.value = ChatEphemeralState()
+                    return@launch
+                }
+                
                 chatRepository.sendMessageOrchestrated(conversationId, trimmed, ExecutionOrigin.INTERACTIVE).collect { event ->
                     handleOrchestratorEvent(event)
                 }

@@ -1,6 +1,7 @@
 package com.hermes.agent.ui.chat.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -65,24 +66,32 @@ fun ChatInputBar(
         }
     }
 
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(32.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.Bottom,
+    Column(modifier = modifier.fillMaxWidth()) {
+        SlashCommandPalette(
+            currentQuery = text,
+            onSelectCommand = { cmd ->
+                text = cmd.template
+            },
+        )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(32.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
-            Box {
-                IconButton(
-                    onClick = { quickActionsOpen = true },
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Quick actions")
-                }
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                Box {
+                    IconButton(
+                        onClick = { quickActionsOpen = true },
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = "Quick actions")
+                    }
                 DropdownMenu(
                     expanded = quickActionsOpen,
                     onDismissRequest = { quickActionsOpen = false },
@@ -216,4 +225,5 @@ fun ChatInputBar(
             }
         }
     }
+}
 }

@@ -194,7 +194,11 @@ fun ChatScreen(
                         ) {
                             items(uiState.visibleItems) { item ->
                                 when (item) {
-                                    is ChatListItem.MessageItem -> MessageBubble(message = item.message)
+                                    is ChatListItem.MessageItem -> MessageBubble(
+                                        message = item.message,
+                                        onEditMessage = viewModel::editMessage,
+                                        onRetryWithAlias = viewModel::retryWithAlias,
+                                    )
                                     is ChatListItem.StreamingItem -> StreamingBubble(item = item)
                                 }
                             }

@@ -610,7 +610,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val result = localBackupManager.exportToZip()
             if (result.isSuccess) {
-                _localBackupState.value = BackupUiState.Success("Local backup saved to Documents/Hermes Agent")
+                _localBackupState.value = BackupUiState.Success("Local backup saved to Download/Hermes Agent/Backup")
             } else {
                 _localBackupState.value = BackupUiState.Error(result.exceptionOrNull()?.message ?: "Failed to save backup")
             }

@@ -212,6 +212,32 @@ class SessionRepository @Inject constructor(
     }
 
     /**
+     * Export session to clean Markdown format.
+     */
+    suspend fun exportToMarkdown(id: String): String {
+        val session = getSessionById(id) ?: throw IllegalArgumentException("Session not found: $id")
+        return buildString {
+            appendLine("# ${session.conversation.title.ifBlank { "Hermes Chat Session" }}")
+            appendLine("*Exported from Hermes Agent Android on ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}*")
+            appendLine()
+            appendLine("---")
+            appendLine()
+            session.messages.forEach { msg ->
+                val roleName = when (msg.role.lowercase()) {
+                    "user" -> "👤 User"
+                    "assistant" -> "🤖 Hermes"
+                    "system" -> "⚙️ System"
+                    "tool" -> "🔧 Tool Output"
+                    else -> msg.role.replaceFirstChar { it.uppercase() }
+                }
+                appendLine("### $roleName")
+                appendLine(msg.content.trim())
+                appendLine()
+            }
+        }
+    }
+
+    /**
      * Prune old sessions (older than N days).
      */
     suspend fun pruneOlderThan(days: Int): Int {
