@@ -8,8 +8,8 @@ import com.hermes.agent.data.llm.CloudModelCatalog
 import com.hermes.agent.data.llm.LocalLlmManager
 import com.hermes.agent.data.security.KeystoreManager
 import com.hermes.agent.data.security.KnoxSecurityManager
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
 import io.mockk.coEvery

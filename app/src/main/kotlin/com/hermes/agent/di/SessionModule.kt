@@ -1,4 +1,7 @@
 package com.hermes.agent.di
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
+import com.hermes.agent.domain.settings.CloudProviderProfile
 
 import com.hermes.agent.data.local.HermesDatabase
 import com.hermes.agent.data.local.dao.ConversationDao

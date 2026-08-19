@@ -1,4 +1,5 @@
-package com.hermes.agent.data.settings
+package com.hermes.agent.domain.settings
+import com.hermes.agent.domain.llm.*
 
 import kotlinx.coroutines.flow.Flow
 

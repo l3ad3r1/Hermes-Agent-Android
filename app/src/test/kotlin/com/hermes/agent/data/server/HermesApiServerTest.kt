@@ -1,6 +1,6 @@
 package com.hermes.agent.data.server
 
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.Orchestrator
 import com.hermes.agent.domain.agent.OrchestratorEvent

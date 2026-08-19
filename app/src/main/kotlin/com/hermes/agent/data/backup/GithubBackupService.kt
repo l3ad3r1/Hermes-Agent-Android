@@ -2,7 +2,7 @@ package com.hermes.agent.data.backup
 
 import android.content.Context
 import com.hermes.agent.BuildConfig
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.model.ScheduledTask
 import com.hermes.agent.domain.repository.CronRepository
 import com.hermes.agent.domain.repository.MemoryRepository

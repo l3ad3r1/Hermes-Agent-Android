@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.settings
+import com.hermes.agent.domain.settings.*
 
 import android.content.Intent
 import android.net.Uri

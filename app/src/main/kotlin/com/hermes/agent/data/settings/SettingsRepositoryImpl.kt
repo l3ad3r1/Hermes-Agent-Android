@@ -1,4 +1,8 @@
 package com.hermes.agent.data.settings
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
+import com.hermes.agent.domain.settings.CloudProviderProfile
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences

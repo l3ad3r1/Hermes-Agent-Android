@@ -1,11 +1,11 @@
 package com.hermes.agent.data.agent
 
-import com.hermes.agent.data.llm.LlmMessage
-import com.hermes.agent.data.llm.LlmProvider
-import com.hermes.agent.data.llm.LlmResponse
-import com.hermes.agent.data.llm.LlmStreamChunk
-import com.hermes.agent.data.llm.LlmToolResponse
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmProvider
+import com.hermes.agent.domain.llm.LlmResponse
+import com.hermes.agent.domain.llm.LlmStreamChunk
+import com.hermes.agent.domain.llm.LlmToolResponse
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.data.tool.ToolCallExecutor
 import com.hermes.agent.data.tool.ToolRegistryImpl
 import com.hermes.agent.domain.agent.ExecutionOrigin

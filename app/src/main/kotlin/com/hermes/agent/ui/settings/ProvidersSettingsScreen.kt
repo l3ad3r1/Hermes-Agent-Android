@@ -40,7 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.data.llm.CloudProviderDefinition
 import com.hermes.agent.data.llm.CloudProviderRegistry
-import com.hermes.agent.data.settings.CloudProviderProfile
+import com.hermes.agent.domain.settings.CloudProviderProfile
 import com.hermes.agent.ui.theme.hermesFieldColors
 
 @OptIn(ExperimentalMaterial3Api::class)

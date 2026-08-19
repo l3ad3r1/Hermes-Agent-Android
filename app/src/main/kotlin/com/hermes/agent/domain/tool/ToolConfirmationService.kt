@@ -1,6 +1,6 @@
 package com.hermes.agent.domain.tool
 
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.domain.security.DeviceAuthenticationService
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow

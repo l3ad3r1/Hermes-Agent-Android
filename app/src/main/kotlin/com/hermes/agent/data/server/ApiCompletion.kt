@@ -1,6 +1,6 @@
 package com.hermes.agent.data.server
 
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

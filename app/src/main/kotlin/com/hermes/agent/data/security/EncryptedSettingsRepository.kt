@@ -1,7 +1,7 @@
 package com.hermes.agent.data.security
 
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.di.PlainSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -194,7 +194,7 @@ class EncryptedSettingsRepository @Inject constructor(
     }
 
     override suspend fun setCloudProviderProfiles(
-        profiles: List<com.hermes.agent.data.settings.CloudProviderProfile>,
+        profiles: List<com.hermes.agent.domain.settings.CloudProviderProfile>,
     ) {
         delegate.setCloudProviderProfiles(
             profiles.map { profile ->
@@ -206,8 +206,8 @@ class EncryptedSettingsRepository @Inject constructor(
     }
 
     private fun decryptProviderProfiles(
-        profiles: List<com.hermes.agent.data.settings.CloudProviderProfile>,
-    ): List<com.hermes.agent.data.settings.CloudProviderProfile> = profiles.map { profile ->
+        profiles: List<com.hermes.agent.domain.settings.CloudProviderProfile>,
+    ): List<com.hermes.agent.domain.settings.CloudProviderProfile> = profiles.map { profile ->
         profile.copy(
             apiKey = decryptSecret(profile.apiKey, KeystoreManager.ALIAS_PROVIDER_API_KEYS),
         )

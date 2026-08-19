@@ -5,8 +5,8 @@ import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.LocalLlmManager
 import com.hermes.agent.data.llm.ModelCatalog
 import com.hermes.agent.data.memory.UserModelService
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.domain.repository.ConversationRepository
 import com.hermes.agent.domain.repository.MemoryRepository
 import io.mockk.coEvery

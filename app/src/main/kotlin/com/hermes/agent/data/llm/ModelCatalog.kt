@@ -1,4 +1,6 @@
 package com.hermes.agent.data.llm
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 /**
  * A downloadable on-device GGUF model shown in the Assistant Settings dropdown.

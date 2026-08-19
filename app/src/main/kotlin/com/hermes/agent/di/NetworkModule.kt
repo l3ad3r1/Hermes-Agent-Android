@@ -1,7 +1,8 @@
 package com.hermes.agent.di
+import com.hermes.agent.domain.llm.*
 
 import com.hermes.agent.data.remote.OpenAiApi
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides

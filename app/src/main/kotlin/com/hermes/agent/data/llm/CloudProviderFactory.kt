@@ -1,8 +1,10 @@
 package com.hermes.agent.data.llm
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 import com.hermes.agent.data.remote.OpenAiApi
-import com.hermes.agent.data.settings.CloudProviderProfile
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.CloudProviderProfile
+import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.util.DispatcherProvider
 import javax.inject.Inject
 import javax.inject.Singleton

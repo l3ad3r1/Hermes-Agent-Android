@@ -1,6 +1,6 @@
 package com.hermes.agent.domain.agent
 
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.domain.tool.ToolResult
 
 data class ToolExecutionObservation(

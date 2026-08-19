@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.kanban
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement

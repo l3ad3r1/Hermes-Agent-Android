@@ -1,4 +1,6 @@
 package com.hermes.agent.data.llm
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray

@@ -3,9 +3,9 @@ package com.hermes.agent.ui.chat
 import androidx.lifecycle.SavedStateHandle
 import com.hermes.agent.data.agent.ClarificationBus
 import com.hermes.agent.data.agent.TodoStore
-import com.hermes.agent.data.llm.ToolCall
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.llm.ToolCall
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputManager
 import com.hermes.agent.domain.agent.OrchestratorEvent

@@ -1,4 +1,5 @@
 package com.hermes.agent.data.server
+import com.hermes.agent.domain.llm.*
 
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.Orchestrator
@@ -111,7 +112,7 @@ class HermesApiServer(
         id: String,
         conversationId: String,
         userMessage: String,
-        prior: List<com.hermes.agent.data.llm.LlmMessage>,
+        prior: List<com.hermes.agent.domain.llm.LlmMessage>,
         promptTokens: Int,
     ): Response = runBlocking {
         val reply = StringBuilder()
@@ -145,7 +146,7 @@ class HermesApiServer(
         id: String,
         conversationId: String,
         userMessage: String,
-        prior: List<com.hermes.agent.data.llm.LlmMessage>,
+        prior: List<com.hermes.agent.domain.llm.LlmMessage>,
     ): Response {
         val pipeIn = PipedInputStream(64 * 1024)
         val pipeOut = PipedOutputStream(pipeIn)

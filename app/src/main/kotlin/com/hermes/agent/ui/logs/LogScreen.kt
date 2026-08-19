@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.logs
+import com.hermes.agent.domain.settings.*
 
 import android.content.ClipData
 import android.content.ClipboardManager

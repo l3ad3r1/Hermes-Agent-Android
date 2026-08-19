@@ -1,10 +1,11 @@
 package com.hermes.agent.ui.chat
+import com.hermes.agent.domain.llm.*
 
 import androidx.lifecycle.SavedStateHandle
 import com.hermes.agent.data.agent.ClarificationBus
 import com.hermes.agent.data.agent.TodoStore
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.data.voice.VoiceInputEvent
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
@@ -207,7 +208,7 @@ class VoiceChatTest {
         val chatRepo = mockk<ChatRepository>(relaxed = true).also {
             every { it.sendMessageOrchestrated(any(), any(), any()) } returns flowOf(
                 OrchestratorEvent.ToolCallRequested(
-                    com.hermes.agent.data.llm.ToolCall("1", "speak", buildMap { }),
+                    com.hermes.agent.domain.llm.ToolCall("1", "speak", buildMap { }),
                     false,
                 ),
                 OrchestratorEvent.ReplyComplete("also written out", AgentRole.DEFAULT, true),

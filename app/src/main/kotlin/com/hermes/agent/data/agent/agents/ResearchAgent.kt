@@ -1,7 +1,7 @@
 package com.hermes.agent.data.agent.agents
 
 import com.hermes.agent.data.agent.agents.AgentToolAccess.toolsFor
-import com.hermes.agent.data.llm.LlmToolResponse
+import com.hermes.agent.domain.llm.LlmToolResponse
 import com.hermes.agent.domain.agent.Agent
 import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.domain.tool.ToolDescriptor

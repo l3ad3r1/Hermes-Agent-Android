@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.settings
+import com.hermes.agent.domain.llm.*
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -8,8 +9,8 @@ import com.hermes.agent.data.llm.CloudModelCatalog
 import com.hermes.agent.data.llm.CloudProviderRegistry
 import com.hermes.agent.data.security.KeystoreManager
 import com.hermes.agent.data.security.KnoxSecurityManager
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.data.export.SessionExporter
 import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
@@ -375,7 +376,7 @@ class SettingsViewModel @Inject constructor(
 
     private suspend fun updateProvider(
         providerId: String,
-        transform: (com.hermes.agent.data.settings.CloudProviderProfile) -> com.hermes.agent.data.settings.CloudProviderProfile,
+        transform: (com.hermes.agent.domain.settings.CloudProviderProfile) -> com.hermes.agent.domain.settings.CloudProviderProfile,
     ) {
         val current = settingsRepository.current().cloudProviderProfiles
         val definition = requireNotNull(CloudProviderRegistry.definition(providerId))

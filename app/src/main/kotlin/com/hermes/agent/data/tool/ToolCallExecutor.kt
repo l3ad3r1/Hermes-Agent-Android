@@ -1,6 +1,6 @@
 package com.hermes.agent.data.tool
 
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.data.security.OutputRedactor
 import com.hermes.agent.domain.tool.ToolResult
 import com.hermes.agent.domain.tool.ToolRegistry

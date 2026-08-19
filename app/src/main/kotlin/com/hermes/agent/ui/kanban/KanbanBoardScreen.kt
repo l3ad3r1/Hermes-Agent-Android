@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.kanban
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

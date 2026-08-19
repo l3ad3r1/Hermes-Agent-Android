@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.chat.components
+import com.hermes.agent.domain.settings.*
 
 import android.provider.Settings
 import androidx.compose.animation.core.LinearEasing

@@ -1,7 +1,7 @@
 package com.hermes.agent.data.tools
 
 import com.hermes.agent.data.llm.CloudLlmProvider
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.data.local.dao.MessageDao
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor

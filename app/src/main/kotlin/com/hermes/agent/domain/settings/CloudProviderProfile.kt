@@ -1,4 +1,4 @@
-package com.hermes.agent.data.settings
+package com.hermes.agent.domain.settings
 
 import kotlinx.serialization.Serializable
 

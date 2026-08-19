@@ -1,4 +1,6 @@
 package com.hermes.agent.ui.chat
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.AgentRole

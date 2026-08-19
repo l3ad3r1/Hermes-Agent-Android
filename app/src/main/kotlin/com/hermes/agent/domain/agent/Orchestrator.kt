@@ -1,8 +1,8 @@
 package com.hermes.agent.domain.agent
 
-import com.hermes.agent.data.llm.LlmMessage
-import com.hermes.agent.data.llm.LlmStreamChunk
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmStreamChunk
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.domain.model.AgentRun
 import com.hermes.agent.domain.model.ExecutionPlan
 import kotlinx.coroutines.flow.Flow

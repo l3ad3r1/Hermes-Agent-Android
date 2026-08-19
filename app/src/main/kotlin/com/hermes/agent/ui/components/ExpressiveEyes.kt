@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.components
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState

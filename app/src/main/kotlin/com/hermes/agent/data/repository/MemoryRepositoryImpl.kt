@@ -1,4 +1,6 @@
 package com.hermes.agent.data.repository
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.entity.MemoryEntity

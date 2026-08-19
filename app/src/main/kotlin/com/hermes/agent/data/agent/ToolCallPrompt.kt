@@ -1,4 +1,5 @@
 package com.hermes.agent.data.agent
+import com.hermes.agent.domain.llm.*
 
 /**
  * Shared instruction appended to a system prompt whenever tools are offered.

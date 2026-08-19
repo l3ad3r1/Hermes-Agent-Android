@@ -1,4 +1,5 @@
 package com.hermes.agent.data.memory
+import com.hermes.agent.domain.llm.*
 
 import com.hermes.agent.domain.model.Message
 import com.hermes.agent.domain.model.MessageRole
@@ -49,11 +50,11 @@ class ShortTermMemory(
      * the system prompt — the orchestrator adds its own per-agent system
      * prompt.
      */
-    fun toLlmMessages(includeSystem: Boolean = false): List<com.hermes.agent.data.llm.LlmMessage> {
+    fun toLlmMessages(includeSystem: Boolean = false): List<com.hermes.agent.domain.llm.LlmMessage> {
         return turns
             .filter { includeSystem || it.role != MessageRole.SYSTEM }
             .map { turn ->
-                com.hermes.agent.data.llm.LlmMessage(
+                com.hermes.agent.domain.llm.LlmMessage(
                     role = turn.role.wireName,
                     content = turn.content,
                 )

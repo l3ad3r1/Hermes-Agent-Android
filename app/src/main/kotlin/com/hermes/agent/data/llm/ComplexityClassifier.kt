@@ -1,4 +1,6 @@
 package com.hermes.agent.data.llm
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 /**
  * Request-complexity classification used by [HybridLlmRouter] to decide

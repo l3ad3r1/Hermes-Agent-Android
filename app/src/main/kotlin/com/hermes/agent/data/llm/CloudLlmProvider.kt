@@ -1,4 +1,6 @@
 package com.hermes.agent.data.llm
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 import com.hermes.agent.data.remote.OpenAiApi
 import com.hermes.agent.data.remote.dto.ChatCompletionChunk
@@ -6,9 +8,9 @@ import com.hermes.agent.data.remote.dto.ChatCompletionRequest
 import com.hermes.agent.data.remote.dto.ChatMessage
 import com.hermes.agent.data.remote.dto.ToolCallDto
 import com.hermes.agent.data.remote.dto.FunctionCallDto
-import com.hermes.agent.data.settings.CloudProviderProfile
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.CloudProviderProfile
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.delay
@@ -442,7 +444,7 @@ class CloudLlmProvider @Inject constructor(
         )
     }
 
-    private fun SettingsRepository.currentBlocking(): com.hermes.agent.data.settings.UserSettings =
+    private fun SettingsRepository.currentBlocking(): com.hermes.agent.domain.settings.UserSettings =
         kotlinx.coroutines.runBlocking { current() }
 
 }

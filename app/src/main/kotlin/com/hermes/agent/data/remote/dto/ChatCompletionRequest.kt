@@ -1,4 +1,5 @@
 package com.hermes.agent.data.remote.dto
+import com.hermes.agent.domain.llm.*
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

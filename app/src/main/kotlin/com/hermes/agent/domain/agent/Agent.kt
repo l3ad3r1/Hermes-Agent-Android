@@ -1,8 +1,8 @@
 package com.hermes.agent.domain.agent
 
-import com.hermes.agent.data.llm.LlmMessage
-import com.hermes.agent.data.llm.LlmToolResponse
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmToolResponse
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.domain.tool.ToolDescriptor
 

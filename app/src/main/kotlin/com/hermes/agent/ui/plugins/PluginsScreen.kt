@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.plugins
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

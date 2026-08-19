@@ -3,7 +3,7 @@ package com.hermes.agent.di
 import com.hermes.agent.data.calendar.AndroidCalendarEventGateway
 import com.hermes.agent.data.security.EncryptedSettingsRepository
 import com.hermes.agent.data.security.KeystoreManager
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.data.settings.SettingsRepositoryImpl
 import com.hermes.agent.data.settings.SettingsToolAuthorizationSettings
 import com.hermes.agent.domain.calendar.CalendarEventGateway

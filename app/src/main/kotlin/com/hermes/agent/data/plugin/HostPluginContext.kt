@@ -2,7 +2,7 @@ package com.hermes.agent.data.plugin
 
 import com.hermes.agent.domain.plugin.LogLevel
 import com.hermes.agent.domain.plugin.PluginContext
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton

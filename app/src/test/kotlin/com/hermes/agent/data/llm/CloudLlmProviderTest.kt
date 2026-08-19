@@ -1,12 +1,14 @@
 package com.hermes.agent.data.llm
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 import app.cash.turbine.test
 import com.hermes.agent.data.remote.OpenAiApi
 import com.hermes.agent.data.remote.dto.ChatCompletionRequest
 import com.hermes.agent.data.remote.dto.ChatCompletionResponse
 import com.hermes.agent.data.remote.dto.ChatMessage
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.util.DispatcherProvider
 import io.mockk.coEvery
 import io.mockk.coVerify

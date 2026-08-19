@@ -2,8 +2,8 @@ package com.hermes.agent.ui.connect
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.domain.model.Connector
 import com.hermes.agent.domain.model.ConnectorType
 import com.hermes.agent.domain.repository.ConnectorRepository

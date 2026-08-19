@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.navigation
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send

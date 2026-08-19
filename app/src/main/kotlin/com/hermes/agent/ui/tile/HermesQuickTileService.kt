@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.tile
+import com.hermes.agent.domain.settings.*
 
 import android.content.Intent
 import android.service.quicksettings.Tile

@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.memory
+import com.hermes.agent.domain.settings.*
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

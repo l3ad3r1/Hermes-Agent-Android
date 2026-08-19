@@ -1,7 +1,7 @@
 package com.hermes.agent.data.memory
 
 import com.hermes.agent.data.llm.CloudLlmProvider
-import com.hermes.agent.data.llm.LlmResponse
+import com.hermes.agent.domain.llm.LlmResponse
 import com.hermes.agent.domain.model.Memory
 import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.util.DispatcherProvider

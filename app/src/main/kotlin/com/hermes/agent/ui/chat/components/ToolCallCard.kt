@@ -1,4 +1,6 @@
 package com.hermes.agent.ui.chat.components
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

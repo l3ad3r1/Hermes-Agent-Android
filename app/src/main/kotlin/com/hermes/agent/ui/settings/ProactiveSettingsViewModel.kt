@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.settings
+import com.hermes.agent.domain.settings.*
 
 import androidx.lifecycle.ViewModel
 import com.hermes.agent.data.proactive.BudgetStateStore

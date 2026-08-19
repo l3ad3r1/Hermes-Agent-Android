@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.theme
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes

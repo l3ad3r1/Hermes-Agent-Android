@@ -34,7 +34,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.service.ApiServerController
 import com.hermes.agent.ui.components.DestructiveActionDialog
 import com.hermes.agent.ui.theme.hermesFieldColors

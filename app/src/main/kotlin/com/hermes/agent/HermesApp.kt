@@ -1,4 +1,5 @@
 package com.hermes.agent
+import com.hermes.agent.domain.settings.*
 
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory

@@ -1,6 +1,6 @@
 package com.hermes.agent.ui.terminal
 
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.data.terminal.TermuxCommandRunner
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn

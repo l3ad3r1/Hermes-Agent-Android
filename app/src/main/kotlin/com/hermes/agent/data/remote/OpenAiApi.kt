@@ -1,4 +1,5 @@
 package com.hermes.agent.data.remote
+import com.hermes.agent.domain.llm.*
 
 import com.hermes.agent.data.remote.dto.ChatCompletionChunk
 import com.hermes.agent.data.remote.dto.ChatCompletionRequest

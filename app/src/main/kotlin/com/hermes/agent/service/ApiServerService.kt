@@ -14,7 +14,7 @@ import androidx.core.app.ServiceCompat
 import com.hermes.agent.MainActivity
 import com.hermes.agent.R
 import com.hermes.agent.data.server.HermesApiServer
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.agent.Orchestrator
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope

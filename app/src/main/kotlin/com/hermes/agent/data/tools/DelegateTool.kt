@@ -1,10 +1,10 @@
 package com.hermes.agent.data.tools
 
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.RoutingContext
 import com.hermes.agent.data.llm.RoutingDecision
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.data.tool.ToolCallExecutor
 import com.hermes.agent.domain.repository.AgentTaskRepository
 import com.hermes.agent.domain.tool.Tool

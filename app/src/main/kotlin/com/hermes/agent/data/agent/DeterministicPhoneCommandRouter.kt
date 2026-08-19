@@ -1,6 +1,6 @@
 package com.hermes.agent.data.agent
 
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.util.IdGenerator
 import kotlinx.serialization.json.JsonElement

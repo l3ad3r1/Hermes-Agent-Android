@@ -1,7 +1,7 @@
 package com.hermes.agent.data.evolution
 
 import com.hermes.agent.data.agent.AgentRegistry
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.RoutingContext
 import com.hermes.agent.data.llm.RoutingDecision

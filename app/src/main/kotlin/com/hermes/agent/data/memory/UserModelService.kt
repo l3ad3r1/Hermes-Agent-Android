@@ -1,7 +1,7 @@
 package com.hermes.agent.data.memory
 
 import com.hermes.agent.data.llm.CloudLlmProvider
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.withContext

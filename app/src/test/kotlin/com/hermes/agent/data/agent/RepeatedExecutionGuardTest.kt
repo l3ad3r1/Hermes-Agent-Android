@@ -1,6 +1,6 @@
 package com.hermes.agent.data.agent
 
-import com.hermes.agent.data.llm.ToolCall
+import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.domain.agent.ExecutionStopReason
 import com.hermes.agent.domain.agent.ToolExecutionObservation
 import com.hermes.agent.domain.tool.ToolResult

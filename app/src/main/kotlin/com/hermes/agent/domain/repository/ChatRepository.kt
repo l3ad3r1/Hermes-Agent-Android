@@ -1,4 +1,5 @@
 package com.hermes.agent.domain.repository
+import com.hermes.agent.domain.settings.*
 
 import com.hermes.agent.domain.model.ChatStreamEvent
 import com.hermes.agent.domain.agent.ExecutionOrigin

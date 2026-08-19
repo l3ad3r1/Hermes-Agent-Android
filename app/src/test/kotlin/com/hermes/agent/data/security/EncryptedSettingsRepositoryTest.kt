@@ -1,8 +1,8 @@
 package com.hermes.agent.data.security
 
-import com.hermes.agent.data.settings.CloudProviderProfile
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.CloudProviderProfile
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

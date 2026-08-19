@@ -1,6 +1,8 @@
 package com.hermes.agent.data.llm
+import com.hermes.agent.domain.llm.*
+import com.hermes.agent.domain.settings.*
 
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Named
@@ -58,7 +60,7 @@ class HybridLlmRouter @Inject constructor(
         local,
         settings,
         object : ProfileCloudProviderFactory {
-            override fun create(profile: com.hermes.agent.data.settings.CloudProviderProfile): CloudLlmProvider =
+            override fun create(profile: com.hermes.agent.domain.settings.CloudProviderProfile): CloudLlmProvider =
                 error("No profile provider factory configured in this test.")
         },
         QualityAwareLlmRoutingPolicy(),

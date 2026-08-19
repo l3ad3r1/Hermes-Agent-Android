@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.kanban
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme

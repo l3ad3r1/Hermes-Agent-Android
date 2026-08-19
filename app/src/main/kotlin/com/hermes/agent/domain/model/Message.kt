@@ -1,4 +1,5 @@
 package com.hermes.agent.domain.model
+import com.hermes.agent.domain.llm.*
 
 /**
  * A single chat message inside a conversation.

@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.documents
+import com.hermes.agent.domain.settings.*
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

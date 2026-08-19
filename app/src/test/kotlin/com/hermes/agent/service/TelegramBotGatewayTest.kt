@@ -1,7 +1,7 @@
 package com.hermes.agent.service
 
-import com.hermes.agent.data.settings.SettingsRepository
-import com.hermes.agent.data.settings.UserSettings
+import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.domain.agent.Orchestrator
 import io.mockk.coEvery
 import io.mockk.mockk

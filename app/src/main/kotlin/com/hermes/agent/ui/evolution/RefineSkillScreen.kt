@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.evolution
+import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

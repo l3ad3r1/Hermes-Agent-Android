@@ -1,6 +1,6 @@
 package com.hermes.agent.data.agent
 
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.RoutingDecision
 import com.hermes.agent.data.llm.RoutingContext

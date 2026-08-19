@@ -2,7 +2,7 @@ package com.hermes.agent.data.performance
 
 import android.app.ActivityManager
 import android.content.Context
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.util.DispatcherProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope

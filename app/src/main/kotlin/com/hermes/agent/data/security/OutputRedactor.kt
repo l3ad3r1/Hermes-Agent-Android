@@ -1,6 +1,6 @@
 package com.hermes.agent.data.security
 
-import com.hermes.agent.data.settings.SettingsRepository
+import com.hermes.agent.domain.settings.SettingsRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 

@@ -7,7 +7,7 @@ import androidx.work.WorkerParameters
 import com.hermes.agent.data.evolution.EvolutionNotifier
 import com.hermes.agent.data.evolution.ReflectiveSkillRefiner
 import com.hermes.agent.data.llm.CloudLlmProvider
-import com.hermes.agent.data.llm.LlmMessage
+import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.domain.model.Skill
 import com.hermes.agent.domain.model.SkillLifecycle
 import com.hermes.agent.domain.repository.SkillRepository

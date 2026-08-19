@@ -1,4 +1,5 @@
 package com.hermes.agent.ui.widget
+import com.hermes.agent.domain.settings.*
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
