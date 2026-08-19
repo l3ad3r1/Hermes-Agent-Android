@@ -33,3 +33,6 @@ graphify-out/
 
 # Local Codex device-test screenshots and UI dumps
 .codex-*
+
+# Local working detritus (DB snapshots, patch scripts, screenshots).
+scratch/
