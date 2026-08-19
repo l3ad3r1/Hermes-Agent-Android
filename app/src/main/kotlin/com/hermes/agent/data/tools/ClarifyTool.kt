@@ -12,6 +12,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Ask the user a clarifying question and wait for their answer. Ported from
@@ -79,4 +84,12 @@ class ClarifyTool @Inject constructor(
         // Upstream caps predefined choices at 4 (a 5th "type your own" is implicit).
         const val MAX_CHOICES = 4
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class ClarifyToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindClarifyTool(tool: ClarifyTool): Tool
 }

@@ -11,6 +11,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import com.hermes.agent.domain.tool.Tool
 
 @Singleton
 class DeviceControlTool @Inject constructor(
@@ -94,4 +100,12 @@ class DeviceControlTool @Inject constructor(
         if (!auto) Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, (level ?: return ToolResult.error("level is required")).coerceIn(0, 255))
         return ToolResult.ok(if (auto) "Automatic brightness enabled" else "Brightness set to ${level!!.coerceIn(0, 255)}")
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DeviceControlToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindDeviceControlTool(tool: DeviceControlTool): Tool
 }

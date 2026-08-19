@@ -14,6 +14,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Reads and (with user confirmation) modifies device settings — currently
@@ -128,4 +133,12 @@ class DeviceSettingsTool @Inject constructor(
 
     private fun JsonElement.extractString(): String? =
         (this as? JsonPrimitive)?.contentOrNull
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DeviceSettingsToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindDeviceSettingsTool(tool: DeviceSettingsTool): Tool
 }

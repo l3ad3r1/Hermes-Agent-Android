@@ -8,6 +8,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import com.hermes.agent.domain.tool.Tool
 
 @Singleton
 class AlarmTool @Inject constructor(
@@ -60,4 +66,12 @@ class AlarmTool @Inject constructor(
         context.startActivity(intent)
         ToolResult.ok(message)
     }.getOrElse { ToolResult.error("No compatible clock app is available: ${it.message}") }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AlarmToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindAlarmTool(tool: AlarmTool): Tool
 }

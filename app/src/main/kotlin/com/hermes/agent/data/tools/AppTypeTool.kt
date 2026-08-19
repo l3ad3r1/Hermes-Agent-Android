@@ -18,6 +18,11 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 @Singleton
 class AppTypeTool @Inject constructor(
@@ -105,4 +110,12 @@ class AppTypeTool @Inject constructor(
     private companion object {
         const val POST_ACTION_SETTLE_MS = 350L
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AppTypeToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindAppTypeTool(tool: AppTypeTool): Tool
 }

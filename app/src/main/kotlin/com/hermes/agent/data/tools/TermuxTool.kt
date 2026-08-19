@@ -11,6 +11,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 private const val MAX_OUTPUT_CHARS = 6000
 
@@ -65,4 +70,12 @@ class TermuxTool @Inject constructor(
             )
         }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class TermuxToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindTermuxTool(tool: TermuxTool): Tool
 }

@@ -11,6 +11,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import com.hermes.agent.domain.tool.Tool
 
 @Singleton
 class MediaControlTool @Inject constructor(
@@ -53,4 +59,12 @@ class MediaControlTool @Inject constructor(
         audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
         return ToolResult.ok("Media action completed: $action")
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class MediaControlToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindMediaControlTool(tool: MediaControlTool): Tool
 }

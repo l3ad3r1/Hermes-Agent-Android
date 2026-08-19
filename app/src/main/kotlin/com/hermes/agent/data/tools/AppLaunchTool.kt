@@ -15,6 +15,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /** Launches an installed app before the accessibility tools operate on it. */
 @Singleton
@@ -66,4 +71,12 @@ class AppLaunchTool @Inject constructor(
             )
         }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AppLaunchToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindAppLaunchTool(tool: AppLaunchTool): Tool
 }

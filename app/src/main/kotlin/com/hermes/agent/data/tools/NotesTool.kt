@@ -11,6 +11,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Create, search, or delete long-term memories on the user's behalf.
@@ -84,4 +89,12 @@ class NotesTool @Inject constructor(
 
     private fun JsonElement.extractString(): String? =
         (this as? JsonPrimitive)?.contentOrNull
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class NotesToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindNotesTool(tool: NotesTool): Tool
 }

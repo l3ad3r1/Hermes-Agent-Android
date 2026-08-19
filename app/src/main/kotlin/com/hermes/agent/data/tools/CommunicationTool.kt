@@ -9,6 +9,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import com.hermes.agent.domain.tool.Tool
 
 @Singleton
 class CommunicationTool @Inject constructor(
@@ -50,4 +56,12 @@ class CommunicationTool @Inject constructor(
             ToolResult.ok("Opened $action")
         }.getOrElse { ToolResult.error("No compatible app is available: ${it.message}") }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class CommunicationToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindCommunicationTool(tool: CommunicationTool): Tool
 }

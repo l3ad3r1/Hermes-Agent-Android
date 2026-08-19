@@ -14,6 +14,11 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Returns the current date and/or time, optionally in a specific timezone
@@ -69,4 +74,12 @@ class DateTimeTool @Inject constructor() : Tool {
 
     private fun JsonElement.extractString(): String? =
         (this as? JsonPrimitive)?.contentOrNull
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DateTimeToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindDateTimeTool(tool: DateTimeTool): Tool
 }

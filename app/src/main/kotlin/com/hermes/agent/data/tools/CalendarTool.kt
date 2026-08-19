@@ -16,6 +16,11 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Insert a calendar event into the user's local calendar.
@@ -103,4 +108,12 @@ class CalendarTool @Inject constructor(
 
     private fun JsonElement.extractString(): String? =
         (this as? JsonPrimitive)?.contentOrNull
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class CalendarToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindCalendarTool(tool: CalendarTool): Tool
 }

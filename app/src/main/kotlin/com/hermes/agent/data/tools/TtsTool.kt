@@ -15,6 +15,11 @@ import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Speak text aloud. Ported from hermes-agent's `tts_tool.py`; the model sends text and the
@@ -101,4 +106,12 @@ class TtsTool @Inject constructor(
     private companion object {
         const val INIT_TIMEOUT_MS = 5_000L
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class TtsToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindTtsTool(tool: TtsTool): Tool
 }

@@ -16,22 +16,34 @@ import javax.inject.Singleton
  * orchestrator may invoke [byName] from any coroutine.
  */
 @Singleton
-class ToolRegistryImpl @Inject constructor() : ToolRegistry {
+class ToolRegistryImpl @Inject constructor(
+    tools: Set<@JvmSuppressWildcards Tool>,
+) : ToolRegistry {
 
-    private val tools = ConcurrentHashMap<String, Tool>()
+    constructor() : this(emptySet())
+
+
+    private val toolMap = ConcurrentHashMap<String, Tool>()
+
+    init {
+        for (tool in tools) {
+            register(tool)
+        }
+    }
 
     override fun all(): List<Tool> =
-        tools.values.sortedWith(
+        toolMap.values.sortedWith(
             compareBy({ it.descriptor.category }, { it.descriptor.name })
         )
 
-    override fun byName(name: String): Tool? = tools[name]
+    override fun byName(name: String): Tool? = toolMap[name]
 
     override fun register(tool: Tool) {
-        tools[tool.descriptor.name] = tool
+        toolMap[tool.descriptor.name] = tool
     }
 
     override fun unregister(name: String) {
-        tools.remove(name)
+        toolMap.remove(name)
     }
 }
+

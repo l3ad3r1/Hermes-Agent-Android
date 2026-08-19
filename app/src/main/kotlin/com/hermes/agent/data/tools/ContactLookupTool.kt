@@ -11,6 +11,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import com.hermes.agent.domain.tool.Tool
 
 @Singleton
 class ContactLookupTool @Inject constructor(
@@ -47,4 +53,12 @@ class ContactLookupTool @Inject constructor(
             else ToolResult.ok(rows.joinToString("\n"))
         }.getOrElse { ToolResult.error("Contact lookup failed: ${it.message}") }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class ContactLookupToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindContactLookupTool(tool: ContactLookupTool): Tool
 }

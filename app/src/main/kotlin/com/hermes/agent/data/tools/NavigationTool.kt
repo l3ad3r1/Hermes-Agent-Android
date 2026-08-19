@@ -8,6 +8,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import com.hermes.agent.domain.tool.Tool
 
 @Singleton
 class NavigationTool @Inject constructor(
@@ -44,4 +50,12 @@ class NavigationTool @Inject constructor(
             ToolResult.ok("Opened navigation for ${query.orEmpty()}")
         }.getOrElse { ToolResult.error("No compatible maps app is available: ${it.message}") }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class NavigationToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindNavigationTool(tool: NavigationTool): Tool
 }

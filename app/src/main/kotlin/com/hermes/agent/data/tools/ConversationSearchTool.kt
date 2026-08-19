@@ -16,6 +16,11 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Cross-session conversation search with LLM summarization.
@@ -111,4 +116,12 @@ class ConversationSearchTool @Inject constructor(
             Do not list every message; synthesise into a readable paragraph.
         """.trimIndent()
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class ConversationSearchToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindConversationSearchTool(tool: ConversationSearchTool): Tool
 }

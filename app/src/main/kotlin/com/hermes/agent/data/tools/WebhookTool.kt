@@ -24,6 +24,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Sends a notification to all enabled connectors (Webhook, Telegram, Discord).
@@ -215,4 +220,12 @@ class WebhookTool @Inject constructor(
                 .build()
         ).execute().close()
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class WebhookToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindWebhookTool(tool: WebhookTool): Tool
 }

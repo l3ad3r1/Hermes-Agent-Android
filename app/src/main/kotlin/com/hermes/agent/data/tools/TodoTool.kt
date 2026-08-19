@@ -14,6 +14,11 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * In-memory planning / task-tracking list the agent uses to decompose
@@ -111,4 +116,12 @@ class TodoTool @Inject constructor(
         val VALID_STATUSES = setOf("pending", "in_progress", "completed", "cancelled")
         const val MAX_CONTENT_CHARS = 4000
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class TodoToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindTodoTool(tool: TodoTool): Tool
 }

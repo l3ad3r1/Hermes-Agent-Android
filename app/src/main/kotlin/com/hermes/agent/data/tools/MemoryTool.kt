@@ -12,6 +12,11 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * LLM-callable memory tool. Mirrors the `memory` tool from
@@ -126,4 +131,12 @@ class MemoryTool @Inject constructor(
             else -> ToolResult.error("Unknown action '$action'. Use 'add', 'search', 'list', or 'delete'.")
         }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class MemoryToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindMemoryTool(tool: MemoryTool): Tool
 }

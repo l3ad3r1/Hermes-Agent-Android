@@ -13,6 +13,11 @@ import okhttp3.Request
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Fetches a URL and returns the page's readable text content.
@@ -104,4 +109,12 @@ class WebFetchTool @Inject constructor(
         return if (stripped.length <= maxChars) stripped
         else stripped.take(maxChars) + "\n…[truncated at $maxChars chars]"
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class WebFetchToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindWebFetchTool(tool: WebFetchTool): Tool
 }

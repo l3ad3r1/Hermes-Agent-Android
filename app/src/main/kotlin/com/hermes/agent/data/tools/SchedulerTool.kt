@@ -18,6 +18,11 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * LLM-callable tool for managing Hermes scheduled tasks (cron jobs).
@@ -178,4 +183,12 @@ class SchedulerTool @Inject constructor(
             }
         }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class SchedulerToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindSchedulerTool(tool: SchedulerTool): Tool
 }

@@ -10,6 +10,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Arithmetic calculator. Phase 1 of the calculator evaluates a restricted
@@ -144,4 +149,12 @@ class CalculatorTool @Inject constructor() : Tool {
 
     private fun JsonElement.extractString(): String? =
         (this as? JsonPrimitive)?.contentOrNull
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class CalculatorToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindCalculatorTool(tool: CalculatorTool): Tool
 }

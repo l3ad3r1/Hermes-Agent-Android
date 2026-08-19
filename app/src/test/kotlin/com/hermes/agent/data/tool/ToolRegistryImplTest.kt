@@ -79,4 +79,17 @@ class ToolRegistryImplTest {
         assertEquals(t2, registry.byName("alpha"))
         assertEquals(1, registry.all().size)
     }
+
+    @Test
+    fun `constructor initial tools are registered and sorted deterministically`() {
+        val set = setOf(
+            StubTool(desc("zeta", category = "info")),
+            StubTool(desc("alpha", category = "info")),
+            StubTool(desc("gamma", category = "device"))
+        )
+        val registry = ToolRegistryImpl(set)
+        val names = registry.all().map { it.descriptor.name }
+        assertEquals(listOf("gamma", "alpha", "zeta"), names)
+    }
 }
+

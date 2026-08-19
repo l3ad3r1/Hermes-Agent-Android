@@ -19,6 +19,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /** Explicit capabilities granted to isolated delegated agents. */
 internal object DelegateChildCapabilities {
@@ -228,4 +233,12 @@ class DelegateTool @Inject constructor(
                 "materially help. Return only the result — concise, directly usable by the parent, " +
                 "with no preamble or meta-commentary."
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DelegateToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindDelegateTool(tool: DelegateTool): Tool
 }

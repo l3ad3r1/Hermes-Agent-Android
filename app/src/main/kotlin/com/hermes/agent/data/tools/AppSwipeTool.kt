@@ -16,6 +16,11 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 @Singleton
 class AppSwipeTool @Inject constructor(
@@ -98,4 +103,12 @@ class AppSwipeTool @Inject constructor(
         const val SWIPE_DISTANCE_FRACTION = 0.3f
         const val POST_ACTION_SETTLE_MS = 350L
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AppSwipeToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindAppSwipeTool(tool: AppSwipeTool): Tool
 }

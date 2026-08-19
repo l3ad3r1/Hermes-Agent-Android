@@ -8,6 +8,11 @@ import com.hermes.agent.domain.tool.ToolResult
 import kotlinx.serialization.json.JsonElement
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 @Singleton
 class AppAnalyzeScreenTool @Inject constructor(
@@ -35,4 +40,12 @@ class AppAnalyzeScreenTool @Inject constructor(
             )
         }
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AppAnalyzeScreenToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindAppAnalyzeScreenTool(tool: AppAnalyzeScreenTool): Tool
 }

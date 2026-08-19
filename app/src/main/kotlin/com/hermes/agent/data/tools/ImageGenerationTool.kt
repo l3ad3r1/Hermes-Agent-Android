@@ -24,6 +24,11 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Generate an image from a text prompt. Ported from hermes-agent's
@@ -150,4 +155,12 @@ class ImageGenerationTool @Inject constructor(
     private companion object {
         val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class ImageGenerationToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindImageGenerationTool(tool: ImageGenerationTool): Tool
 }

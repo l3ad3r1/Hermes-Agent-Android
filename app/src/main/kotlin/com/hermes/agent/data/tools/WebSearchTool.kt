@@ -15,6 +15,11 @@ import timber.log.Timber
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Web search via DuckDuckGo HTML endpoint. No API key required.
@@ -168,4 +173,12 @@ class WebSearchTool @Inject constructor(
         }
         return raw
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class WebSearchToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindWebSearchTool(tool: WebSearchTool): Tool
 }

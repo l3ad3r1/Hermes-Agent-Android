@@ -15,6 +15,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Exposes the Hermes skills library to the LLM.
@@ -245,4 +250,12 @@ class SkillManagerTool @Inject constructor(
             "research", "productivity", "automation", "devops", "general", "software-development",
         )
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class SkillManagerToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindSkillManagerTool(tool: SkillManagerTool): Tool
 }

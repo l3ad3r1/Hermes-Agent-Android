@@ -16,6 +16,11 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 private const val MAX_OUTPUT_CHARS = 4000
 private const val TIMEOUT_SECONDS = 10L
@@ -184,4 +189,12 @@ class ShellTool @Inject constructor(
             },
         )
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class ShellToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindShellTool(tool: ShellTool): Tool
 }

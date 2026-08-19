@@ -17,6 +17,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 
 /**
  * Persistent Kanban board tool.
@@ -288,4 +293,12 @@ class KanbanTool @Inject constructor(
     }
 
     private fun JsonElement.str(): String? = (this as? JsonPrimitive)?.contentOrNull
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class KanbanToolModule {
+    @Binds
+    @IntoSet
+    abstract fun bindKanbanTool(tool: KanbanTool): Tool
 }
