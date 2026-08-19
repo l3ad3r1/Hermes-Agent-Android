@@ -65,6 +65,3 @@ object PlainSettingsModule {
     fun providePlainSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository = impl
 }
 
-@javax.inject.Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class PlainSettings

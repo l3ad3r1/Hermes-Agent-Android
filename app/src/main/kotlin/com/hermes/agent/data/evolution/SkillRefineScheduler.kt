@@ -7,6 +7,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.hermes.agent.domain.repository.SkillRepository
+import com.hermes.agent.domain.skill.SkillUsageListener
 import com.hermes.agent.work.SkillRefineWorker
 import timber.log.Timber
 import javax.inject.Inject
@@ -25,9 +26,9 @@ import javax.inject.Singleton
 class SkillRefineScheduler @Inject constructor(
     private val workManager: WorkManager,
     private val skillRepository: SkillRepository,
-) {
+) : SkillUsageListener {
 
-    suspend fun onSkillUsed(skillName: String) {
+    override suspend fun onSkillUsed(skillName: String) {
         val skill = runCatching { skillRepository.getByName(skillName) }.getOrNull() ?: return
         if (skill.isBuiltIn) return
         if (skill.useCount <= 0 || skill.useCount % REFINE_EVERY_N_USES != 0) return

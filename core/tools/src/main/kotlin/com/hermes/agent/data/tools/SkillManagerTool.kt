@@ -1,6 +1,5 @@
 package com.hermes.agent.data.tools
 
-import com.hermes.agent.data.evolution.SkillRefineScheduler
 import com.hermes.agent.domain.model.SkillLifecycle
 import com.hermes.agent.domain.repository.SkillRepository
 import com.hermes.agent.domain.skill.SkillActivation
@@ -46,7 +45,7 @@ class SkillManagerTool @Inject constructor(
     // ToolRegistry at startup (ToolsModule); the registry is only dereferenced
     // at execute() time, long after wiring completes.
     private val toolRegistry: dagger.Lazy<ToolRegistry>,
-    private val refineScheduler: SkillRefineScheduler,
+    private val refineScheduler: com.hermes.agent.domain.skill.SkillUsageListener,
 ) : Tool {
 
     override val descriptor = ToolDescriptor(

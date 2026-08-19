@@ -124,7 +124,7 @@ class WebhookTool @Inject constructor(
             .setLabel("Reply to Hermes...")
             .build()
 
-        val replyIntent = android.content.Intent(context, com.hermes.agent.receiver.NotificationReplyReceiver::class.java).apply {
+        val replyIntent = android.content.Intent().setClassName(context.packageName, "com.hermes.agent.receiver.NotificationReplyReceiver").apply {
             action = "com.hermes.agent.action.REPLY"
         }
         val replyPendingIntent = android.app.PendingIntent.getBroadcast(
