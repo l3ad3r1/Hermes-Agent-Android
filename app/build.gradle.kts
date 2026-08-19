@@ -31,6 +31,12 @@ val localProps = Properties().apply {
     if (f.exists()) load(f.inputStream())
 }
 
+ksp {
+    // Room writes its expected schema here so migrations can be verified
+    // mechanically instead of by eye, and MigrationTestHelper can replay them.
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 android {
     namespace = "com.hermes.agent"
     compileSdk = 36
@@ -44,6 +50,8 @@ android {
         versionName = project.findProperty("hermes.versionName") as String? ?: "0.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // MigrationTestHelper loads the exported schemas from assets.
+        sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
         vectorDrawables { useSupportLibrary = true }
 
         // Surface Gradle properties into BuildConfig so runtime code can read them.
@@ -257,6 +265,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation("androidx.room:room-testing:2.7.0")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

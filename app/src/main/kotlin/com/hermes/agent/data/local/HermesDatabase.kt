@@ -57,7 +57,7 @@ import com.hermes.agent.data.local.entity.SkillEntity
         ActivityLedgerEntity::class,
     ],
     version = 13,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class HermesDatabase : RoomDatabase() {
     abstract fun conversationDao(): ConversationDao
