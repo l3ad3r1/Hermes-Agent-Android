@@ -1,6 +1,6 @@
 package com.hermes.agent.data.memory
 
-import com.hermes.agent.data.llm.CloudLlmProvider
+import com.hermes.agent.domain.llm.LlmProvider
 import com.hermes.agent.domain.llm.LlmResponse
 import com.hermes.agent.domain.model.Memory
 import com.hermes.agent.domain.repository.MemoryRepository
@@ -21,7 +21,8 @@ import org.junit.Test
  */
 class UserModelServiceTest {
 
-    private lateinit var provider: CloudLlmProvider
+    private lateinit var provider: LlmProvider
+
     private lateinit var memory: MemoryRepository
     private lateinit var learningState: LearningState
     private lateinit var service: UserModelService

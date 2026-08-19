@@ -1,6 +1,5 @@
 package com.hermes.agent.data.memory
 
-import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.util.DispatcherProvider
@@ -29,7 +28,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class UserModelService @Inject constructor(
-    private val llmProvider: CloudLlmProvider,
+    private val llmProvider: com.hermes.agent.domain.llm.LlmProvider,
     private val memoryRepository: MemoryRepository,
     private val learningState: LearningState,
     private val dispatchers: DispatcherProvider,

@@ -202,6 +202,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":core:memory"))
     implementation(project(":core:persistence"))
     implementation(project(":core:settings"))
     implementation(project(":core:plugin"))
