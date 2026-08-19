@@ -202,6 +202,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":core:settings"))
     implementation(project(":core:plugin"))
     implementation(project(":core:theme"))
     implementation(project(":core:domain"))
