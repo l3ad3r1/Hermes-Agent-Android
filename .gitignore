@@ -36,3 +36,7 @@ graphify-out/
 
 # Local working detritus (DB snapshots, patch scripts, screenshots).
 scratch/
+
+# Completed agent task/report artifacts belong in canonical docs, not repo roots.
+/ANTIGRAVITY-*.md
+/test-run/

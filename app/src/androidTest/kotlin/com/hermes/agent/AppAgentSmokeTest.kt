@@ -55,6 +55,8 @@ class AppAgentSmokeTest {
             ProductIdentity("Hermes", "hermes_notify"),
         )
 
+        // A notification shade left open by the device owner masks the fixture window.
+        uiAutomation.executeShellCommand("cmd statusbar collapse").close()
         ActivityScenario.launch(AppAgentFixtureActivity::class.java).use { scenario ->
             val root = awaitRoot(automation)
             interactionSession.authorize(root.packageName?.toString().orEmpty())
