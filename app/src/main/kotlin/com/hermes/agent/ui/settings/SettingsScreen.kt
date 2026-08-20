@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Schedule
@@ -88,6 +89,8 @@ fun SettingsScreen(
                         subtitle = "Backup, updates, and session export",
                         onClick = { onNavigate("settings_advanced") },
                     )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(icon = Icons.Outlined.Extension, title = "Modules", subtitle = "Download verified modules from the shared repository", onClick = { onNavigate("settings_modules") })
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(
                         icon = Icons.Outlined.Notifications,

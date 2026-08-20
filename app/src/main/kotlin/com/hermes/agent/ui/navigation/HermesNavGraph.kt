@@ -44,6 +44,7 @@ import com.hermes.agent.ui.settings.ProvidersSettingsScreen
 import com.hermes.agent.ui.settings.ConnectionsSettingsScreen
 import com.hermes.agent.ui.settings.ProactiveSettingsScreen
 import com.hermes.agent.ui.settings.SettingsScreen
+import com.hermes.agent.ui.settings.ModulesSettingsScreen
 import com.hermes.agent.ui.skills.SkillsScreen
 
 private val bottomNavDestinations = listOf(
@@ -169,6 +170,7 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
             composable("settings_appearance") { AppearanceSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_connections") { ConnectionsSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_advanced") { AdvancedSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("settings_modules") { ModulesSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_proactive") { ProactiveSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_about") { AboutSettingsScreen(onBack = { navController.popBackStack() }) }
             
