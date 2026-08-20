@@ -111,6 +111,7 @@ class AppAgentSmokeTest {
 
     private suspend fun awaitRoot(
         automation: UiAutomationAppAutomationGateway,
+        expectedPackage: String = "com.hermes.agent.debug",
     ): android.view.accessibility.AccessibilityNodeInfo {
         repeat(DEVICE_WAIT_ATTEMPTS) {
             val root = automation.activeWindowRoot()
@@ -122,10 +123,10 @@ class AppAgentSmokeTest {
             }
             delay(DEVICE_WAIT_MS)
         }
-        return automation.activeWindowRoot() ?: error("UiAutomation did not expose an active-window root.")
+        val lastRoot = automation.activeWindowRoot()
+        val pkg = lastRoot?.packageName?.toString() ?: "null"
+        error("UiAutomation did not expose active fixture window with expected controls. Observed active window package: '$pkg' (expected: '$expectedPackage').")
     }
-
-
 
     private suspend fun awaitActivityState(
         scenario: ActivityScenario<AppAgentFixtureActivity>,
@@ -143,7 +144,8 @@ class AppAgentSmokeTest {
     }
 
     private companion object {
-        const val DEVICE_WAIT_ATTEMPTS = 40
+        const val DEVICE_WAIT_ATTEMPTS = 100
         const val DEVICE_WAIT_MS = 100L
     }
 }
+

@@ -44,7 +44,10 @@ class AppAgentAccessibilityService : AccessibilityService() {
 
     fun getActiveWindowRoot(): AccessibilityNodeInfo? {
         return rootInActiveWindow
+            ?: windows.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION }?.root
+            ?: windows.firstOrNull()?.root
     }
+
 
     fun dispatchTap(x: Float, y: Float): Boolean {
         val path = Path().apply { moveTo(x, y) }
