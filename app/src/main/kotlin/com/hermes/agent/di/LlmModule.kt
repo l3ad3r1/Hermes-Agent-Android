@@ -14,7 +14,7 @@ import com.hermes.agent.data.llm.LlmRoutingPolicy
 import com.hermes.agent.data.llm.QualityAwareLlmRoutingPolicy
 import com.hermes.agent.data.llm.CloudProviderFactory
 import com.hermes.agent.data.llm.ProfileCloudProviderFactory
-import com.hermes.agent.data.llm.LlmProductConfig
+import com.hermes.agent.domain.product.ProductIdentity
 import com.hermes.agent.data.remote.OpenAiApi
 import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.repository.ChatRepository
@@ -74,7 +74,8 @@ abstract class LlmModule {
 
         @Provides
         @Singleton
-        fun provideLlmProductConfig(): LlmProductConfig = LlmProductConfig("Hermes")
+        fun provideProductIdentity(): ProductIdentity =
+            ProductIdentity(displayName = "Hermes", notificationChannelId = "hermes_notify")
 
         @Provides
         @Singleton
@@ -105,8 +106,8 @@ abstract class LlmModule {
             settings: SettingsRepository,
             dispatchers: DispatcherProvider,
             json: Json,
-            productConfig: LlmProductConfig,
+            productIdentity: ProductIdentity,
         ): CloudLlmProvider =
-            CloudLlmProvider(api, settings, dispatchers, json, CloudModelSource.AUX, productConfig)
+            CloudLlmProvider(api, settings, dispatchers, json, CloudModelSource.AUX, productIdentity)
     }
 }

@@ -5,42 +5,64 @@ import com.hermes.agent.domain.tool.ToolDescriptor
 import com.hermes.agent.domain.tool.ToolRegistry
 
 /**
- * Per-agent capability-based tool access policy.
+ * Per-agent capability-based tool access control.
  *
- * Each [AgentRole] grants a set of capabilities rather than hardcoding tool names.
- * Tools advertise their capabilities via [ToolDescriptor.capabilities].
- * A tool is accessible to an agent if any of its declared capabilities intersect
- * with the agent role's granted capabilities.
+ * Each agent role declares the capability classes and categories it is granted.
+ * When a tool is registered (at compile-time or dynamically at runtime via plugins),
+ * it is offered to an agent if its declared category or capabilities match the agent's
+ * grant list and are not in its excluded capabilities.
  */
 internal object AgentToolAccess {
 
-    private val COMMON_CAPABILITIES = setOf("common")
+    private data class RoleGrant(
+        val categories: Set<String> = emptySet(),
+        val capabilities: Set<String> = emptySet(),
+        val excludedCapabilities: Set<String> = emptySet(),
+    ) {
+        fun allows(descriptor: ToolDescriptor): Boolean {
+            val allToolCaps = descriptor.capabilities + descriptor.category + descriptor.name
+            if (excludedCapabilities.any { it in allToolCaps }) return false
+            return descriptor.category in categories || capabilities.any { it in allToolCaps }
+        }
+    }
 
-    val ROLE_CAPABILITIES: Map<AgentRole, Set<String>> = mapOf(
-        AgentRole.CONVERSATIONAL to COMMON_CAPABILITIES + setOf(
-            "datetime", "memory", "notes", "search_conversations",
-            "skill_manager", "scheduler", "web", "calculator", "delegate",
-            "media:image", "media:tts", "notifications",
-            "system:shell", "system:termux",
+    private val GRANTS: Map<AgentRole, RoleGrant> = mapOf(
+        AgentRole.CONVERSATIONAL to RoleGrant(
+            categories = setOf("information", "memory", "productivity", "communication", "creative", "device", "system", "automation"),
+            capabilities = setOf(
+                "common", "time", "web", "conversation_search", "calculator", "notification",
+                "notes", "device_alarm", "notes_and_reminders", "navigation", "phone", "contacts",
+                "media", "device_control", "skills", "user_memory", "scheduler", "shell", "termux",
+                "todo", "voice", "clarify", "delegate", "media_generation", "app_automation", "documents", "kanban",
+            ),
+            excludedCapabilities = setOf("calendar", "device_settings"),
         ),
-        AgentRole.PRODUCTIVITY to COMMON_CAPABILITIES + setOf(
-            "datetime", "calendar", "memory", "notes",
-            "search_conversations", "skill_manager", "scheduler", "calculator",
-            "web", "delegate", "notifications", "contacts", "device:navigation",
+        AgentRole.PRODUCTIVITY to RoleGrant(
+            capabilities = setOf(
+                "common", "time", "web", "conversation_search", "calculator", "calendar", "notes",
+                "skills", "user_memory", "scheduler", "todo", "clarify", "delegate", "notification",
+                "phone", "contacts", "navigation", "documents", "notes_and_reminders", "kanban",
+            ),
         ),
-        AgentRole.RESEARCH to COMMON_CAPABILITIES + setOf(
-            "web", "search_conversations", "memory", "notes",
-            "skill_manager", "calculator", "delegate",
+        AgentRole.RESEARCH to RoleGrant(
+            capabilities = setOf(
+                "common", "web", "conversation_search", "user_memory", "notes", "skills",
+                "calculator", "delegate",
+            ),
         ),
-        AgentRole.DEVICE_CONTROL to COMMON_CAPABILITIES + setOf(
-            "datetime", "memory", "media:tts", "contacts",
-            "device:settings", "system:shell", "system:termux",
-            "device:app_automation", "device:alarm", "device:navigation",
-            "device:media", "device:control",
+        AgentRole.DEVICE_CONTROL to RoleGrant(
+            categories = setOf("automation", "system"),
+            capabilities = setOf(
+                "common", "device_settings", "time", "user_memory", "shell", "termux", "voice",
+                "app_automation", "device_alarm", "navigation", "media", "device_control",
+                "phone", "contacts",
+            ),
         ),
-        AgentRole.CREATIVE to COMMON_CAPABILITIES + setOf(
-            "memory", "notes", "search_conversations", "skill_manager",
-            "media:image", "web", "media:tts",
+        AgentRole.CREATIVE to RoleGrant(
+            capabilities = setOf(
+                "common", "user_memory", "notes", "conversation_search", "skills",
+                "media_generation", "web", "voice", "creative",
+            ),
         ),
     )
 
@@ -48,10 +70,8 @@ internal object AgentToolAccess {
     fun ToolRegistry.toolsFor(
         role: AgentRole,
     ): List<ToolDescriptor> {
-        val granted = ROLE_CAPABILITIES[role] ?: emptySet()
-        return descriptors().filter { descriptor ->
-            descriptor.capabilities.any { it in granted }
-        }
+        val grant = GRANTS[role] ?: return emptyList()
+        return descriptors().filter { grant.allows(it) }
     }
 
     /** Convenience overload for the common "by name list" case. */

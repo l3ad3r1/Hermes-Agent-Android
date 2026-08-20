@@ -33,6 +33,12 @@ abstract class AppModule {
 
     @Binds
     @Singleton
+    abstract fun bindSkillUsageListener(
+        impl: com.hermes.agent.data.evolution.SkillRefineScheduler,
+    ): com.hermes.agent.domain.skill.SkillUsageListener
+
+    @Binds
+    @Singleton
     abstract fun bindDispatcherProvider(impl: DefaultDispatcherProvider): DispatcherProvider
 
     @Binds

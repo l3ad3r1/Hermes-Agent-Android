@@ -48,36 +48,36 @@ class AgentToolAccessTest {
 
     private val sampleTools = listOf(
         StubTool(desc("todo", "productivity", setOf("common", "productivity"))),
-        StubTool(desc("kanban", "productivity", setOf("common", "productivity"))),
+        StubTool(desc("kanban", "productivity", setOf("kanban"))),
         StubTool(desc("clarify", "communication", setOf("common", "communication"))),
-        StubTool(desc("get_current_datetime", "information", setOf("datetime", "information"))),
-        StubTool(desc("search_conversations", "information", setOf("search_conversations", "information"))),
-        StubTool(desc("web_search", "information", setOf("web", "information"))),
-        StubTool(desc("web_fetch", "information", setOf("web", "information"))),
-        StubTool(desc("generate_image", "information", setOf("media:image", "creative"))),
-        StubTool(desc("calculator", "productivity", setOf("calculator", "productivity"))),
-        StubTool(desc("memory", "productivity", setOf("memory", "productivity"))),
-        StubTool(desc("notes", "productivity", setOf("notes", "productivity"))),
-        StubTool(desc("skill_manager", "productivity", setOf("skill_manager", "productivity"))),
-        StubTool(desc("scheduler", "productivity", setOf("scheduler", "productivity"))),
-        StubTool(desc("delegate", "productivity", setOf("delegate", "productivity"))),
-        StubTool(desc("calendar_add_event", "productivity", setOf("calendar", "productivity"))),
-        StubTool(desc("speak", "communication", setOf("media:tts", "communication"))),
-        StubTool(desc("notify", "communication", setOf("notifications", "communication"))),
-        StubTool(desc("communication", "communication", setOf("contacts", "communication"))),
-        StubTool(desc("contact_lookup", "communication", setOf("contacts", "communication"))),
-        StubTool(desc("shell", "device", setOf("system:shell", "device"))),
-        StubTool(desc("termux", "device", setOf("system:termux", "device"))),
-        StubTool(desc("device_settings", "device", setOf("device:settings", "device"))),
-        StubTool(desc("alarm", "device", setOf("device:alarm", "device"))),
-        StubTool(desc("navigation", "device", setOf("device:navigation", "device"))),
-        StubTool(desc("media_control", "device", setOf("device:media", "device"))),
-        StubTool(desc("device_control", "device", setOf("device:control", "device"))),
-        StubTool(desc("app_launch", "device", setOf("device:app_automation", "device"))),
-        StubTool(desc("app_analyze_screen", "device", setOf("device:app_automation", "device"))),
-        StubTool(desc("app_tap", "device", setOf("device:app_automation", "device"))),
-        StubTool(desc("app_swipe", "device", setOf("device:app_automation", "device"))),
-        StubTool(desc("app_type", "device", setOf("device:app_automation", "device"))),
+        StubTool(desc("get_current_datetime", "information", setOf("time"))),
+        StubTool(desc("search_conversations", "information", setOf("conversation_search"))),
+        StubTool(desc("web_search", "information", setOf("web"))),
+        StubTool(desc("web_fetch", "information", setOf("web"))),
+        StubTool(desc("generate_image", "information", setOf("media_generation"))),
+        StubTool(desc("calculator", "productivity", setOf("calculator"))),
+        StubTool(desc("memory", "productivity", setOf("user_memory"))),
+        StubTool(desc("notes", "productivity", setOf("notes"))),
+        StubTool(desc("skill_manager", "productivity", setOf("skills"))),
+        StubTool(desc("scheduler", "productivity", setOf("scheduler"))),
+        StubTool(desc("delegate", "productivity", setOf("delegate"))),
+        StubTool(desc("calendar_add_event", "productivity", setOf("calendar"))),
+        StubTool(desc("speak", "communication", setOf("voice"))),
+        StubTool(desc("notify", "communication", setOf("notification"))),
+        StubTool(desc("communication", "communication", setOf("phone"))),
+        StubTool(desc("contact_lookup", "communication", setOf("contacts"))),
+        StubTool(desc("shell", "device", setOf("shell"))),
+        StubTool(desc("termux", "device", setOf("termux"))),
+        StubTool(desc("device_settings", "device", setOf("device_settings"))),
+        StubTool(desc("alarm", "device", setOf("device_alarm"))),
+        StubTool(desc("navigation", "device", setOf("navigation"))),
+        StubTool(desc("media_control", "device", setOf("media"))),
+        StubTool(desc("device_control", "device", setOf("device_control"))),
+        StubTool(desc("app_launch", "device", setOf("app_automation"))),
+        StubTool(desc("app_analyze_screen", "device", setOf("app_automation"))),
+        StubTool(desc("app_tap", "device", setOf("app_automation"))),
+        StubTool(desc("app_swipe", "device", setOf("app_automation"))),
+        StubTool(desc("app_type", "device", setOf("app_automation"))),
     )
 
     private fun makeRegistry(): ToolRegistry {
@@ -104,14 +104,14 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `conversational agent exposes expected 18 tools`() {
+    fun `conversational agent exposes expected 29 tools`() {
         val registry = makeRegistry()
         val names = ConversationalAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(18, names.size)
+        assertEquals(29, names.size)
         assertTrue(names.contains("shell"))
         assertTrue(names.contains("termux"))
         assertTrue(names.contains("generate_image"))
-        assertFalse(names.contains("app_launch"))
+        assertTrue(names.contains("app_launch"))
         assertFalse(names.contains("calendar_add_event"))
     }
 
@@ -127,10 +127,10 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `research agent exposes expected 11 tools`() {
+    fun `research agent exposes expected 10 tools`() {
         val registry = makeRegistry()
         val names = ResearchAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(11, names.size)
+        assertEquals(10, names.size)
         assertTrue(names.contains("web_search"))
         assertTrue(names.contains("web_fetch"))
         assertFalse(names.contains("shell"))
@@ -138,20 +138,20 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `device control agent exposes expected 20 tools including full app automation`() {
+    fun `device control agent exposes expected 19 tools including full app automation`() {
         val registry = makeRegistry()
         val names = DeviceControlAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(20, names.size)
+        assertEquals(19, names.size)
         for (tool in listOf("app_launch", "app_analyze_screen", "app_tap", "app_swipe", "app_type", "shell", "termux")) {
             assertTrue("device-control agent missing '$tool'", names.contains(tool))
         }
     }
 
     @Test
-    fun `creative agent exposes expected 11 tools`() {
+    fun `creative agent exposes expected 10 tools`() {
         val registry = makeRegistry()
         val names = CreativeAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(11, names.size)
+        assertEquals(10, names.size)
         assertTrue(names.contains("generate_image"))
         assertTrue(names.contains("speak"))
         assertFalse(names.contains("shell"))
@@ -173,9 +173,7 @@ class AgentToolAccessTest {
         assertTrue((researchTools intersect dangerousShell).isEmpty())
         assertTrue((creativeTools intersect dangerousShell).isEmpty())
 
-        // App automation only in DEVICE_CONTROL
-        val conversationalTools = ConversationalAgent().availableTools(registry).map { it.name }.toSet()
-        assertTrue((conversationalTools intersect dangerousAppAutomation).isEmpty())
+        // App automation is available to the general assistant and the dedicated device role.
         assertTrue((productivityTools intersect dangerousAppAutomation).isEmpty())
         assertTrue((researchTools intersect dangerousAppAutomation).isEmpty())
         assertTrue((creativeTools intersect dangerousAppAutomation).isEmpty())
@@ -237,5 +235,3 @@ class AgentToolAccessTest {
         assertFalse(postUnloadTools.contains("custom_weather_lookup"))
     }
 }
-
-
