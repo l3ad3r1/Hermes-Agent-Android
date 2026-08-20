@@ -109,6 +109,8 @@ Open **Settings → Features → Modules**, enter the catalog URL, load the avai
 and download a selected artifact. Catalogs and APKs are validated for schema, HTTPS,
 size, and SHA-256 before the APK is saved in the app-private plugin directory.
 
+Starter catalog URL: `https://raw.githubusercontent.com/l3ad3r1/hermes-jeeves-modules/main/catalog-v1.json`
+
 Module authors should use the public [Hermes/Jeeves Modules repository](https://github.com/l3ad3r1/hermes-jeeves-modules)
 and follow its README. The shared contract is documented in
 [docs/PLUGIN_REPOSITORY.md](https://github.com/l3ad3r1/agent-core/blob/main/docs/PLUGIN_REPOSITORY.md).
