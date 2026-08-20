@@ -2,7 +2,7 @@
 
 A privacy-first Android agent that combines deterministic phone actions, cloud-first model routing, local fallback inference, and explicit security gates for automation.
 
-> **Status:** v0.9.3 — Android AppAgent bridge, cloud-first LLM routing, deterministic phone actions, and authenticated automation. All four plan phases
+> **Status:** v0.9.4 — Android AppAgent bridge, cloud-first LLM routing, deterministic phone actions, authenticated automation, and shared module downloads. All four plan phases
 > are implemented plus the Android AppAgent bridge, quality-aware provider
 > routing, and authenticated automation. The earlier Hermes features include
 > **Connect** (Webhook /
@@ -35,6 +35,7 @@ A privacy-first Android agent that combines deterministic phone actions, cloud-f
 | **Memory consolidation**    | ✅      | Regex-based fact extractor + daily WorkManager pass while charging    |
 | **RAG pipeline**            | ✅      | Recursive chunker + BM25 + in-memory vector ANN + hybrid retrieval    |
 | **Plugin system**           | ✅      | Plugin/PluginManifest/PluginSandbox contracts + InProcessPluginSandbox + 3 first-party plugins (Weather, FileManager, Contacts) |
+| **Shared module downloads** | ✅      | Settings → Features → Modules loads a validated HTTPS catalog and downloads digest-checked APK artifacts for Hermes and Jeeves |
 | **Real SSE streaming**      | ✅      | Retrofit ResponseBody + line-by-line SSE parsing; fake-stream fallback retained |
 | **Voice I/O**               | ✅      | SpeechRecognizer input + TextToSpeech output, mic button in ChatInputBar, auto-speak replies |
 | Settings UI                 | ✅      | DataStore-backed toggles + security audit panel (Phase 4)             |
@@ -101,6 +102,17 @@ See [docs/LLM_ROUTER_ANDROID.md](docs/LLM_ROUTER_ANDROID.md),
 [docs/BUGS.md](docs/BUGS.md) for the routing contract, device test procedure,
 and known limitations.
 
+## Shared modules
+
+Hermes and the private Jeeves build use the same module catalog and downloader contract.
+Open **Settings → Features → Modules**, enter the catalog URL, load the available modules,
+and download a selected artifact. Catalogs and APKs are validated for schema, HTTPS,
+size, and SHA-256 before the APK is saved in the app-private plugin directory.
+
+Module authors should use the public [Hermes/Jeeves Modules repository](https://github.com/l3ad3r1/hermes-jeeves-modules)
+and follow its README. The shared contract is documented in
+[docs/PLUGIN_REPOSITORY.md](https://github.com/l3ad3r1/agent-core/blob/main/docs/PLUGIN_REPOSITORY.md).
+
 ## Release APK
 
 The unsigned release artifact is produced with:
@@ -111,7 +123,7 @@ The unsigned release artifact is produced with:
 
 The APK is written to `app/build/outputs/apk/release/app-release.apk`.
 The published artifact is available from the
-[v0.9.3 GitHub release](https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.9.3).
+[v0.9.4 GitHub release](https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.9.4).
 For a distributable signed build, provide the `hermes.signing.*` properties
 described in `app/build.gradle.kts` through the local properties file; signing
 credentials are never committed.
