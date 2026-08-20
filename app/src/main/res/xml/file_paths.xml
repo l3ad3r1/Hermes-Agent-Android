@@ -4,6 +4,8 @@
     <external-files-path name="updates" path="updates/" />
     <!-- Session export archive for the offline self-evolution tool. -->
     <external-files-path name="session-export" path="session-export/" />
+    <!-- Immutable plugin APKs handed to Android's system package installer. -->
+    <files-path name="plugins" path="plugins/" />
 
     <!--
       Roots owned by :feature:jotter. Jotter calls
