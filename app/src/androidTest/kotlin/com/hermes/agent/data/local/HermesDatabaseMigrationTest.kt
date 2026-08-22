@@ -131,6 +131,12 @@ class HermesDatabaseMigrationTest {
                 """.trimIndent(),
                 arrayOf<Any>(conversationId),
             )
+
+            // MigrationTestHelper builds this database from the exported schema,
+            // which lists only Room entities — so it has no search index, while
+            // a real version-13 database does. Create it here or the assertion
+            // below tests the fixture rather than the migrations.
+            HermesDatabase.createSearchIndex(db)
         }
 
         val db = helper.runMigrationsAndValidate(
@@ -159,7 +165,8 @@ class HermesDatabaseMigrationTest {
             }
         }
 
-        // Carried across the productivity migrations as well, not just 12 -> 13.
+        // Carried across the productivity migrations as well, not just 12 -> 13:
+        // none of them may drop the index that Chats searches through.
         db.query(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'conversation_fts'",
         ).use { cursor ->
