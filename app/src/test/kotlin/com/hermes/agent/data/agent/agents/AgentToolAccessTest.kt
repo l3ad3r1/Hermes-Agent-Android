@@ -47,7 +47,7 @@ class AgentToolAccessTest {
         )
 
     private val sampleTools = listOf(
-        StubTool(desc("todo", "productivity", setOf("common", "productivity"))),
+        StubTool(desc("todo", "productivity", setOf("common", "todo"))),
         StubTool(desc("kanban", "productivity", setOf("kanban"))),
         StubTool(desc("clarify", "communication", setOf("common", "communication"))),
         StubTool(desc("get_current_datetime", "information", setOf("time"))),
@@ -61,7 +61,9 @@ class AgentToolAccessTest {
         StubTool(desc("skill_manager", "productivity", setOf("skills"))),
         StubTool(desc("scheduler", "productivity", setOf("scheduler"))),
         StubTool(desc("delegate", "productivity", setOf("delegate"))),
-        StubTool(desc("calendar_add_event", "productivity", setOf("calendar"))),
+        StubTool(desc("calendar", "productivity", setOf("calendar"))),
+        StubTool(desc("bookmarks", "productivity", setOf("bookmarks"))),
+        StubTool(desc("mood", "productivity", setOf("mood"))),
         StubTool(desc("speak", "communication", setOf("voice"))),
         StubTool(desc("notify", "communication", setOf("notification"))),
         StubTool(desc("communication", "communication", setOf("phone"))),
@@ -92,7 +94,7 @@ class AgentToolAccessTest {
     )
 
     @Test
-    fun `all 31 tools are granted to at least one agent`() {
+    fun `all 33 tools are granted to at least one agent`() {
         val registry = makeRegistry()
         for (tool in sampleTools) {
             val toolName = tool.descriptor.name
@@ -104,33 +106,38 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `conversational agent exposes expected 29 tools`() {
+    fun `conversational agent exposes expected 31 tools`() {
         val registry = makeRegistry()
         val names = ConversationalAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(29, names.size)
+        assertEquals(31, names.size)
         assertTrue(names.contains("shell"))
         assertTrue(names.contains("termux"))
         assertTrue(names.contains("generate_image"))
         assertTrue(names.contains("app_launch"))
-        assertFalse(names.contains("calendar_add_event"))
+        assertFalse(names.contains("calendar"))
+        assertTrue(names.contains("bookmarks"))
+        assertTrue(names.contains("mood"))
     }
 
     @Test
-    fun `productivity agent exposes expected 18 tools`() {
+    fun `productivity agent exposes expected 20 tools`() {
         val registry = makeRegistry()
         val names = ProductivityAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(18, names.size)
-        assertTrue(names.contains("calendar_add_event"))
+        assertEquals(20, names.size)
+        assertTrue(names.contains("calendar"))
+        assertTrue(names.contains("bookmarks"))
+        assertTrue(names.contains("mood"))
         assertTrue(names.contains("contact_lookup"))
         assertFalse(names.contains("shell"))
         assertFalse(names.contains("generate_image"))
     }
 
     @Test
-    fun `research agent exposes expected 10 tools`() {
+    fun `research agent exposes expected 11 tools`() {
         val registry = makeRegistry()
         val names = ResearchAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(10, names.size)
+        assertEquals(11, names.size)
+        assertTrue(names.contains("bookmarks"))
         assertTrue(names.contains("web_search"))
         assertTrue(names.contains("web_fetch"))
         assertFalse(names.contains("shell"))
@@ -148,10 +155,11 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `creative agent exposes expected 10 tools`() {
+    fun `creative agent exposes expected 11 tools`() {
         val registry = makeRegistry()
         val names = CreativeAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(10, names.size)
+        assertEquals(11, names.size)
+        assertTrue(names.contains("bookmarks"))
         assertTrue(names.contains("generate_image"))
         assertTrue(names.contains("speak"))
         assertFalse(names.contains("shell"))

@@ -25,7 +25,7 @@ class ConversationalAgent @Inject constructor() : Agent {
             "You handle natural conversation, answer questions, and help with everyday tasks.\n\n" +
             "Your capabilities:\n" +
             "- memory: store and recall personal facts about the user\n" +
-            "- notes: save long-term facts/preferences (action='remember') or search them (action='recall')\n" +
+            "- notes: create, organize, and search structured markdown notes\n" +
             "- scheduler: create recurring tasks (cron jobs) that run on a schedule\n" +
             "- web_search: look up current information online\n" +
             "- web_fetch: read the contents of a specific URL\n" +
@@ -39,7 +39,9 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- skill_manager: browse (action='list'), load (action='view'), or CREATE " +
             "(action='create') reusable skills — when the user asks you to create/save a skill, " +
             "call skill_manager(action='create') with name, description, and content\n" +
-            "- todo: keep an in-session task list to plan and track multi-step work\n" +
+            "- todo: manage persistent personal tasks, due dates, priorities, and completion\n" +
+            "- bookmarks: save and retrieve links\n" +
+            "- mood: log daily mood entries and review emotional patterns\n" +
             "- kanban: manage persistent project tickets on the Kanban board (action='create', action='create_batch' with tickets array to decompose complex requests into Kanban tickets, action='list', action='move', action='get', action='delete')\n" +
             "- clarify: ask the user a question (with optional choices) when a request is " +
             "ambiguous — prefer asking once over guessing\n" +

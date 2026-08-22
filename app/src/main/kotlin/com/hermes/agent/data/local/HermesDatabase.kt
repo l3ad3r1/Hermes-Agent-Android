@@ -7,6 +7,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hermes.agent.data.llm.stripLeadingRoleLabel
 import com.hermes.agent.data.local.dao.ActivityLedgerDao
 import com.hermes.agent.data.local.dao.AgentTaskDao
+import com.hermes.agent.data.local.dao.BookmarkDao
+import com.hermes.agent.data.local.dao.CalendarEventDao
 import com.hermes.agent.data.local.dao.ConnectorDao
 import com.hermes.agent.data.local.dao.ConversationDao
 import com.hermes.agent.data.local.dao.DocumentChunkDao
@@ -15,16 +17,21 @@ import com.hermes.agent.data.local.dao.ExecutionPlanDao
 import com.hermes.agent.data.local.dao.KanbanTicketDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
+import com.hermes.agent.data.local.dao.NoteDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
 import com.hermes.agent.data.local.dao.PromptRevisionDao
 import com.hermes.agent.data.local.dao.SkillRevisionDao
 import com.hermes.agent.data.local.dao.SupplementalPromptDao
+import com.hermes.agent.data.local.dao.TodoTaskDao
+import com.hermes.agent.data.local.dao.MoodEntryDao
+import com.hermes.agent.data.local.dao.SkillDao
 import com.hermes.agent.data.local.entity.PromptRevisionEntity
 import com.hermes.agent.data.local.entity.SkillRevisionEntity
 import com.hermes.agent.data.local.entity.SupplementalPromptEntity
-import com.hermes.agent.data.local.dao.SkillDao
 import com.hermes.agent.data.local.entity.ActivityLedgerEntity
 import com.hermes.agent.data.local.entity.AgentTaskEntity
+import com.hermes.agent.data.local.entity.BookmarkEntity
+import com.hermes.agent.data.local.entity.CalendarEventEntity
 import com.hermes.agent.data.local.entity.ConnectorEntity
 import com.hermes.agent.data.local.entity.ConversationEntity
 import com.hermes.agent.data.local.entity.DocumentChunkEntity
@@ -34,8 +41,11 @@ import com.hermes.agent.data.local.entity.ExecutionStepEntity
 import com.hermes.agent.data.local.entity.KanbanTicketEntity
 import com.hermes.agent.data.local.entity.MemoryEntity
 import com.hermes.agent.data.local.entity.MessageEntity
+import com.hermes.agent.data.local.entity.NoteEntity
 import com.hermes.agent.data.local.entity.ScheduledTaskEntity
 import com.hermes.agent.data.local.entity.SkillEntity
+import com.hermes.agent.data.local.entity.TodoTaskEntity
+import com.hermes.agent.data.local.entity.MoodEntryEntity
 
 @Database(
     entities = [
@@ -55,8 +65,13 @@ import com.hermes.agent.data.local.entity.SkillEntity
         ExecutionPlanEntity::class,
         ExecutionStepEntity::class,
         ActivityLedgerEntity::class,
+        NoteEntity::class,
+        TodoTaskEntity::class,
+        CalendarEventEntity::class,
+        BookmarkEntity::class,
+        MoodEntryEntity::class,
     ],
-    version = 13,
+    version = 17,
     exportSchema = true,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -75,6 +90,11 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun kanbanTicketDao(): KanbanTicketDao
     abstract fun executionPlanDao(): ExecutionPlanDao
     abstract fun activityLedgerDao(): ActivityLedgerDao
+    abstract fun noteDao(): NoteDao
+    abstract fun todoTaskDao(): TodoTaskDao
+    abstract fun calendarEventDao(): CalendarEventDao
+    abstract fun bookmarkDao(): BookmarkDao
+    abstract fun moodEntryDao(): MoodEntryDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
@@ -511,6 +531,106 @@ abstract class HermesDatabase : RoomDatabase() {
                 // and searching Chats then fails with "no such table:
                 // conversation_fts". Rebuilding here is idempotent.
                 createSearchIndex(db)
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS notes (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        content TEXT NOT NULL DEFAULT '',
+                        tagsJson TEXT NOT NULL DEFAULT '[]',
+                        category TEXT NOT NULL DEFAULT 'general',
+                        isStarred INTEGER NOT NULL DEFAULT 0,
+                        folder TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_category ON notes(category)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notes_updatedAt ON notes(updatedAt)")
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS todo_tasks (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        body TEXT NOT NULL DEFAULT '',
+                        done INTEGER NOT NULL DEFAULT 0,
+                        priority TEXT NOT NULL DEFAULT 'MEDIUM',
+                        tagsJson TEXT NOT NULL DEFAULT '[]',
+                        dueDateMs INTEGER,
+                        reminderText TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        completedAt INTEGER
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_todo_tasks_done ON todo_tasks(done)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_todo_tasks_dueDateMs ON todo_tasks(dueDateMs)")
+            }
+        }
+
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS calendar_events (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        title TEXT NOT NULL,
+                        description TEXT NOT NULL DEFAULT '',
+                        sourceCalendar TEXT NOT NULL DEFAULT 'default',
+                        startMs INTEGER NOT NULL,
+                        endMs INTEGER NOT NULL,
+                        allDay INTEGER NOT NULL DEFAULT 0,
+                        location TEXT,
+                        reminderMinutes INTEGER NOT NULL DEFAULT 0,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_calendar_events_startMs ON calendar_events(startMs)")
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS bookmarks (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        url TEXT NOT NULL,
+                        title TEXT NOT NULL DEFAULT '',
+                        note TEXT NOT NULL DEFAULT '',
+                        tagsJson TEXT NOT NULL DEFAULT '[]',
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS mood_entries (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        dateMs INTEGER NOT NULL,
+                        mood TEXT NOT NULL DEFAULT 'MID',
+                        intensity INTEGER NOT NULL DEFAULT 5,
+                        note TEXT NOT NULL DEFAULT '',
+                        tagsJson TEXT NOT NULL DEFAULT '[]',
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_bookmarks_url ON bookmarks(url)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_mood_entries_dateMs ON mood_entries(dateMs)")
             }
         }
 

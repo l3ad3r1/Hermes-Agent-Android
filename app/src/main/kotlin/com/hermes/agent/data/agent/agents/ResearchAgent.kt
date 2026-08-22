@@ -34,6 +34,7 @@ class ResearchAgent @Inject constructor() : Agent {
             "- skill_manager: load specialized research skills, or create one " +
             "(action='create') when the user asks to save a skill\n" +
             "- web_fetch: read the full contents of a specific URL\n" +
+            "- bookmarks: save and retrieve research references\n" +
             "- delegate: run several research subtasks in parallel via isolated subagents; " +
             "pass background=true for long tasks — the user is notified when done\n" +
             "- todo / clarify: track multi-part research; ask one question if the request is ambiguous\n\n" +

@@ -93,4 +93,80 @@ class HermesDatabaseMigrationTest {
         }
         assertTrue("index_activity_ledger_timestamp" in indices)
     }
+
+    @Test
+    fun `migrations 13 to 17 create module tables matching Room entities`() {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(
+            ApplicationProvider.getApplicationContext(),
+        ).name(null).callback(object : SupportSQLiteOpenHelper.Callback(13) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+            override fun onUpgrade(
+                db: androidx.sqlite.db.SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }).build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        val database = checkNotNull(helper).writableDatabase
+
+        HermesDatabase.MIGRATION_13_14.migrate(database)
+        HermesDatabase.MIGRATION_14_15.migrate(database)
+        HermesDatabase.MIGRATION_15_16.migrate(database)
+        HermesDatabase.MIGRATION_16_17.migrate(database)
+
+        val expectedColumns = mapOf(
+            "notes" to setOf(
+                "id", "title", "content", "tagsJson", "category", "isStarred",
+                "folder", "createdAt", "updatedAt",
+            ),
+            "todo_tasks" to setOf(
+                "id", "title", "body", "done", "priority", "tagsJson", "dueDateMs",
+                "reminderText", "createdAt", "updatedAt", "completedAt",
+            ),
+            "calendar_events" to setOf(
+                "id", "title", "description", "sourceCalendar", "startMs", "endMs",
+                "allDay", "location", "reminderMinutes", "createdAt",
+            ),
+            "bookmarks" to setOf("id", "url", "title", "note", "tagsJson", "createdAt"),
+            "mood_entries" to setOf(
+                "id", "dateMs", "mood", "intensity", "note", "tagsJson", "createdAt",
+            ),
+        )
+
+        expectedColumns.forEach { (table, expected) ->
+            val actual = mutableSetOf<String>()
+            database.query("PRAGMA table_info('$table')").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) actual += cursor.getString(nameIndex)
+            }
+            assertEquals("Unexpected columns for $table", expected, actual)
+        }
+
+        // Indices are validated by Room on every upgrade, and a mismatch here is
+        // invisible to a fresh install: `createAllTables` builds from the entity
+        // list, so only an upgrading device sees the migration's version. These
+        // seven were created by the migrations while no entity declared them,
+        // which fails the upgrade with "Migration didn't properly handle".
+        val expectedIndices = mapOf(
+            "notes" to setOf("index_notes_category", "index_notes_updatedAt"),
+            "todo_tasks" to setOf("index_todo_tasks_done", "index_todo_tasks_dueDateMs"),
+            "calendar_events" to setOf("index_calendar_events_startMs"),
+            "bookmarks" to setOf("index_bookmarks_url"),
+            "mood_entries" to setOf("index_mood_entries_dateMs"),
+        )
+        expectedIndices.forEach { (table, expected) ->
+            val actual = mutableSetOf<String>()
+            database.query("PRAGMA index_list('$table')").use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) {
+                    val name = cursor.getString(nameIndex)
+                    // Skip the implicit indices SQLite builds for primary keys;
+                    // Room ignores those too. (`PRAGMA index_list` here has no
+                    // `origin` column, so the name prefix is the filter.)
+                    if (!name.startsWith("sqlite_autoindex_")) actual += name
+                }
+            }
+            assertEquals("Unexpected indices for $table", expected, actual)
+        }
+    }
 }

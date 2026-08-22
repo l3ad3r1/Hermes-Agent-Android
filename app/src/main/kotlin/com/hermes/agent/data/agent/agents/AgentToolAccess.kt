@@ -34,6 +34,7 @@ internal object AgentToolAccess {
                 "notes", "device_alarm", "notes_and_reminders", "navigation", "phone", "contacts",
                 "media", "device_control", "skills", "user_memory", "scheduler", "shell", "termux",
                 "todo", "voice", "clarify", "delegate", "media_generation", "app_automation", "documents", "kanban",
+                "bookmarks", "mood",
             ),
             excludedCapabilities = setOf("calendar", "device_settings"),
         ),
@@ -42,12 +43,13 @@ internal object AgentToolAccess {
                 "common", "time", "web", "conversation_search", "calculator", "calendar", "notes",
                 "skills", "user_memory", "scheduler", "todo", "clarify", "delegate", "notification",
                 "phone", "contacts", "navigation", "documents", "notes_and_reminders", "kanban",
+                "bookmarks", "mood",
             ),
         ),
         AgentRole.RESEARCH to RoleGrant(
             capabilities = setOf(
                 "common", "web", "conversation_search", "user_memory", "notes", "skills",
-                "calculator", "delegate",
+                "calculator", "delegate", "bookmarks", "todo",
             ),
         ),
         AgentRole.DEVICE_CONTROL to RoleGrant(
@@ -61,7 +63,7 @@ internal object AgentToolAccess {
         AgentRole.CREATIVE to RoleGrant(
             capabilities = setOf(
                 "common", "user_memory", "notes", "conversation_search", "skills",
-                "media_generation", "web", "voice", "creative",
+                "media_generation", "web", "voice", "creative", "bookmarks",
             ),
         ),
     )
