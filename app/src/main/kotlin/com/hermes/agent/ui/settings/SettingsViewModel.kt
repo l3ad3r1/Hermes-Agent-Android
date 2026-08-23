@@ -610,8 +610,14 @@ class SettingsViewModel @Inject constructor(
         _localBackupState.value = BackupUiState.InProgress
         viewModelScope.launch {
             val result = localBackupManager.exportToZip()
-            if (result.isSuccess) {
-                _localBackupState.value = BackupUiState.Success("Local backup saved to Download/Hermes Agent/Backup")
+            val location = result.getOrNull()
+            if (location != null) {
+                // Report where the file actually landed: the export falls back
+                // to app-private storage when MediaStore is unavailable, and a
+                // hard-coded Downloads path sent the user hunting for a file
+                // that was never written there.
+                _localBackupState.value =
+                    BackupUiState.Success("Local backup saved to ${location.displayPath}")
             } else {
                 _localBackupState.value = BackupUiState.Error(result.exceptionOrNull()?.message ?: "Failed to save backup")
             }

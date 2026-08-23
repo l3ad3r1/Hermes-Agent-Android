@@ -24,6 +24,7 @@ import com.hermes.agent.data.local.dao.SkillRevisionDao
 import com.hermes.agent.data.local.dao.SupplementalPromptDao
 import com.hermes.agent.data.local.dao.TodoTaskDao
 import com.hermes.agent.data.local.dao.MoodEntryDao
+import com.hermes.agent.data.local.dao.ScriptPluginDao
 import com.hermes.agent.data.local.dao.SkillDao
 import com.hermes.agent.data.local.entity.PromptRevisionEntity
 import com.hermes.agent.data.local.entity.SkillRevisionEntity
@@ -46,6 +47,7 @@ import com.hermes.agent.data.local.entity.ScheduledTaskEntity
 import com.hermes.agent.data.local.entity.SkillEntity
 import com.hermes.agent.data.local.entity.TodoTaskEntity
 import com.hermes.agent.data.local.entity.MoodEntryEntity
+import com.hermes.agent.data.local.entity.ScriptPluginEntity
 
 @Database(
     entities = [
@@ -70,8 +72,9 @@ import com.hermes.agent.data.local.entity.MoodEntryEntity
         CalendarEventEntity::class,
         BookmarkEntity::class,
         MoodEntryEntity::class,
+        ScriptPluginEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -95,6 +98,7 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun calendarEventDao(): CalendarEventDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun moodEntryDao(): MoodEntryDao
+    abstract fun scriptPluginDao(): ScriptPluginDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
@@ -631,6 +635,33 @@ abstract class HermesDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_bookmarks_url ON bookmarks(url)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_mood_entries_dateMs ON mood_entries(dateMs)")
+            }
+        }
+
+        /**
+         * Adds the installed-module table for script plugins. The manifest is
+         * stored as fetched, alongside the exact permissions the user approved
+         * for that snapshot.
+         */
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS script_plugins (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        version TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        manifestJson TEXT NOT NULL,
+                        grantedPermissions TEXT NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        sourceUrl TEXT NOT NULL,
+                        installedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_script_plugins_enabled ON script_plugins(enabled)")
             }
         }
 

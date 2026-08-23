@@ -245,12 +245,20 @@ fun StreamingBubble(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            SelectionContainer {
-                Text(
-                    text = item.text,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            // Before the first token lands there is nothing to show, and an
+            // empty bubble reads as a broken turn. The orb is the app's
+            // "Hermes is working" language everywhere else, so it stands in
+            // until real text arrives.
+            if (item.text.isBlank()) {
+                ThinkingOrb(diameter = 28.dp)
+            } else {
+                SelectionContainer {
+                    Text(
+                        text = item.text,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
         }
     }

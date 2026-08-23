@@ -19,6 +19,18 @@ object HermesPalette {
     val Primary = Color.White
     val OnPrimary = Color.Black
     val Container = Color(0xFF202020)
+
+    /**
+     * The one deliberate break from monochrome: "stop what you are doing".
+     *
+     * The scheme maps `error` to white in dark mode (black in light), which
+     * keeps the palette pure but leaves the send button and the stop button
+     * looking identical — there was no way to tell at a glance that a reply
+     * was still running. Stop is the only control that must read as
+     * interrupting, so it gets a real red in both modes.
+     */
+    val Stop = Color(0xFFDC2626)
+    val OnStop = Color.White
 }
 
 /** OLED-black monochrome scheme. Semantic state remains distinguishable by icon and text. */

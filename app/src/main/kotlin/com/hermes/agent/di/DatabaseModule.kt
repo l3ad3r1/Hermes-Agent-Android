@@ -28,6 +28,7 @@ import com.hermes.agent.data.local.dao.SkillRevisionDao
 import com.hermes.agent.data.local.dao.SupplementalPromptDao
 import com.hermes.agent.data.local.dao.TodoTaskDao
 import com.hermes.agent.data.local.dao.MoodEntryDao
+import com.hermes.agent.data.local.dao.ScriptPluginDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -64,6 +65,7 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_14_15,
                 HermesDatabase.MIGRATION_15_16,
                 HermesDatabase.MIGRATION_16_17,
+                HermesDatabase.MIGRATION_17_18,
             )
             // conversation_fts is not a Room entity, so a fresh install creates
             // its schema from the entity list and runs no migrations at all —
@@ -103,4 +105,5 @@ object DatabaseModule {
     @Provides fun provideCalendarEventDao(db: HermesDatabase): CalendarEventDao = db.calendarEventDao()
     @Provides fun provideBookmarkDao(db: HermesDatabase): BookmarkDao = db.bookmarkDao()
     @Provides fun provideMoodEntryDao(db: HermesDatabase): MoodEntryDao = db.moodEntryDao()
+    @Provides fun provideScriptPluginDao(db: HermesDatabase): ScriptPluginDao = db.scriptPluginDao()
 }
