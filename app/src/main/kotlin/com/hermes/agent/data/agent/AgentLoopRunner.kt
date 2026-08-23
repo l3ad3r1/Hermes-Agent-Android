@@ -83,6 +83,13 @@ class AgentLoopRunner @Inject constructor(
         var messages = initialMessages
         val toolsInvoked = mutableListOf<String>()
         val guardSession = executionGuard.openSession()
+        // Results of calls recovered from a model that could not produce the
+        // tool envelope. Only those are answered from here on a repeat: such a
+        // model routinely cannot read a tool result and reissues the identical
+        // call, which for a create-style tool wrote a duplicate row every round.
+        // A call the model formatted properly is left alone, because repeating
+        // one with a changing result is legitimate progress.
+        val recoveredResults = mutableMapOf<String, ToolResult>()
 
         repeat(MAX_TOOL_ROUNDS) { round ->
             val response = provider.completeWithTools(messages, tools)
@@ -105,12 +112,25 @@ class AgentLoopRunner @Inject constructor(
                 val mustConfirm = decision is ToolExecutionDecision.Confirm
                 onToolRequested(call, mustConfirm)
 
+                val signature = call.name + "|" +
+                    RepeatedExecutionGuard.canonicalArguments(call.arguments)
+                val repeated = if (call.id.startsWith(RECOVERED_CALL_PREFIX)) {
+                    recoveredResults[signature]
+                } else {
+                    null
+                }
                 val result = when {
                     tools.none { it.name == call.name } -> ToolResult.error("unauthorized tool: ${call.name}")
                     decision is ToolExecutionDecision.Deny -> ToolResult.error(decision.reason)
                     mustConfirm && confirmationGate?.confirm(call, true) != true ->
                         ToolResult.error("user declined")
-                    else -> toolCallExecutor.execute(call, confirmationGate = null)
+                    // A small model that cannot read a tool result often just
+                    // reissues the same call. Executing it again created a
+                    // second identical task rather than answering the user.
+                    repeated != null -> repeated
+                    else -> toolCallExecutor.execute(call, confirmationGate = null).also {
+                        if (call.id.startsWith(RECOVERED_CALL_PREFIX)) recoveredResults[signature] = it
+                    }
                 }
 
                 onToolResult(call, result)
@@ -141,6 +161,9 @@ class AgentLoopRunner @Inject constructor(
 
     companion object {
         const val MAX_TOOL_ROUNDS = 12
+
+        /** Marks a call rebuilt from a reply that did not use the tool envelope. */
+        const val RECOVERED_CALL_PREFIX = "recovered_call_"
         const val MAX_LOOP_DURATION_MS = 5 * 60 * 1000L
     }
 }
