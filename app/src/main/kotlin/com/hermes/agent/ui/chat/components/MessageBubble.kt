@@ -1,9 +1,14 @@
 package com.hermes.agent.ui.chat.components
 import com.hermes.agent.domain.settings.*
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.CallSplit
 import androidx.compose.material.icons.outlined.History
@@ -31,14 +37,19 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -85,7 +96,7 @@ fun MessageBubble(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    var menuExpanded by remember { mutableStateOf(false) }
+    var actionsVisible by remember { mutableStateOf(false) }
     var confirmRewind by remember { mutableStateOf(false) }
     var activeArtifact by remember { mutableStateOf<CodeArtifact?>(null) }
     val artifacts = remember(message.content) {
@@ -160,15 +171,13 @@ fun MessageBubble(
                     )
                 )
                 .background(bubbleColor)
-                .combinedClickable(
-                    onClick = { /* normal selection */ },
-                    onLongClick = {
-                        // Assistant bubbles used to have no menu at all, so a
-                        // reply could not even be copied.
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        menuExpanded = true
-                    },
-                )
+                .clickable {
+                    // Tap reveals the actions for this message and hides them
+                    // again, so the transcript stays clean until you reach for
+                    // something. Long-press is left to text selection.
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    actionsVisible = !actionsVisible
+                }
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             SelectionContainer {
@@ -179,62 +188,57 @@ fun MessageBubble(
                 )
             }
 
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
+        }
+
+        // Actions live under the bubble rather than in a dropdown, so what is
+        // available is visible at a glance and reachable with one thumb. They
+        // stay hidden until the message is tapped to keep the transcript quiet.
+        AnimatedVisibility(
+            visible = actionsVisible,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            Row(
+                modifier = Modifier.padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Copy comes first and is offered for every message: it is the
-                // action people reach for most and the one that cannot go wrong.
-                DropdownMenuItem(
-                    text = { Text("Copy text") },
-                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
-                    onClick = {
-                        menuExpanded = false
-                        clipboard.setText(AnnotatedString(message.content))
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Fork from here") },
-                    leadingIcon = { Icon(Icons.Outlined.CallSplit, contentDescription = null) },
-                    onClick = {
-                        menuExpanded = false
-                        onForkFrom?.invoke(message)
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Rewind to here") },
-                    leadingIcon = { Icon(Icons.Outlined.History, contentDescription = null) },
-                    onClick = {
-                        menuExpanded = false
-                        confirmRewind = true
-                    },
-                )
+                var copied by remember { mutableStateOf(false) }
+                LaunchedEffect(copied) {
+                    if (copied) {
+                        kotlinx.coroutines.delay(1200)
+                        copied = false
+                    }
+                }
+                MessageAction(
+                    // Confirming the copy on the icon itself avoids a snackbar
+                    // for something this small.
+                    icon = if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
+                    label = if (copied) "Copied" else "Copy text",
+                ) {
+                    clipboard.setText(AnnotatedString(message.content))
+                    copied = true
+                }
+                MessageAction(Icons.Outlined.CallSplit, "Fork a new chat from here") {
+                    actionsVisible = false
+                    onForkFrom?.invoke(message)
+                }
+                MessageAction(Icons.Outlined.History, "Rewind to here") {
+                    confirmRewind = true
+                }
                 if (isUser) {
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text("Edit & Retry") },
-                        leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
-                        onClick = {
-                            menuExpanded = false
-                            onEditMessage?.invoke(message)
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Retry with Ultrabrain") },
-                        leadingIcon = { Icon(Icons.Outlined.Psychology, contentDescription = null) },
-                        onClick = {
-                            menuExpanded = false
-                            onRetryWithAlias?.invoke(message, "ultrabrain")
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Retry with Quick/Local") },
-                        leadingIcon = { Icon(Icons.Outlined.Bolt, contentDescription = null) },
-                        onClick = {
-                            menuExpanded = false
-                            onRetryWithAlias?.invoke(message, "quick")
-                        },
-                    )
+                    MessageAction(Icons.Outlined.Edit, "Edit and retry") {
+                        actionsVisible = false
+                        onEditMessage?.invoke(message)
+                    }
+                    MessageAction(Icons.Outlined.Psychology, "Retry with Ultrabrain") {
+                        actionsVisible = false
+                        onRetryWithAlias?.invoke(message, "ultrabrain")
+                    }
+                    MessageAction(Icons.Outlined.Bolt, "Retry with Quick/Local") {
+                        actionsVisible = false
+                        onRetryWithAlias?.invoke(message, "quick")
+                    }
                 }
             }
         }
@@ -326,6 +330,37 @@ fun StreamingBubble(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * One message action: a small icon whose meaning is available on demand.
+ *
+ * The icon alone is ambiguous, so it carries both a tooltip (long-press, the
+ * platform gesture for "what is this?") and a contentDescription, which is the
+ * same string — screen-reader users and sighted users get the identical label
+ * instead of one being an afterthought.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MessageAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(label) } },
+        state = rememberTooltipState(),
+    ) {
+        IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
