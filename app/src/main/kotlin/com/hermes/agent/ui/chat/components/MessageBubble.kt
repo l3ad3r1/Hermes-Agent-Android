@@ -20,16 +20,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.CallSplit
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,8 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.hermes.agent.domain.model.Message
 import com.hermes.agent.domain.model.MessageRole
@@ -57,7 +67,11 @@ fun MessageBubble(
     modifier: Modifier = Modifier,
     onEditMessage: ((Message) -> Unit)? = null,
     onRetryWithAlias: ((Message, String) -> Unit)? = null,
+    onRewindTo: ((Message) -> Unit)? = null,
+    onForkFrom: ((Message) -> Unit)? = null,
 ) {
+    val clipboard = LocalClipboardManager.current
+    val haptics = LocalHapticFeedback.current
     val isUser = message.role == MessageRole.USER
     val alignment = if (isUser) Alignment.End else Alignment.Start
     val bubbleColor = if (isUser) {
@@ -72,9 +86,34 @@ fun MessageBubble(
     }
 
     var menuExpanded by remember { mutableStateOf(false) }
+    var confirmRewind by remember { mutableStateOf(false) }
     var activeArtifact by remember { mutableStateOf<CodeArtifact?>(null) }
     val artifacts = remember(message.content) {
         ArtifactExtractor.extractArtifacts(message.content)
+    }
+
+    if (confirmRewind) {
+        // Rewind throws away messages, so it is the one action here that asks
+        // first. Fork is the non-destructive alternative, named in the copy.
+        AlertDialog(
+            onDismissRequest = { confirmRewind = false },
+            title = { Text("Rewind to here?") },
+            text = {
+                Text(
+                    "This deletes this message and everything after it. " +
+                        "To keep the original, use \"Fork from here\" instead.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRewind = false
+                    onRewindTo?.invoke(message)
+                }) { Text("Rewind") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRewind = false }) { Text("Cancel") }
+            },
+        )
     }
 
     activeArtifact?.let { art ->
@@ -124,9 +163,10 @@ fun MessageBubble(
                 .combinedClickable(
                     onClick = { /* normal selection */ },
                     onLongClick = {
-                        if (isUser) {
-                            menuExpanded = true
-                        }
+                        // Assistant bubbles used to have no menu at all, so a
+                        // reply could not even be copied.
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuExpanded = true
                     },
                 )
                 .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -139,12 +179,38 @@ fun MessageBubble(
                 )
             }
 
-            // Context menu for User Turn Rewind / Branching
-            if (isUser) {
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                // Copy comes first and is offered for every message: it is the
+                // action people reach for most and the one that cannot go wrong.
+                DropdownMenuItem(
+                    text = { Text("Copy text") },
+                    leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        clipboard.setText(AnnotatedString(message.content))
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Fork from here") },
+                    leadingIcon = { Icon(Icons.Outlined.CallSplit, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onForkFrom?.invoke(message)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Rewind to here") },
+                    leadingIcon = { Icon(Icons.Outlined.History, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        confirmRewind = true
+                    },
+                )
+                if (isUser) {
+                    HorizontalDivider()
                     DropdownMenuItem(
                         text = { Text("Edit & Retry") },
                         leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },

@@ -52,7 +52,7 @@ app/src/main/kotlin/com/hermes/agent/ui/settings/ModulesSettingsScreen.kt
 app/src/main/kotlin/com/hermes/agent/ui/settings/ModulesSettingsViewModel.kt
 ```
 
-Navigation is exposed at **Settings → Features → Modules**. The screen lets the user enter a
+Navigation is exposed at **Settings → Configuration → Modules**. The screen lets the user enter a
 catalog URL, load the catalog, view module entries, and download a selected artifact. The
 download coordinator validates the catalog and APK before saving it to the app-private plugin
 staging directory.
@@ -96,7 +96,7 @@ The short sequence is:
 4. Sign the release APK with a stable publisher key; put its SHA-256 fingerprint in the manifest.
 5. Publish the APK at an immutable HTTPS URL and calculate the final size and SHA-256.
 6. Add the complete entry to `catalog-v1.json` and publish the catalog from `main`.
-7. Test the catalog in both apps from Settings → Features → Modules.
+7. Test the catalog in both apps from Settings → Configuration → Modules.
 
 Do not reuse a version path for different APK bytes. Prefer GitHub Releases for large APKs and
 keep signing credentials out of Git.
@@ -126,7 +126,7 @@ Jeeves: app/build/outputs/apk/release/app-release.apk
 
 For a focused test pass, run the app unit tests and Room migration tests, then verify:
 
-1. Settings → Features → Modules is reachable in both apps.
+1. Settings → Configuration → Modules is reachable in both apps.
 2. The starter empty catalog loads and shows “no modules yet.”
 3. A fixture catalog rejects bad HTTPS, digest, size, package, signer, and service metadata.
 4. A valid artifact is downloaded to staging but is not auto-installed.

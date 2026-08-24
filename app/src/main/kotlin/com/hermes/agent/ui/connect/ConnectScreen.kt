@@ -413,7 +413,13 @@ private fun TelegramGatewayCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // K11: without a weight this row claims its full intrinsic
+                // width, so the Switch beside it truncated "Telegram 24/7 Bot
+                // Gateway". Taking the remaining space lets the title wrap.
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
@@ -427,7 +433,9 @@ private fun TelegramGatewayCard(
                         )
                     }
                     Spacer(Modifier.width(12.dp))
-                    Column {
+                    // Weight again so the text wraps inside the row rather than
+                    // pushing past its edge.
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Telegram 24/7 Bot Gateway",
                             style = MaterialTheme.typography.titleMedium,

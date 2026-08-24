@@ -106,17 +106,23 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `conversational agent exposes expected 31 tools`() {
+    fun `conversational agent exposes expected 26 tools`() {
         val registry = makeRegistry()
         val names = ConversationalAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(31, names.size)
+        // 26, not 31: the five app_* automation tools moved to DEVICE_CONTROL only.
+        assertEquals(26, names.size)
         assertTrue(names.contains("shell"))
         assertTrue(names.contains("termux"))
         assertTrue(names.contains("generate_image"))
-        assertTrue(names.contains("app_launch"))
+        assertFalse("app automation belongs to DEVICE_CONTROL", names.contains("app_launch"))
         assertFalse(names.contains("calendar"))
         assertTrue(names.contains("bookmarks"))
         assertTrue(names.contains("mood"))
+        // The device tools this role does legitimately need still resolve, now
+        // by capability rather than by the blanket "device" category.
+        for (tool in listOf("alarm", "navigation", "media_control", "device_control")) {
+            assertTrue("conversational agent lost '$tool'", names.contains(tool))
+        }
     }
 
     @Test
@@ -181,10 +187,41 @@ class AgentToolAccessTest {
         assertTrue((researchTools intersect dangerousShell).isEmpty())
         assertTrue((creativeTools intersect dangerousShell).isEmpty())
 
-        // App automation is available to the general assistant and the dedicated device role.
+        // App automation drives arbitrary apps, so it belongs to DEVICE_CONTROL
+        // alone. This assertion previously covered every role except the one
+        // that actually had the grant, which is how the widening survived.
+        val conversationalTools = registry.toolsFor(AgentRole.CONVERSATIONAL).map { it.name }.toSet()
+        val deviceTools = registry.toolsFor(AgentRole.DEVICE_CONTROL).map { it.name }.toSet()
+
         assertTrue((productivityTools intersect dangerousAppAutomation).isEmpty())
         assertTrue((researchTools intersect dangerousAppAutomation).isEmpty())
         assertTrue((creativeTools intersect dangerousAppAutomation).isEmpty())
+        assertTrue(
+            "app automation must not be reachable from a conversational turn",
+            (conversationalTools intersect dangerousAppAutomation).isEmpty(),
+        )
+        assertEquals(
+            "DEVICE_CONTROL is the only role that may drive other apps",
+            dangerousAppAutomation,
+            deviceTools intersect dangerousAppAutomation,
+        )
+    }
+
+    /**
+     * A category grant hands a role every present and future tool in that
+     * category. CONVERSATIONAL is the role an ordinary chat turn runs as, so a
+     * new device tool must not arrive pre-approved there.
+     */
+    @Test
+    fun `a new device-category tool is not auto-granted to the conversational role`() {
+        val registry = makeRegistry()
+        registry.register(StubTool(desc("device_wipe", "device", setOf("some_new_capability"))))
+
+        val conversationalTools = registry.toolsFor(AgentRole.CONVERSATIONAL).map { it.name }
+        assertFalse(
+            "a device tool must be granted deliberately, not by category",
+            "device_wipe" in conversationalTools,
+        )
     }
 
     @Test

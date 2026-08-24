@@ -28,15 +28,25 @@ internal object AgentToolAccess {
 
     private val GRANTS: Map<AgentRole, RoleGrant> = mapOf(
         AgentRole.CONVERSATIONAL to RoleGrant(
-            categories = setOf("information", "memory", "productivity", "communication", "creative", "device", "system", "automation"),
+            // "device" is deliberately absent. It is a category, so granting it
+            // hands this role every current and future device-category tool —
+            // which silently included app_tap/app_type/app_swipe/app_launch/
+            // app_analyze_screen, tools that can drive any app on the phone.
+            // Every device tool this role legitimately needs is granted below by
+            // capability instead, so a new device tool has to be granted on
+            // purpose rather than arriving pre-approved.
+            categories = setOf("information", "memory", "productivity", "communication", "creative", "system", "automation"),
             capabilities = setOf(
                 "common", "time", "web", "conversation_search", "calculator", "notification",
                 "notes", "device_alarm", "notes_and_reminders", "navigation", "phone", "contacts",
                 "media", "device_control", "skills", "user_memory", "scheduler", "shell", "termux",
-                "todo", "voice", "clarify", "delegate", "media_generation", "app_automation", "documents", "kanban",
+                "todo", "voice", "clarify", "delegate", "media_generation", "documents", "kanban",
                 "bookmarks", "mood",
             ),
-            excludedCapabilities = setOf("calendar", "device_settings"),
+            // Belt and braces: excludedCapabilities is checked before anything
+            // else, so app automation stays out of a conversational turn even if
+            // a future tool re-introduces it through a category.
+            excludedCapabilities = setOf("calendar", "device_settings", "app_automation"),
         ),
         AgentRole.PRODUCTIVITY to RoleGrant(
             capabilities = setOf(

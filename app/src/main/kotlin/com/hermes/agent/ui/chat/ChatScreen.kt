@@ -88,6 +88,8 @@ fun ChatScreen(
     conversationId: String,
     onBack: () -> Unit,
     onNewChat: () -> Unit,
+    /** Open another conversation, e.g. the one produced by a fork. */
+    onOpenConversation: (String) -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -115,6 +117,14 @@ fun ChatScreen(
         uiState.errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg)
             viewModel.dismissError()
+        }
+    }
+
+    // Confirmations (a completed rewind) use the same channel but are not errors.
+    LaunchedEffect(uiState.notice) {
+        uiState.notice?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.dismissNotice()
         }
     }
 
@@ -199,6 +209,10 @@ fun ChatScreen(
                                         message = item.message,
                                         onEditMessage = viewModel::editMessage,
                                         onRetryWithAlias = viewModel::retryWithAlias,
+                                        onRewindTo = viewModel::rewindTo,
+                                        onForkFrom = { message ->
+                                            viewModel.forkFrom(message, onOpenConversation)
+                                        },
                                     )
                                     is ChatListItem.StreamingItem -> StreamingBubble(item = item)
                                 }

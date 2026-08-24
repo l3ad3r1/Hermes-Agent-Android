@@ -340,6 +340,14 @@ class TestConversationRepository : ConversationRepository {
     override suspend fun renameConversation(id: String, title: String) = TODO()
     override suspend fun deleteConversation(id: String) = TODO()
     override suspend fun getRecentMessages(conversationId: String, limit: Int): List<Message> = TODO()
+
+    override suspend fun rewindTo(conversationId: String, message: Message): Int = 0
+
+    override suspend fun forkFrom(
+        conversationId: String,
+        message: Message,
+        title: String,
+    ): String = "fork-$conversationId"
 }
 
 class TestMemoryRepository : MemoryRepository {

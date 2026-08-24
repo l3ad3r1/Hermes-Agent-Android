@@ -105,6 +105,50 @@ class ConversationRepositoryImpl @Inject constructor(
             // DAO returns newest-first; flip to oldest-first for prompt construction.
             messageDao.recentByConversation(conversationId, limit).asReversed().map { it.toDomain() }
         }
+
+    override suspend fun rewindTo(conversationId: String, message: Message): Int =
+        withContext(dispatchers.io) {
+            val removed = messageDao.deleteFrom(conversationId, message.timestamp)
+            // The conversation's preview and count are denormalised onto the
+            // row, so they have to be rebuilt from what actually survives or the
+            // chat list keeps advertising a message the user just removed.
+            val remaining = messageDao.recentByConversation(conversationId, 1).firstOrNull()
+            conversationDao.touchAfterMessage(
+                id = conversationId,
+                updatedAt = System.currentTimeMillis(),
+                preview = remaining?.content?.take(120).orEmpty(),
+                delta = -removed,
+            )
+            removed
+        }
+
+    override suspend fun forkFrom(
+        conversationId: String,
+        message: Message,
+        title: String,
+    ): String = withContext(dispatchers.io) {
+        val history = messageDao.messagesThrough(conversationId, message.timestamp)
+        val newId = createConversation(title)
+        // Fresh ids: a message id is unique per row, and reusing the originals
+        // would make the fork and its source the same rows to Room.
+        history.forEach { entity ->
+            messageDao.upsert(
+                entity.copy(
+                    id = java.util.UUID.randomUUID().toString(),
+                    conversationId = newId,
+                ),
+            )
+        }
+        history.lastOrNull()?.let { last ->
+            conversationDao.touchAfterMessage(
+                id = newId,
+                updatedAt = System.currentTimeMillis(),
+                preview = last.content.take(120),
+                delta = history.size,
+            )
+        }
+        newId
+    }
 }
 
 private fun ConversationEntity.toDomain() = Conversation(

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -433,7 +434,15 @@ private fun NavBar(step: Int, viewModel: OnboardingViewModel) {
     val saving by viewModel.saving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     
-    Column(modifier = Modifier.fillMaxWidth()) {
+    // K09: this row sits at the bottom of the screen, so on gesture navigation
+    // the system bar overlapped "Skip setup" and "Get started" and clipped their
+    // labels. The inset has to be consumed here rather than on the scrolling
+    // content above it, which is why it is not handled by the parent Scaffold.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+    ) {
         if (error != null) {
             Text(
                 text = error ?: "",

@@ -200,4 +200,83 @@ class ConversationRepositoryImplTest {
         repo.ensureConversation(id, title = "Should Not Overwrite")
         assertEquals("Original", repo.observeConversation(id).first()?.title)
     }
+
+    private suspend fun seedTurns(convId: String, base: Long): List<Message> {
+        val msgs = listOf(
+            Message(IdGenerator.newId(), convId, MessageRole.USER, "first question", null, base),
+            Message(IdGenerator.newId(), convId, MessageRole.ASSISTANT, "first answer", null, base + 100),
+            Message(IdGenerator.newId(), convId, MessageRole.USER, "second question", null, base + 200),
+            Message(IdGenerator.newId(), convId, MessageRole.ASSISTANT, "second answer", null, base + 300),
+        )
+        msgs.forEach { repo.addMessage(convId, it) }
+        return msgs
+    }
+
+    @Test
+    fun `rewind drops the chosen message and everything after it`() = runTest {
+        val convId = repo.createConversation()
+        val msgs = seedTurns(convId, 1_000_000L)
+
+        val removed = repo.rewindTo(convId, msgs[2])
+
+        assertEquals(2, removed)
+        val remaining = repo.observeMessages(convId).first()
+        assertEquals(listOf("first question", "first answer"), remaining.map { it.content })
+    }
+
+    @Test
+    fun `rewind rebuilds the conversation preview and count`() = runTest {
+        val convId = repo.createConversation()
+        val msgs = seedTurns(convId, 2_000_000L)
+
+        repo.rewindTo(convId, msgs[2])
+
+        // The preview and count are denormalised onto the conversation row, so a
+        // rewind that left them alone would keep advertising a deleted message.
+        val conv = repo.observeConversation(convId).first()
+        assertEquals(2, conv?.messageCount)
+        assertEquals("first answer", conv?.lastMessagePreview)
+    }
+
+    @Test
+    fun `rewinding to the first message empties the conversation`() = runTest {
+        val convId = repo.createConversation()
+        val msgs = seedTurns(convId, 3_000_000L)
+
+        val removed = repo.rewindTo(convId, msgs[0])
+
+        assertEquals(4, removed)
+        assertTrue(repo.observeMessages(convId).first().isEmpty())
+        assertEquals(0, repo.observeConversation(convId).first()?.messageCount)
+    }
+
+    @Test
+    fun `fork copies history up to the message and leaves the original intact`() = runTest {
+        val convId = repo.createConversation()
+        val msgs = seedTurns(convId, 4_000_000L)
+
+        val forkId = repo.forkFrom(convId, msgs[1], "forked")
+
+        val forked = repo.observeMessages(forkId).first()
+        assertEquals(listOf("first question", "first answer"), forked.map { it.content })
+
+        // Non-destructive: this is what makes fork the safe alternative to rewind.
+        val original = repo.observeMessages(convId).first()
+        assertEquals(4, original.size)
+    }
+
+    @Test
+    fun `fork gives copied messages new ids so the two chats stay independent`() = runTest {
+        val convId = repo.createConversation()
+        val msgs = seedTurns(convId, 5_000_000L)
+
+        val forkId = repo.forkFrom(convId, msgs[3], "forked")
+
+        val originalIds = repo.observeMessages(convId).first().map { it.id }.toSet()
+        val forkedIds = repo.observeMessages(forkId).first().map { it.id }.toSet()
+
+        assertEquals(4, forkedIds.size)
+        assertTrue("a fork must not share rows with its source", (originalIds intersect forkedIds).isEmpty())
+        assertTrue(repo.observeMessages(forkId).first().all { it.conversationId == forkId })
+    }
 }

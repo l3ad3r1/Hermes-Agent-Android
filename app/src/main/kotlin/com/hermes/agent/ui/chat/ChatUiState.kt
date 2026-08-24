@@ -20,6 +20,8 @@ data class ChatUiState(
     val streamingAgentRole: AgentRole? = null,
     val isSending: Boolean = false,
     val errorMessage: String? = null,
+    /** Transient confirmation, e.g. after a rewind. Not an error. */
+    val notice: String? = null,
     val title: String = "New conversation",
     /** Most recent execution plan (Phase 2). Null when no plan has been
      *  emitted for the current turn. */
