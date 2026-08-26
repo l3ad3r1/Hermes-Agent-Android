@@ -3,6 +3,7 @@ package com.hermes.agent.data.plugin
 import com.hermes.agent.data.local.dao.ScriptPluginDao
 import com.hermes.agent.data.local.entity.ScriptPluginEntity
 import com.hermes.agent.data.plugin.script.ScriptPluginEngine
+import com.hermes.agent.data.plugin.script.ScriptPluginHost
 import com.hermes.agent.data.plugin.script.ScriptPluginManifest
 import com.hermes.agent.data.plugin.script.ScriptPluginRegistry
 import com.hermes.agent.data.plugin.script.ScriptPluginRegistryEntry
@@ -32,7 +33,15 @@ class ScriptPluginRepository @Inject constructor(
     private val dao: ScriptPluginDao,
     private val engine: ScriptPluginEngine,
     private val toolRegistry: ToolRegistry,
+    host: ScriptPluginHost,
 ) {
+
+    init {
+        // The engine stays host-agnostic and unit-testable without this being
+        // wired; here is where the real, Room/OkHttp-backed implementation is
+        // handed to it for actual installs.
+        engine.host = host
+    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
