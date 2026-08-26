@@ -190,6 +190,7 @@ class ChatRepositoryImpl @Inject constructor(
         var finalAgentRole: AgentRole = AgentRole.DEFAULT
         var finalIsOnDevice: Boolean = true
         var replyCompleted = false
+        var failureMessage: String? = null
 
         orchestrator.run(conversationId, content, llmMessages, origin).collect { event ->
             when (event) {
@@ -212,6 +213,7 @@ class ChatRepositoryImpl @Inject constructor(
                 }
                 is OrchestratorEvent.Failed -> {
                     Timber.tag("ChatRepo").w("orchestration failed: %s", event.message)
+                    failureMessage = event.message
                 }
                 else -> { /* forward as-is */ }
             }
@@ -219,20 +221,28 @@ class ChatRepositoryImpl @Inject constructor(
         }
 
         // If the orchestrator stream ended without a ReplyComplete (e.g.
-        // because of a Failed mid-stream), persist whatever partial text
-        // we accumulated so the user doesn't lose it.
-        if (accumulator.isNotBlank() && !replyCompleted) {
-            val partialMessage = Message(
-                id = IdGenerator.newId(),
-                conversationId = conversationId,
-                role = MessageRole.ASSISTANT,
-                content = accumulator.toString(),
-                agentRole = AgentRole.DEFAULT,
-                timestamp = System.currentTimeMillis(),
-                tokens = (accumulator.length / 4).coerceAtLeast(1),
-                isOnDevice = finalIsOnDevice,
-            )
-            conversationRepository.addMessage(conversationId, partialMessage)
+        // because of a Failed mid-stream), persist whatever we have so the
+        // turn is never left with no assistant message at all.
+        //
+        // Partial text is preferred, but a failure with no text still has to be
+        // written down. A tool run that succeeded and then lost its provider
+        // used to leave the conversation showing only the user's message, so
+        // the work looked like it had never happened.
+        if (!replyCompleted) {
+            val content = accumulator.toString().ifBlank { failureMessage.orEmpty() }
+            if (content.isNotBlank()) {
+                val partialMessage = Message(
+                    id = IdGenerator.newId(),
+                    conversationId = conversationId,
+                    role = MessageRole.ASSISTANT,
+                    content = content,
+                    agentRole = AgentRole.DEFAULT,
+                    timestamp = System.currentTimeMillis(),
+                    tokens = (content.length / 4).coerceAtLeast(1),
+                    isOnDevice = finalIsOnDevice,
+                )
+                conversationRepository.addMessage(conversationId, partialMessage)
+            }
         }
     }
         .catch { t ->

@@ -18,10 +18,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
@@ -49,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +63,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -97,6 +105,21 @@ fun MessageBubble(
     }
 
     var actionsVisible by remember { mutableStateOf(false) }
+    // Selecting part of a message should offer Copy and nothing else. "Select
+    // all" duplicated the action row's whole-message copy, and what the
+    // selection toolbar is actually for is lifting a snippet out.
+    val platformToolbar = LocalTextToolbar.current
+    val snippetToolbar = remember(platformToolbar) { SnippetTextToolbar(platformToolbar) }
+    // The default selection highlight is the theme primary, which is also the
+    // user bubble's background — so selecting text in your own message
+    // highlighted white on white and looked like nothing happened. Deriving it
+    // from the bubble's own text colour keeps it legible on either side.
+    val selectionColors = remember(textColor) {
+        TextSelectionColors(
+            handleColor = textColor,
+            backgroundColor = textColor.copy(alpha = 0.30f),
+        )
+    }
     var confirmRewind by remember { mutableStateOf(false) }
     var activeArtifact by remember { mutableStateOf<CodeArtifact?>(null) }
     val artifacts = remember(message.content) {
@@ -180,12 +203,17 @@ fun MessageBubble(
                 }
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            SelectionContainer {
-                Text(
-                    text = message.content,
-                    color = textColor,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+            CompositionLocalProvider(
+                LocalTextToolbar provides snippetToolbar,
+                LocalTextSelectionColors provides selectionColors,
+            ) {
+                SelectionContainer {
+                    Text(
+                        text = message.content,
+                        color = textColor,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
 
         }
@@ -199,8 +227,10 @@ fun MessageBubble(
             exit = fadeOut() + shrinkVertically(),
         ) {
             Row(
-                modifier = Modifier.padding(top = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                // Sits right under the bubble: the row belongs to that message,
+                // and a gap made it read as floating between two of them.
+                modifier = Modifier.offset(y = (-6).dp),
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 var copied by remember { mutableStateOf(false) }
@@ -354,7 +384,7 @@ private fun MessageAction(
         tooltip = { PlainTooltip { Text(label) } },
         state = rememberTooltipState(),
     ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
+        IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
@@ -362,5 +392,27 @@ private fun MessageAction(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+/**
+ * Delegates to the platform text toolbar, minus "Select all".
+ *
+ * Copy, cut and paste are passed through untouched so partial selection still
+ * behaves exactly as it does everywhere else on the phone.
+ */
+private class SnippetTextToolbar(private val delegate: TextToolbar) : TextToolbar {
+    override val status: TextToolbarStatus get() = delegate.status
+
+    override fun hide() = delegate.hide()
+
+    override fun showMenu(
+        rect: Rect,
+        onCopyRequested: (() -> Unit)?,
+        onPasteRequested: (() -> Unit)?,
+        onCutRequested: (() -> Unit)?,
+        onSelectAllRequested: (() -> Unit)?,
+    ) {
+        delegate.showMenu(rect, onCopyRequested, onPasteRequested, onCutRequested, null)
     }
 }

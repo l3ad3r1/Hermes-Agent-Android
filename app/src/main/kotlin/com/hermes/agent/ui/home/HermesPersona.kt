@@ -12,13 +12,13 @@ import kotlin.math.absoluteValue
  *  - the time of day,
  *  - whether the background agent is currently working a Kanban ticket.
  *
- * The output [Presence] drives both the greeting text and the
- * [com.hermes.agent.ui.components.ExpressiveEyes] mood (inspired by the
- * Xiaozhi ESP32 desk robot's expressive-eye face).
+ * The output [Presence] drives both the greeting text and the mood that
+ * [com.hermes.agent.ui.bloub.HermesBot] draws, which maps each mood onto one of
+ * the states measured off the reference avatar.
  */
 object HermesPersona {
 
-    /** Eye expression states, in the spirit of the Xiaozhi desk robot. */
+    /** What Hermes is feeling; [com.hermes.agent.ui.bloub.moodState] turns it into a face. */
     enum class Mood { HAPPY, NEUTRAL, FOCUSED, SLEEPY, THINKING, SURPRISED, LISTENING, CELEBRATE }
 
     data class Presence(

@@ -1,6 +1,7 @@
 package com.hermes.agent.ui.delegate
 import com.hermes.agent.domain.settings.*
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -72,6 +75,29 @@ fun DelegateScreen(viewModel: DelegateViewModel = hiltViewModel()) {
     }
 }
 
+/**
+ * A small text badge, styled like Material3's `Badge` but square-with-rounded-corners
+ * instead of a pill — `Badge`'s content variant hardcodes a full-circle/pill shape
+ * (`BadgeTokens.LargeShape`), which isn't themeable in Material3 1.3.0.
+ */
+@Composable
+private fun SquareBadge(
+    containerColor: Color = MaterialTheme.colorScheme.error,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.extraSmall)
+            .background(containerColor)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CompositionLocalProvider(LocalContentColor provides contentColorFor(containerColor)) {
+            content()
+        }
+    }
+}
+
 @Composable
 private fun TaskCard(task: AgentTask, onDelete: () -> Unit) {
     val statusColor = when (task.status) {
@@ -85,7 +111,7 @@ private fun TaskCard(task: AgentTask, onDelete: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(task.label, style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Badge(containerColor = statusColor.copy(alpha = 0.15f)) {
+                SquareBadge(containerColor = statusColor.copy(alpha = 0.15f)) {
                     Text(task.status.label, color = statusColor,
                         style = MaterialTheme.typography.labelSmall)
                 }

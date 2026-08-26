@@ -12,10 +12,10 @@ import javax.inject.Singleton
 /**
  * Enqueues / cancels the periodic WorkManager job backing a [ScheduledTask].
  *
- * Shared by the cron UI ([com.hermes.agent.ui.cron.CronViewModel]) and backup
- * restore ([com.hermes.agent.data.backup.GithubBackupService]) so a restored
- * job is scheduled exactly like one created by hand — otherwise restored crons
- * would sit in the list but never fire.
+ * Driven by the cron UI ([com.hermes.agent.ui.cron.CronViewModel]). A restored
+ * install picks its jobs back up from the database, so anything that writes a
+ * task must schedule it here too — otherwise it sits in the list but never
+ * fires.
  */
 @Singleton
 class CronScheduler @Inject constructor(

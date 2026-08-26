@@ -24,11 +24,7 @@ class BootReceiver : BroadcastReceiver() {
         if (!shouldScheduleBootReconciliation(intent.action)) return
 
         Timber.i("Boot completed - scheduling Hermes task reconciliation")
-        val constraints = androidx.work.Constraints.Builder()
-            .setRequiresDeviceIdle(true)
-            .build()
         val request = OneTimeWorkRequestBuilder<AgentBootReconciliationWorker>()
-            .setConstraints(constraints)
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             AgentBootReconciliationWorker.UNIQUE_NAME,

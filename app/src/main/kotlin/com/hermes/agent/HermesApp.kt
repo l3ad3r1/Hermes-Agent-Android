@@ -87,6 +87,15 @@ class HermesApp : Application(), Configuration.Provider {
                 .onFailure { Timber.tag("Settings").w(it, "secret sweep unavailable") }
         }
 
+        // The Gist backup is gone, but an install that used it still holds the
+        // GitHub token it was given. Deleting the feature does not delete the
+        // credential, so clear it once here. Idempotent: a no-op after the
+        // first run, and on installs that never configured it.
+        applicationScope.launch {
+            runCatching { encryptedSettingsProvider.get().purgeRetiredGistCredentials() }
+                .onFailure { Timber.tag("Settings").w(it, "retired-credential purge failed") }
+        }
+
         // The built-in skills used to be seeded only by SkillsViewModel, so
         // they existed only once the user had opened Settings → Skills & Tools.
         // Anything that reads the skill list first — "Refine skills", skill

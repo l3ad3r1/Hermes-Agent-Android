@@ -42,6 +42,12 @@ timber = "5.0.1"
 # ONNX Runtime (on-device embeddings)
 onnxruntime = "1.22.0"
 
+# Shizuku (privileged shell)
+shizuku = "13.1.5"
+
+# Browser (Custom Tabs)
+browser = "1.8.0"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -52,6 +58,12 @@ robolectric = "4.13"
 archCoreTesting = "2.2.0"
 
 [libraries]
+# Browser
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+
+# Shizuku
+shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
+shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
 # AndroidX core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }

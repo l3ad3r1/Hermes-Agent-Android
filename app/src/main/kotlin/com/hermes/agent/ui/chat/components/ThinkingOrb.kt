@@ -178,7 +178,7 @@ internal val BREATHING = OrbStyle(
  *
  * Modelled on the Thinking Orbs indicators (orbs.jakubantalik.com), which are a
  * React canvas package and so unusable here. Pure Compose [Canvas], no images
- * and no WebView, following the same approach as ExpressiveEyes.
+ * and no WebView, following the same approach as the bot face in ui/bloub.
  *
  * A points-on-black treatment happens to suit Hermes exactly: the app's palette
  * is deliberately monochrome, so the single theme colour is all this needs.

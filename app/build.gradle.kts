@@ -165,6 +165,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        aidl = true
         // shortcuts.xml resolves the variant's application id through a
         // generated string resource.
         resValues = true
@@ -197,6 +198,9 @@ kotlin {
         freeCompilerArgs.addAll(
             "-Xjvm-default=all",
             "-opt-in=kotlin.RequiresOptIn",
+            // Carried over from Octo Jotter's build: its annotated constructor properties
+            // rely on the pre-2.2 default annotation target.
+            "-Xannotation-default-target=param-property",
         )
     }
 }
@@ -222,6 +226,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.browser)
 
     // --- Compose (BOM-managed) ---
     implementation(platform(libs.androidx.compose.bom))
@@ -261,6 +266,10 @@ dependencies {
 
     // --- Logging ---
     implementation(libs.timber)
+
+    // --- Shizuku (privileged shell) ---
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     // --- ONNX Runtime (on-device embeddings) ---
     implementation(libs.onnxruntime.android)

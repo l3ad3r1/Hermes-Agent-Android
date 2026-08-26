@@ -2,9 +2,9 @@ package com.hermes.agent.ui.settings
 import com.hermes.agent.domain.llm.*
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hermes.agent.data.backup.GithubBackupService
 import com.hermes.agent.data.llm.CloudModelCatalog
 import com.hermes.agent.data.llm.CloudProviderRegistry
 import com.hermes.agent.data.security.KeystoreManager
@@ -77,13 +77,72 @@ class SettingsViewModel @Inject constructor(
     private val keystore: KeystoreManager,
     private val otaUpdateChecker: OtaUpdateChecker,
     private val otaInstaller: OtaInstaller,
-    private val githubBackupService: GithubBackupService,
     private val sessionExporter: SessionExporter,
     private val cloudModelCatalog: CloudModelCatalog,
     private val localLlmManager: com.hermes.agent.data.llm.LocalLlmManager,
     private val localBackupManager: LocalBackupManager,
     private val deviceAuthenticationService: DeviceAuthenticationService = DeviceAuthenticationService(),
+    private val privilegedShellBackend: com.hermes.agent.domain.device.PrivilegedShellBackend,
+    private val privilegedShellRetryGate: com.hermes.agent.data.device.PrivilegedShellRetryGate,
+    private val oauthManager: com.hermes.agent.data.oauth.OAuthManager,
+    private val oauthCallbackReceiver: com.hermes.agent.data.oauth.OAuthCallbackReceiver,
 ) : ViewModel() {
+
+    // ─── Privileged Shell (Shizuku) ──────────────────────────────────────────
+    private val _privilegedStatus = MutableStateFlow(
+        com.hermes.agent.domain.device.PrivilegedShellBackend.PrivilegedStatus(
+            com.hermes.agent.domain.device.PrivilegedShellBackend.Status.NOT_INSTALLED,
+        ),
+    )
+    val privilegedStatus: StateFlow<com.hermes.agent.domain.device.PrivilegedShellBackend.PrivilegedStatus> =
+        _privilegedStatus.asStateFlow()
+    val privilegedRetryGateStatus = privilegedShellRetryGate.status
+
+    init {
+        refreshPrivilegedStatus()
+        viewModelScope.launch {
+            oauthCallbackReceiver.events.collect { event ->
+                when (event) {
+                    is com.hermes.agent.data.oauth.OAuthCallbackEvent.Success -> {
+                        handleOAuthSuccess(event.session, event.code)
+                    }
+                    is com.hermes.agent.data.oauth.OAuthCallbackEvent.Error -> {
+                        timber.log.Timber.w("OAuth failed: %s", event.error)
+                        event.session?.let { session ->
+                            setProviderDiscovery(
+                                session.providerId,
+                                ModelDiscoveryUiState.Error("Sign in failed: ${event.error}"),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun refreshPrivilegedStatus() {
+        viewModelScope.launch {
+            _privilegedStatus.value = privilegedShellBackend.getStatus()
+        }
+    }
+
+    fun requestPrivilegedPermission() {
+        viewModelScope.launch {
+            privilegedShellBackend.requestPermission()
+            _privilegedStatus.value = privilegedShellBackend.getStatus()
+        }
+    }
+
+    fun resetPrivilegedGate() {
+        privilegedShellRetryGate.resetGate()
+    }
+
+    fun setPrivilegedShellEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setPrivilegedShellEnabled(enabled)
+            refreshPrivilegedStatus()
+        }
+    }
 
     // ─── Appearance settings ────────────────────────────────────────────────
 
@@ -163,6 +222,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { localLlmManager.startDownload() }
     }
 
+    fun cancelModelDownload() = localLlmManager.cancelDownload()
+
     fun clearModelDownloadError() = localLlmManager.clearDownloadError()
 
     /** Persist the chosen catalog model; the download check follows the switch. */
@@ -175,6 +236,16 @@ class SettingsViewModel @Inject constructor(
     fun setModelDownloadDir(dir: String) = viewModelScope.launch {
         localLlmManager.setModelDownloadDir(dir.trim())
         isModelDownloaded.value = localLlmManager.isModelDownloaded()
+    }
+
+    /** Evaluates device RAM preflight for the current model selection. */
+    fun evaluatePreflightForSelectedModel(settings: UserSettings): com.hermes.agent.data.llm.PreflightDecision {
+        return if (settings.localModelUri.isNotBlank()) {
+            localLlmManager.evaluateCustomModelPreflight(Uri.parse(settings.localModelUri))
+        } else {
+            val model = com.hermes.agent.data.llm.ModelCatalog.byId(settings.selectedModelId)
+            localLlmManager.evaluatePreflight(model)
+        }
     }
 
     /** Whether the app can write models to a user-visible shared folder. */
@@ -199,9 +270,6 @@ class SettingsViewModel @Inject constructor(
 
     private val _updateState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
     val updateState: StateFlow<UpdateUiState> = _updateState.asStateFlow()
-
-    private val _backupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
-    val backupState: StateFlow<BackupUiState> = _backupState.asStateFlow()
 
     private val _localBackupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
     val localBackupState: StateFlow<BackupUiState> = _localBackupState.asStateFlow()
@@ -313,13 +381,56 @@ class SettingsViewModel @Inject constructor(
         if (changed) settingsRepository.setCloudProviderProfiles(repaired)
     }
 
+    fun addProvider(
+        definitionId: String,
+        customName: String? = null,
+        customBaseUrl: String? = null,
+        apiKey: String = "",
+    ) = viewModelScope.launch {
+        val current = settingsRepository.current().cloudProviderProfiles
+        val profile = if (definitionId == "custom" || definitionId.startsWith("custom_")) {
+            val id = if (definitionId == "custom") "custom_${System.currentTimeMillis()}" else definitionId
+            val name = customName?.takeIf { it.isNotBlank() } ?: "Custom Provider"
+            val baseUrl = customBaseUrl?.trim()?.ifBlank { "http://localhost:11434/v1" } ?: "http://localhost:11434/v1"
+            com.hermes.agent.domain.settings.CloudProviderProfile(
+                id = id,
+                name = name,
+                baseUrl = baseUrl,
+                model = "default",
+                apiKey = apiKey.trim(),
+                enabled = true,
+                quality = 0.85,
+                cost = 0.05,
+                latency = 0.65,
+                toolReliability = 0.85,
+            )
+        } else {
+            val definition = CloudProviderRegistry.definition(definitionId) ?: return@launch
+            CloudProviderRegistry.profile(definition, apiKey.trim()).copy(
+                baseUrl = customBaseUrl?.trim()?.ifBlank { definition.defaultBaseUrl } ?: definition.defaultBaseUrl,
+                enabled = apiKey.isNotBlank(),
+            )
+        }
+        settingsRepository.setCloudProviderProfiles(current.filterNot { it.id == profile.id } + profile)
+        if (profile.apiKey.isNotBlank() || profile.id.startsWith("custom_")) {
+            settingsRepository.setCloudEnabled(true)
+            refreshProviderModels(profile.id)
+        }
+    }
+
+    fun removeProvider(providerId: String) = viewModelScope.launch {
+        val current = settingsRepository.current().cloudProviderProfiles
+        settingsRepository.setCloudProviderProfiles(current.filterNot { it.id == providerId })
+        _providerModelDiscovery.value = _providerModelDiscovery.value - providerId
+    }
+
     fun setProviderApiKey(providerId: String, key: String) = viewModelScope.launch {
         updateProvider(providerId) { it.copy(apiKey = key, enabled = key.isNotBlank()) }
         if (key.isNotBlank()) settingsRepository.setCloudEnabled(true)
     }
 
     fun setProviderEnabled(providerId: String, enabled: Boolean) = viewModelScope.launch {
-        updateProvider(providerId) { it.copy(enabled = enabled && it.apiKey.isNotBlank()) }
+        updateProvider(providerId) { it.copy(enabled = enabled && (it.apiKey.isNotBlank() || it.id.startsWith("custom_"))) }
     }
 
     fun setProviderBaseUrl(providerId: String, baseUrl: String) = viewModelScope.launch {
@@ -338,17 +449,17 @@ class SettingsViewModel @Inject constructor(
             val profile = current.cloudProviderProfiles.firstOrNull { it.id == providerId }
                 ?: CloudProviderRegistry.definition(providerId)?.let(CloudProviderRegistry::profile)
                 ?: return@launch
-            if (profile.apiKey.isBlank() || profile.baseUrl.isBlank()) {
+            if (profile.baseUrl.isBlank()) {
                 setProviderDiscovery(providerId, ModelDiscoveryUiState.Idle)
                 return@launch
             }
             setProviderDiscovery(providerId, ModelDiscoveryUiState.Loading)
             val state = discoverModels(CloudEndpoint(profile.baseUrl, profile.apiKey))
             if (state is ModelDiscoveryUiState.Ready) {
-                val definition = requireNotNull(CloudProviderRegistry.definition(providerId))
+                val definition = CloudProviderRegistry.definition(providerId)
                 val bestModel = CloudProviderRegistry.bestModel(definition, state.models)
                 val selectedModel = when {
-                    bestModel == null -> profile.model
+                    bestModel == null -> profile.model.ifBlank { state.models.firstOrNull().orEmpty() }
                     profile.modelAutoSelected -> bestModel
                     profile.model !in state.models -> bestModel
                     else -> profile.model
@@ -379,11 +490,57 @@ class SettingsViewModel @Inject constructor(
         transform: (com.hermes.agent.domain.settings.CloudProviderProfile) -> com.hermes.agent.domain.settings.CloudProviderProfile,
     ) {
         val current = settingsRepository.current().cloudProviderProfiles
-        val definition = requireNotNull(CloudProviderRegistry.definition(providerId))
-        val existing = current.firstOrNull { it.id == providerId } ?: CloudProviderRegistry.profile(definition)
+        val existing = current.firstOrNull { it.id == providerId }
+            ?: CloudProviderRegistry.definition(providerId)?.let(CloudProviderRegistry::profile)
+            ?: com.hermes.agent.domain.settings.CloudProviderProfile(
+                id = providerId,
+                name = "Custom Provider",
+                baseUrl = "",
+                model = "",
+                apiKey = "",
+                enabled = false,
+                quality = 0.85,
+                cost = 0.05,
+                latency = 0.65,
+                toolReliability = 0.85,
+            )
         settingsRepository.setCloudProviderProfiles(
             current.filterNot { it.id == providerId } + transform(existing),
         )
+    }
+
+    fun startOAuthFlow(providerId: String, context: Context) {
+        viewModelScope.launch {
+            try {
+                val (authUrl, session) = oauthManager.buildAuthorizationUrl(providerId)
+                oauthCallbackReceiver.registerPendingSession(session)
+                setProviderDiscovery(providerId, ModelDiscoveryUiState.Loading)
+                val customTabsIntent = androidx.browser.customtabs.CustomTabsIntent.Builder()
+                    .setShowTitle(true)
+                    .build()
+                try {
+                    customTabsIntent.launchUrl(context, android.net.Uri.parse(authUrl))
+                } catch (t: Throwable) {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(authUrl)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(browserIntent)
+                }
+            } catch (t: Throwable) {
+                setProviderDiscovery(providerId, ModelDiscoveryUiState.Error(t.message ?: "Failed to start sign in"))
+            }
+        }
+    }
+
+    private suspend fun handleOAuthSuccess(session: com.hermes.agent.domain.oauth.OAuthSession, code: String) {
+        setProviderDiscovery(session.providerId, ModelDiscoveryUiState.Loading)
+        val result = oauthManager.exchangeCodeForApiKey(session, code)
+        result.onSuccess { exchange ->
+            setProviderApiKey(exchange.providerId, exchange.apiKey)
+            refreshProviderModels(exchange.providerId, debounceMillis = 0L)
+        }.onFailure { t ->
+            setProviderDiscovery(session.providerId, ModelDiscoveryUiState.Error(t.message ?: "Key exchange failed"))
+        }
     }
 
     fun setCloudApiKey(key: String) = viewModelScope.launch {
@@ -496,6 +653,9 @@ class SettingsViewModel @Inject constructor(
 
     private companion object {
         const val MODEL_DISCOVERY_DEBOUNCE_MS = 600L
+
+        /** Long enough for the restore confirmation to be readable before the relaunch. */
+        const val RESTART_NOTICE_MS = 1_200L
     }
 
     // --- OTA update ---
@@ -544,65 +704,6 @@ class SettingsViewModel @Inject constructor(
         _updateState.value = UpdateUiState.Idle
     }
 
-    // --- Backup ---
-
-    fun setGithubPat(pat: String) = viewModelScope.launch {
-        settingsRepository.setGithubPat(pat)
-    }
-
-    /** Lets the user paste a Gist ID manually — needed to restore on a fresh install. */
-    fun setGistId(gistId: String) = viewModelScope.launch {
-        settingsRepository.setGistId(gistId.trim())
-    }
-
-    fun backupNow() {
-        if (_backupState.value is BackupUiState.InProgress) return
-        _backupState.value = BackupUiState.InProgress
-        viewModelScope.launch {
-            val s = settings.value
-            val result = githubBackupService.backup(s.githubPat, s.gistId.ifBlank { null })
-            _backupState.value = when (result) {
-                is GithubBackupService.BackupResult.Success -> {
-                    settingsRepository.setGistId(result.gistId)
-                    settingsRepository.setLastBackupTimestamp(result.timestamp)
-                    BackupUiState.Success("Backup saved to GitHub Gist (${result.gistId.take(8)}…)")
-                }
-                is GithubBackupService.BackupResult.Failure ->
-                    BackupUiState.Error(result.message)
-            }
-        }
-    }
-
-    fun restoreBackup() {
-        if (_backupState.value is BackupUiState.InProgress) return
-        _backupState.value = BackupUiState.InProgress
-        viewModelScope.launch {
-            val s = settings.value
-            val result = githubBackupService.restore(s.githubPat, s.gistId)
-            _backupState.value = when (result) {
-                is GithubBackupService.RestoreResult.Success -> {
-                    val settingsMsg = if (result.settingsRestored) "settings, " else ""
-                    BackupUiState.Success(
-                        "Restored $settingsMsg${result.memoriesImported} memories, " +
-                            "${result.skillsImported} skills, and ${result.cronsImported} cron jobs."
-                    )
-                }
-                is GithubBackupService.RestoreResult.Failure ->
-                    BackupUiState.Error(result.message)
-            }
-        }
-    }
-
-    fun clearGistId() = viewModelScope.launch {
-        settingsRepository.setGistId("")
-        settingsRepository.setLastBackupTimestamp(0L)
-        _backupState.value = BackupUiState.Idle
-    }
-
-    fun dismissBackupState() {
-        _backupState.value = BackupUiState.Idle
-    }
-
     // --- Local On-Device Backup ---
 
     fun createLocalBackup() {
@@ -630,7 +731,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val result = localBackupManager.restoreFromZip(uri)
             if (result.isSuccess) {
+                // The restart lives here, not inside the manager. It used to kill
+                // the process before this line ran, so a restore showed no
+                // confirmation — and a rejected archive killed the app just the
+                // same, with no way to tell the two apart.
                 _localBackupState.value = BackupUiState.Success("Backup restored. Restarting...")
+                delay(RESTART_NOTICE_MS)
+                localBackupManager.restartApp()
             } else {
                 _localBackupState.value = BackupUiState.Error(result.exceptionOrNull()?.message ?: "Failed to restore backup")
             }

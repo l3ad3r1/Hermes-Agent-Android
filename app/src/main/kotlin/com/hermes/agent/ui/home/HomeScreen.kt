@@ -38,14 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.domain.model.Conversation
-import com.hermes.agent.ui.components.ExpressiveEyes
-import com.hermes.agent.ui.components.HermesDiamond
+import com.hermes.agent.ui.bloub.HermesBot
 import com.hermes.agent.core.theme.GeistMono
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 
 /**
  * Home dashboard — the app's landing surface: greeting, the active cloud model,
@@ -56,7 +50,6 @@ fun HomeScreen(
     onOpenConversations: () -> Unit,
     onNewChat: (conversationId: String) -> Unit,
     onOpenConnections: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenKanban: () -> Unit = {},
     onOpenMemory: () -> Unit = {},
     onOpenSkills: () -> Unit = {},
@@ -78,26 +71,28 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
     ) {
-        // Presence header: poked eyes + status line + settings icon
+        // Presence header: pokeable face + status line. Settings lives in the
+        // bottom navigation, so the header keeps the full width for the status.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ExpressiveEyes(
+            // 86.dp is the whole viewBox, not the ball: the bot itself is about
+            // 0.63 of it, and the margin is what the orbit rings need to stay in
+            // frame. Colour and shape come from the customiser.
+            HermesBot(
                 mood = presence.mood,
-                eyeColor = scheme.primary,
-                width = 72.dp,
-                height = 40.dp,
-                // Poke Hermes: startled eyes + a quip for a few seconds.
+                size = 86.dp,
+                // Poke Hermes: the body collapses and the particles spiral in.
                 modifier = Modifier.clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = viewModel::poke,
                 ),
             )
-            Spacer(Modifier.size(14.dp))
+            Spacer(Modifier.size(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(presence.greeting, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
                 Text(
@@ -105,23 +100,6 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = scheme.onBackground,
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(scheme.surface)
-                    .border(1.dp, scheme.outline.copy(alpha = 0.4f), RoundedCornerShape(percent = 50))
-                    .clickable(onClick = onOpenSettings)
-                    .semantics { contentDescription = "Open settings" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = null,
-                    tint = scheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
                 )
             }
         }
@@ -164,7 +142,7 @@ fun HomeScreen(
             )
             QuickAction(
                 title = "Kanban Board",
-                subtitle = "Background task queue",
+                subtitle = "Task queue",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenKanban,
             )
@@ -175,13 +153,13 @@ fun HomeScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             QuickAction(
                 title = "Starmap Memory",
-                subtitle = "2D Knowledge graph",
+                subtitle = "Knowledge graph",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenMemory,
             )
             QuickAction(
                 title = "Skill Studio",
-                subtitle = "Custom tools & agents",
+                subtitle = "Custom tools",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenSkills,
             )
@@ -198,7 +176,7 @@ fun HomeScreen(
             )
             QuickAction(
                 title = "Messaging & Bot",
-                subtitle = "Telegram 24/7 gateway",
+                subtitle = "Telegram gateway",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenConnections,
             )
@@ -209,13 +187,13 @@ fun HomeScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             QuickAction(
                 title = "A/B Benchmark",
-                subtitle = "Live latency & tok/s",
+                subtitle = "Latency & tok/s",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenExperiment,
             )
             QuickAction(
                 title = "Knowledge Base",
-                subtitle = "SAF documents & RAG",
+                subtitle = "Documents & RAG",
                 modifier = Modifier.weight(1f),
                 onClick = onOpenDocuments,
             )
@@ -237,6 +215,12 @@ fun HomeScreen(
 }
 
 
+/**
+ * One superpower tile. Every element sits at a fixed offset from the top of the
+ * card so tiles read as one repeated template: a title that always reserves two
+ * lines whatever the device font scale, then a single-line subtitle. Because the title always reserves two lines and the subtitle one,
+ * every tile resolves to the same height without an intrinsic-measure pass.
+ */
 @Composable
 private fun QuickAction(
     title: String,
@@ -253,18 +237,27 @@ private fun QuickAction(
             .clickable(onClick = onClick)
             .padding(14.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(scheme.primary.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            HermesDiamond(tileSize = 16.dp, glyphSize = 7.dp, cornerRadius = 4.dp, glow = false)
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = scheme.onSurface)
-        Text(subtitle, fontSize = 11.5.sp, color = scheme.onSurfaceVariant)
+        Text(
+            title,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            lineHeight = 17.sp,
+            color = scheme.onSurface,
+            // Reserving both lines keeps subtitles on a shared baseline whether
+            // the title wraps ("Starmap Memory") or not ("New Chat").
+            minLines = 2,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            subtitle,
+            fontSize = 11.5.sp,
+            lineHeight = 14.sp,
+            color = scheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

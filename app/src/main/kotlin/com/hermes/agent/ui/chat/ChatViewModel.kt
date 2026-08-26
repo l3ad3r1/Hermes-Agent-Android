@@ -140,8 +140,20 @@ class ChatViewModel @Inject constructor(
 
     val state: StateFlow<ChatUiState> get() = uiState
 
+    /**
+     * Edit a turn in place.
+     *
+     * The original turn is removed first. Prefilling the composer alone left
+     * the old message sitting above its own replacement, so an edited turn
+     * appeared twice and the model saw both — an edit is meant to change a
+     * message, not add one.
+     */
     fun editMessage(message: Message) {
-        _inputPrefill.value = message.content
+        viewModelScope.launch {
+            runCatching { conversationRepository.rewindTo(conversationId, message) }
+                .onFailure { Timber.tag("Chat").w(it, "could not clear the turn being edited") }
+            _inputPrefill.value = message.content
+        }
     }
 
     /**
@@ -183,13 +195,23 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Re-run a turn against a different model.
+     *
+     * Like [editMessage], this replaces the turn rather than appending one:
+     * retrying used to leave "Update to high" and "[ultrabrain] Update to high"
+     * stacked in the transcript, which reads as the user asking twice.
+     */
     fun retryWithAlias(message: Message, alias: String) {
         val cleanContent = message.content
             .removePrefix("[ultrabrain] ")
             .removePrefix("[quick] ")
             .trim()
-        val prompt = "[$alias] $cleanContent"
-        sendMessage(prompt)
+        viewModelScope.launch {
+            runCatching { conversationRepository.rewindTo(conversationId, message) }
+                .onFailure { Timber.tag("Chat").w(it, "could not clear the turn being retried") }
+            sendMessage("[$alias] $cleanContent")
+        }
     }
 
     fun sendMessage(content: String) {
