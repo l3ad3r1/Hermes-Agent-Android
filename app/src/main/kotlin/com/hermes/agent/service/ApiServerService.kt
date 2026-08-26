@@ -21,7 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.net.NetworkInterface
 import javax.inject.Inject
@@ -66,37 +66,43 @@ class ApiServerService : Service() {
     private fun startServer() {
         if (server != null) return
 
-        val settings = runBlocking { settingsRepository.current() }
-        val host = if (settings.apiServerAllowLan) "0.0.0.0" else "127.0.0.1"
-        val port = settings.apiServerPort
-        val displayHost = if (settings.apiServerAllowLan) (lanIpv4() ?: "0.0.0.0") else "127.0.0.1"
-
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
-            buildNotification("API server running", "http://$displayHost:$port/v1"),
+            buildNotification("API server starting...", ""),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
         )
 
-        val srv = HermesApiServer(
-            hostname = host,
-            port = port,
-            apiKey = settings.apiServerKey,
-            orchestrator = orchestrator,
-            scope = scope,
-        )
-        try {
-            // NanoHTTPD.start with SOCKET_READ_TIMEOUT and daemon=false so the
-            // listener thread keeps the server alive alongside the service.
-            srv.start(NanoTimeouts.SOCKET_READ_TIMEOUT, false)
-            server = srv
-            ApiServerController.setRunning(displayHost, port)
-            Timber.tag("ApiServer").i("started on %s:%d (lan=%b)", host, port, settings.apiServerAllowLan)
-        } catch (t: Throwable) {
-            Timber.tag("ApiServer").e(t, "failed to start on port %d", port)
-            ApiServerController.setError(t.message ?: "failed to start (port $port in use?)")
-            runCatching { srv.stop() }
-            stopSelf()
+        scope.launch(Dispatchers.IO) {
+            val settings = settingsRepository.current()
+            val host = if (settings.apiServerAllowLan) "0.0.0.0" else "127.0.0.1"
+            val port = settings.apiServerPort
+            val displayHost = if (settings.apiServerAllowLan) (lanIpv4() ?: "0.0.0.0") else "127.0.0.1"
+
+            val notification = buildNotification("API server running", "http://$displayHost:$port/v1")
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            notificationManager?.notify(NOTIFICATION_ID, notification)
+
+            val srv = HermesApiServer(
+                hostname = host,
+                port = port,
+                apiKey = settings.apiServerKey,
+                orchestrator = orchestrator,
+                scope = scope,
+            )
+            try {
+                // NanoHTTPD.start with SOCKET_READ_TIMEOUT and daemon=false so the
+                // listener thread keeps the server alive alongside the service.
+                srv.start(NanoTimeouts.SOCKET_READ_TIMEOUT, false)
+                server = srv
+                ApiServerController.setRunning(displayHost, port)
+                Timber.tag("ApiServer").i("started on %s:%d (lan=%b)", host, port, settings.apiServerAllowLan)
+            } catch (t: Throwable) {
+                Timber.tag("ApiServer").e(t, "failed to start on port %d", port)
+                ApiServerController.setError(t.message ?: "failed to start (port $port in use?)")
+                runCatching { srv.stop() }
+                stopSelf()
+            }
         }
     }
 

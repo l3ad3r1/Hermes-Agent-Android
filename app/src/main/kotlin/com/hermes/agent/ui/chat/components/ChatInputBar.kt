@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.hermes.agent.R
+import com.hermes.agent.core.theme.HermesPalette
 
 /** Rounded, reference-style composer with quick actions, text, voice, and send controls. */
 @Composable
@@ -173,9 +174,13 @@ fun ChatInputBar(
                 }
             }
 
-            val actionColor = if (isSending || voiceChatActive) {
-                MaterialTheme.colorScheme.error
-            } else MaterialTheme.colorScheme.primary
+            // Stop is red; everything else stays monochrome. See
+            // HermesPalette.Stop for why this one control breaks the palette.
+            val actionColor = when {
+                isSending -> HermesPalette.Stop
+                voiceChatActive -> MaterialTheme.colorScheme.error
+                else -> MaterialTheme.colorScheme.primary
+            }
             Surface(
                 onClick = when {
                     isSending -> onCancel
@@ -185,9 +190,11 @@ fun ChatInputBar(
                 modifier = Modifier.size(48.dp),
                 shape = RoundedCornerShape(24.dp),
                 color = actionColor,
-                contentColor = if (isSending || voiceChatActive) {
-                    MaterialTheme.colorScheme.onError
-                } else MaterialTheme.colorScheme.onPrimary,
+                contentColor = when {
+                    isSending -> HermesPalette.OnStop
+                    voiceChatActive -> MaterialTheme.colorScheme.onError
+                    else -> MaterialTheme.colorScheme.onPrimary
+                },
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     // In voice chat the button becomes the orb. The theme's

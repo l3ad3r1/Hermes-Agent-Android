@@ -15,53 +15,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
-/**
- * The Hermes brand mark — a rotated rounded square ("diamond") sitting on an
- * accent tile, matching the Nous design. Used in onboarding, chat header and
- * the home dashboard.
- */
-@Composable
-fun HermesDiamond(
-    modifier: Modifier = Modifier,
-    tileSize: Dp = 62.dp,
-    glyphSize: Dp = 22.dp,
-    cornerRadius: Dp = 18.dp,
-    tileColor: Color = MaterialTheme.colorScheme.primary,
-    glyphColor: Color = MaterialTheme.colorScheme.onPrimary,
-    glow: Boolean = true,
-) {
-    val shape = RoundedCornerShape(cornerRadius)
-    Box(
-        modifier = modifier
-            .then(
-                if (glow) Modifier.shadow(
-                    elevation = 28.dp,
-                    shape = shape,
-                    ambientColor = tileColor,
-                    spotColor = tileColor,
-                ) else Modifier
-            )
-            .size(tileSize)
-            .background(tileColor, shape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(glyphSize)
-                .rotate(45f)
-                .background(glyphColor, RoundedCornerShape(glyphSize / 7)),
-        )
-    }
-}
 
 /**
  * A monospace block-cursor that blinks, for terminal-style chips

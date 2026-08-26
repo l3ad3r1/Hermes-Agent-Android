@@ -18,6 +18,8 @@ import com.hermes.agent.data.performance.MemoryPressureMonitor
 import com.hermes.agent.debug.DebugScreenAwake
 import com.hermes.agent.core.settings.HermesSettings
 import com.hermes.agent.domain.repository.ExecutionPlanRepository
+import com.hermes.agent.data.plugin.ScriptPluginRepository
+import com.hermes.agent.domain.repository.SkillRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +60,12 @@ class HermesApp : Application(), Configuration.Provider {
     lateinit var encryptedSettingsProvider:
         Provider<com.hermes.agent.data.security.EncryptedSettingsRepository>
 
+    @Inject
+    lateinit var skillRepositoryProvider: Provider<SkillRepository>
+
+    @Inject
+    lateinit var scriptPluginRepositoryProvider: Provider<ScriptPluginRepository>
+
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCreate() {
@@ -77,6 +85,37 @@ class HermesApp : Application(), Configuration.Provider {
         applicationScope.launch {
             runCatching { encryptedSettingsProvider.get().clearUnreadableSecrets() }
                 .onFailure { Timber.tag("Settings").w(it, "secret sweep unavailable") }
+        }
+
+        // The Gist backup is gone, but an install that used it still holds the
+        // GitHub token it was given. Deleting the feature does not delete the
+        // credential, so clear it once here. Idempotent: a no-op after the
+        // first run, and on installs that never configured it.
+        applicationScope.launch {
+            runCatching { encryptedSettingsProvider.get().purgeRetiredGistCredentials() }
+                .onFailure { Timber.tag("Settings").w(it, "retired-credential purge failed") }
+        }
+
+        // The built-in skills used to be seeded only by SkillsViewModel, so
+        // they existed only once the user had opened Settings → Skills & Tools.
+        // Anything that reads the skill list first — "Refine skills", skill
+        // activation during a turn — saw an empty table and looked broken.
+        applicationScope.launch {
+            runCatching { skillRepositoryProvider.get().seedBuiltIn() }
+                .onFailure { Timber.tag("Skills").w(it, "built-in skill seeding failed") }
+        }
+
+        // Installed modules register their tools at startup. Without this the
+        // agent would only see them after the user opened Settings → Modules,
+        // so an installed module would silently do nothing until then.
+        applicationScope.launch {
+            runCatching { scriptPluginRepositoryProvider.get().reloadEnabled() }
+                .onSuccess { failures ->
+                    if (failures.isNotEmpty()) {
+                        Timber.tag("Modules").w("modules failed to load: %s", failures.joinToString())
+                    }
+                }
+                .onFailure { Timber.tag("Modules").w(it, "module loading unavailable") }
         }
 
         applicationScope.launch {

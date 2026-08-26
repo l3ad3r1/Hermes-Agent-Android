@@ -55,21 +55,28 @@ class AgentLoopRunner @Inject constructor(
         onToolRequested: suspend (ToolCall, Boolean) -> Unit,
         confirmationGate: ToolCallExecutor.ConfirmationGate?,
         onToolResult: suspend (ToolCall, ToolResult) -> Unit,
-    ): AgentLoopOutcome = withTimeoutOrNull(MAX_LOOP_DURATION_MS) {
-        runWithinBudget(
-            provider,
-            initialMessages,
-            tools,
-            origin,
-            onToolRequested,
-            confirmationGate,
-            onToolResult,
+    ): AgentLoopOutcome {
+        // Collected outside the timeout. When the budget ran out this reported
+        // no tools at all, so a turn that had already created a task looked to
+        // every caller like nothing had happened.
+        val toolsInvoked = mutableListOf<String>()
+        return withTimeoutOrNull(MAX_LOOP_DURATION_MS) {
+            runWithinBudget(
+                provider,
+                initialMessages,
+                tools,
+                origin,
+                onToolRequested,
+                confirmationGate,
+                onToolResult,
+                toolsInvoked,
+            )
+        } ?: AgentLoopOutcome.Failed(
+            AgentLoopFailureReason.TIMED_OUT,
+            "Hermes stopped because this task took too long. Try again or split it into smaller steps.",
+            toolsInvoked.toList(),
         )
-    } ?: AgentLoopOutcome.Failed(
-        AgentLoopFailureReason.TIMED_OUT,
-        "Hermes stopped because this task took too long. Try again or split it into smaller steps.",
-        emptyList(),
-    )
+    }
 
     private suspend fun runWithinBudget(
         provider: LlmProvider,
@@ -79,15 +86,22 @@ class AgentLoopRunner @Inject constructor(
         onToolRequested: suspend (ToolCall, Boolean) -> Unit,
         confirmationGate: ToolCallExecutor.ConfirmationGate?,
         onToolResult: suspend (ToolCall, ToolResult) -> Unit,
+        toolsInvoked: MutableList<String>,
     ): AgentLoopOutcome {
         var messages = initialMessages
-        val toolsInvoked = mutableListOf<String>()
         val guardSession = executionGuard.openSession()
+        // Results of calls recovered from a model that could not produce the
+        // tool envelope. Only those are answered from here on a repeat: such a
+        // model routinely cannot read a tool result and reissues the identical
+        // call, which for a create-style tool wrote a duplicate row every round.
+        // A call the model formatted properly is left alone, because repeating
+        // one with a changing result is legitimate progress.
+        val recoveredResults = mutableMapOf<String, ToolResult>()
 
         repeat(MAX_TOOL_ROUNDS) { round ->
             val response = provider.completeWithTools(messages, tools)
             if (response.toolCalls.isEmpty()) {
-                return AgentLoopOutcome.Completed(response.content, toolsInvoked)
+                return AgentLoopOutcome.Completed(response.content, toolsInvoked.toList())
             }
 
             messages = messages + LlmMessage(
@@ -105,12 +119,25 @@ class AgentLoopRunner @Inject constructor(
                 val mustConfirm = decision is ToolExecutionDecision.Confirm
                 onToolRequested(call, mustConfirm)
 
+                val signature = call.name + "|" +
+                    RepeatedExecutionGuard.canonicalArguments(call.arguments)
+                val repeated = if (call.id.startsWith(RECOVERED_CALL_PREFIX)) {
+                    recoveredResults[signature]
+                } else {
+                    null
+                }
                 val result = when {
                     tools.none { it.name == call.name } -> ToolResult.error("unauthorized tool: ${call.name}")
                     decision is ToolExecutionDecision.Deny -> ToolResult.error(decision.reason)
                     mustConfirm && confirmationGate?.confirm(call, true) != true ->
                         ToolResult.error("user declined")
-                    else -> toolCallExecutor.execute(call, confirmationGate = null)
+                    // A small model that cannot read a tool result often just
+                    // reissues the same call. Executing it again created a
+                    // second identical task rather than answering the user.
+                    repeated != null -> repeated
+                    else -> toolCallExecutor.execute(call, confirmationGate = null).also {
+                        if (call.id.startsWith(RECOVERED_CALL_PREFIX)) recoveredResults[signature] = it
+                    }
                 }
 
                 onToolResult(call, result)
@@ -127,7 +154,7 @@ class AgentLoopRunner @Inject constructor(
                 return AgentLoopOutcome.Failed(
                     AgentLoopFailureReason.REPEATED_NO_PROGRESS,
                     "Hermes stopped because the same tool actions repeated without making progress. Try rephrasing the request or changing the inputs.",
-                    toolsInvoked,
+                    toolsInvoked.toList(),
                 )
             }
         }
@@ -135,12 +162,15 @@ class AgentLoopRunner @Inject constructor(
         return AgentLoopOutcome.Failed(
             AgentLoopFailureReason.ROUND_LIMIT_REACHED,
             "Hermes reached the tool-step limit before finishing. Try splitting the request into smaller steps.",
-            toolsInvoked,
+            toolsInvoked.toList(),
         )
     }
 
     companion object {
         const val MAX_TOOL_ROUNDS = 12
+
+        /** Marks a call rebuilt from a reply that did not use the tool envelope. */
+        const val RECOVERED_CALL_PREFIX = "recovered_call_"
         const val MAX_LOOP_DURATION_MS = 5 * 60 * 1000L
     }
 }

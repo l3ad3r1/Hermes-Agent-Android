@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,7 +51,9 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import com.hermes.agent.data.device.DeviceProfile
-import com.hermes.agent.ui.components.HermesDiamond
+import com.hermes.agent.ui.home.HermesPersona.Mood
+import com.hermes.agent.ui.bloub.ExpressionId
+import com.hermes.agent.ui.bloub.HermesBot
 import com.hermes.agent.core.theme.Geist
 import com.hermes.agent.core.theme.GeistMono
 
@@ -127,8 +130,19 @@ private fun WelcomeStep() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        HermesDiamond(tileSize = 62.dp, glyphSize = 22.dp)
-        Spacer(Modifier.height(22.dp))
+        // The assistant introduces itself in person: the same face used across
+        // the app, greeting the user before it asks them for anything.
+        HermesBot(
+            mood = Mood.HAPPY,
+            size = 176.dp,
+            // Pleased to meet you: it arrives with the turn — the eyes travel a
+            // full circuit of the ball, so it reads as spinning on the spot — and
+            // settles on the wide, eager eyes of the `excite` pose.
+            expression = ExpressionId.EXCITE,
+            arrival = true,
+            label = "Hermes",
+        )
+        Spacer(Modifier.height(24.dp))
         Text(
             "Let's set up\nyour assistant",
             fontFamily = Geist,
@@ -433,7 +447,15 @@ private fun NavBar(step: Int, viewModel: OnboardingViewModel) {
     val saving by viewModel.saving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     
-    Column(modifier = Modifier.fillMaxWidth()) {
+    // K09: this row sits at the bottom of the screen, so on gesture navigation
+    // the system bar overlapped "Skip setup" and "Get started" and clipped their
+    // labels. The inset has to be consumed here rather than on the scrolling
+    // content above it, which is why it is not handled by the parent Scaffold.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+    ) {
         if (error != null) {
             Text(
                 text = error ?: "",

@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import timber.log.Timber
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 sealed class SessionBrowserUiState {
@@ -71,7 +73,7 @@ class SessionBrowserViewModel @Inject constructor(
             }
             _uiState.value = SessionBrowserUiState.Success(sessionsWithCounts)
         } catch (e: Exception) {
-            _uiState.value = SessionBrowserUiState.Error(e.message ?: "Unknown error")
+            _uiState.value = SessionBrowserUiState.Error(userFacing(e, "Could not load your chats."))
         }
     }
 
@@ -89,7 +91,7 @@ class SessionBrowserViewModel @Inject constructor(
             }
             _uiState.value = SessionBrowserUiState.Success(sessions)
         } catch (e: Exception) {
-            _uiState.value = SessionBrowserUiState.Error(e.message ?: "Search failed")
+            _uiState.value = SessionBrowserUiState.Error(userFacing(e, "Could not search your chats."))
         }
     }
 
@@ -103,7 +105,7 @@ class SessionBrowserViewModel @Inject constructor(
                 // Refresh the list
                 browseRecent()
             } catch (e: Exception) {
-                _uiState.value = SessionBrowserUiState.Error(e.message ?: "Delete failed")
+                _uiState.value = SessionBrowserUiState.Error(userFacing(e, "Could not delete that chat."))
             }
         }
     }
@@ -117,8 +119,26 @@ class SessionBrowserViewModel @Inject constructor(
                 val markdown = sessionRepository.exportToMarkdown(sessionId)
                 onResult(markdown)
             } catch (e: Exception) {
-                _uiState.value = SessionBrowserUiState.Error(e.message ?: "Export failed")
+                _uiState.value = SessionBrowserUiState.Error(userFacing(e, "Could not export that chat."))
             }
         }
+    }
+
+    /**
+     * Turns a thrown error into something worth showing a person.
+     *
+     * The search box used to render `e.message` verbatim, so a missing FTS table
+     * surfaced as "no such table: conversation_fts (code 1 SQLITE_ERROR)" — a
+     * sentence that tells the user nothing they can act on and leaks the schema
+     * (K07). The technical text still goes to the log, where it is useful.
+     *
+     * Cancellation is rethrown: `catch (e: Exception)` catches
+     * CancellationException too, which would both swallow the cancel and paint
+     * the coroutine's own message on screen as if it were a failure.
+     */
+    private fun userFacing(error: Throwable, fallback: String): String {
+        if (error is CancellationException) throw error
+        Timber.tag("SessionBrowser").w(error, "%s", fallback)
+        return fallback
     }
 }

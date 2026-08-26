@@ -236,6 +236,11 @@ class OrchestratorImpl @Inject constructor(
         val aggregator = StringBuilder()
         val allToolsUsed = mutableListOf<String>()
         var lastProviderWasOnDevice = true
+        // Tools that actually completed. A step can fail after its work landed —
+        // the provider 500s, or on-device inference times out, on the round that
+        // was meant to word the reply. Reporting only the failure left the user
+        // with no answer at all for a task Hermes had in fact carried out.
+        val completedWork = mutableListOf<String>()
 
         for (step in plan.steps) {
             executionPlanRepository.markStepRunning(step.id)
@@ -276,7 +281,7 @@ class OrchestratorImpl @Inject constructor(
                         decision.reason,
                     )
                     emit(OrchestratorEvent.StepFinished(step.id, success = false))
-                    emit(OrchestratorEvent.Failed(decision.reason))
+                    emit(OrchestratorEvent.Failed(withCompletedWork(decision.reason, completedWork)))
                     return@flow
                 }
             }
@@ -306,6 +311,7 @@ class OrchestratorImpl @Inject constructor(
                                 success = result.success,
                             ),
                         )
+                        if (result.success) completedWork += call.name
                         emit(
                             OrchestratorEvent.ToolCallResult(
                                 call = call,
@@ -332,7 +338,7 @@ class OrchestratorImpl @Inject constructor(
                 val message = error.message ?: "The plan step failed unexpectedly."
                 executionPlanRepository.markStepFinished(step.id, StepStatus.FAILED, message)
                 emit(OrchestratorEvent.StepFinished(step.id, success = false))
-                emit(OrchestratorEvent.Failed(message))
+                emit(OrchestratorEvent.Failed(withCompletedWork(message, completedWork)))
                 return@flow
             }
 
@@ -346,7 +352,7 @@ class OrchestratorImpl @Inject constructor(
                         loopOutcome.userMessage,
                     )
                     emit(OrchestratorEvent.StepFinished(step.id, success = false))
-                    emit(OrchestratorEvent.Failed(loopOutcome.userMessage))
+                    emit(OrchestratorEvent.Failed(withCompletedWork(loopOutcome.userMessage, completedWork)))
                     return@flow
                 }
             }
@@ -436,6 +442,19 @@ class OrchestratorImpl @Inject constructor(
         )
     }
 
+}
+
+/**
+ * Appends the work that succeeded before [reason] stopped the turn.
+ *
+ * A tool result is durable: the task really was created, the message really was
+ * sent. When the step that follows fails, the user has to be told what already
+ * happened, or they repeat an action that has already taken effect.
+ */
+internal fun withCompletedWork(reason: String, completedWork: List<String>): String {
+    if (completedWork.isEmpty()) return reason
+    val names = completedWork.distinct().joinToString(", ")
+    return "$reason\n\nThis ran first and did take effect: $names."
 }
 
 /** Results of the concurrent pre-turn context lookups. */

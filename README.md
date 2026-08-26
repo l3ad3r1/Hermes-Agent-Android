@@ -35,7 +35,7 @@ A privacy-first Android agent that combines deterministic phone actions, cloud-f
 | **Memory consolidation**    | ✅      | Regex-based fact extractor + daily WorkManager pass while charging    |
 | **RAG pipeline**            | ✅      | Recursive chunker + BM25 + in-memory vector ANN + hybrid retrieval    |
 | **Plugin system**           | ✅      | Plugin/PluginManifest/PluginSandbox contracts + InProcessPluginSandbox + 3 first-party plugins (Weather, FileManager, Contacts) |
-| **Shared module downloads** | ✅      | Settings → Features → Modules loads a validated HTTPS catalog and downloads digest-checked APK artifacts for Hermes and Jeeves |
+| **Installable modules** | ✅      | Settings → Configuration → Modules loads a validated HTTPS registry and installs sandboxed script modules, each approved with the permissions it asks for |
 | **Real SSE streaming**      | ✅      | Retrofit ResponseBody + line-by-line SSE parsing; fake-stream fallback retained |
 | **Voice I/O**               | ✅      | SpeechRecognizer input + TextToSpeech output, mic button in ChatInputBar, auto-speak replies |
 | Settings UI                 | ✅      | DataStore-backed toggles + security audit panel (Phase 4)             |

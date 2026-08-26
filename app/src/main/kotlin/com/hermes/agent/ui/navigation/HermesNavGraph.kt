@@ -1,17 +1,25 @@
 package com.hermes.agent.ui.navigation
 import com.hermes.agent.domain.settings.*
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -21,7 +29,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.hermes.agent.ui.chat.ChatScreen
 import com.hermes.agent.ui.connect.ConnectScreen
-import com.hermes.agent.ui.conversations.ConversationsScreen
 import com.hermes.agent.ui.cron.CronScreen
 import com.hermes.agent.ui.delegate.DelegateScreen
 import com.hermes.agent.ui.documents.DocumentsScreen
@@ -35,6 +42,7 @@ import com.hermes.agent.ui.learning.LearningScreen
 import com.hermes.agent.ui.ledger.LedgerScreen
 import com.hermes.agent.ui.logs.LogScreen
 import com.hermes.agent.ui.memory.MemoryScreen
+import com.hermes.agent.ui.plugins.PluginsScreen
 import com.hermes.agent.ui.sessions.SessionBrowserScreen
 import com.hermes.agent.ui.settings.AboutSettingsScreen
 import com.hermes.agent.ui.settings.AdvancedSettingsScreen
@@ -71,8 +79,9 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
             if (showBottomBar) {
                 NavigationBar {
                     bottomNavDestinations.forEach { dest ->
+                        val selected = currentRoute == dest.route
                         NavigationBarItem(
-                            selected = currentRoute == dest.route,
+                            selected = selected,
                             onClick = {
                                 navController.navigate(dest.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
@@ -82,8 +91,29 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(dest.icon, contentDescription = null) },
+                            // Material3's built-in selection indicator is a hardcoded pill
+                            // (NavigationBarTokens.ActiveIndicatorShape = CircleShape, not
+                            // themeable in 1.3.0). Hide it via indicatorColor and draw our own
+                            // square-with-rounded-corners indicator around the icon instead.
+                            icon = {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(MaterialTheme.shapes.medium)
+                                        .background(
+                                            if (selected) {
+                                                MaterialTheme.colorScheme.secondaryContainer
+                                            } else {
+                                                Color.Transparent
+                                            },
+                                        )
+                                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(dest.icon, contentDescription = null)
+                                }
+                            },
                             label = { Text(dest.label) },
+                            colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent),
                         )
                     }
                 }
@@ -102,7 +132,6 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                     onOpenConversations = { navController.navigate(TopLevelDestination.CONVERSATIONS.route) },
                     onNewChat = { navController.navigate(TopLevelDestination.chatRoute(it)) },
                     onOpenConnections = { navController.navigate(TopLevelDestination.CONNECT.route) },
-                    onOpenSettings = { navController.navigate(TopLevelDestination.SETTINGS.route) },
                     onOpenKanban = { navController.navigate(TopLevelDestination.KANBAN.route) },
                     onOpenMemory = { navController.navigate(TopLevelDestination.MEMORY.route) },
                     onOpenSkills = { navController.navigate(TopLevelDestination.SKILLS.route) },
@@ -131,6 +160,9 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                         val newId = java.util.UUID.randomUUID().toString()
                         navController.navigate(TopLevelDestination.chatRoute(newId))
                     },
+                    onOpenConversation = { id ->
+                        navController.navigate(TopLevelDestination.chatRoute(id))
+                    },
                 )
             }
             composable(TopLevelDestination.DOCUMENTS.route) { DocumentsScreen(onBack = { navController.popBackStack() }) }
@@ -154,7 +186,6 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
             composable(TopLevelDestination.SCHEDULE.route) { CronScreen(onBack = { navController.popBackStack() }) }
             composable(TopLevelDestination.DELEGATE.route) { DelegateScreen() }
             composable(TopLevelDestination.EXPERIMENT.route) { ExperimentScreen(onBack = { navController.popBackStack() }) }
-            composable(TopLevelDestination.DOCUMENTS.route) { DocumentsScreen(onBack = { navController.popBackStack() }) }
             
             // Settings parent and children
             composable(TopLevelDestination.SETTINGS.route) {
@@ -174,6 +205,7 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
             composable("settings_proactive") { ProactiveSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_about") { AboutSettingsScreen(onBack = { navController.popBackStack() }) }
             
+            composable("plugins") { PluginsScreen(onBack = { navController.popBackStack() }) }
             composable("logs") { LogScreen(onBack = { navController.popBackStack() }) }
             composable("activity_ledger") { LedgerScreen(onBack = { navController.popBackStack() }) }
             composable("learning") { LearningScreen(onBack = { navController.popBackStack() }) }

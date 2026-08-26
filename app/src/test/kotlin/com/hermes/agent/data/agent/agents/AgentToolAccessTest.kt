@@ -47,7 +47,7 @@ class AgentToolAccessTest {
         )
 
     private val sampleTools = listOf(
-        StubTool(desc("todo", "productivity", setOf("common", "productivity"))),
+        StubTool(desc("todo", "productivity", setOf("common", "todo"))),
         StubTool(desc("kanban", "productivity", setOf("kanban"))),
         StubTool(desc("clarify", "communication", setOf("common", "communication"))),
         StubTool(desc("get_current_datetime", "information", setOf("time"))),
@@ -61,7 +61,9 @@ class AgentToolAccessTest {
         StubTool(desc("skill_manager", "productivity", setOf("skills"))),
         StubTool(desc("scheduler", "productivity", setOf("scheduler"))),
         StubTool(desc("delegate", "productivity", setOf("delegate"))),
-        StubTool(desc("calendar_add_event", "productivity", setOf("calendar"))),
+        StubTool(desc("calendar", "productivity", setOf("calendar"))),
+        StubTool(desc("bookmarks", "productivity", setOf("bookmarks"))),
+        StubTool(desc("mood", "productivity", setOf("mood"))),
         StubTool(desc("speak", "communication", setOf("voice"))),
         StubTool(desc("notify", "communication", setOf("notification"))),
         StubTool(desc("communication", "communication", setOf("phone"))),
@@ -92,7 +94,7 @@ class AgentToolAccessTest {
     )
 
     @Test
-    fun `all 31 tools are granted to at least one agent`() {
+    fun `all 33 tools are granted to at least one agent`() {
         val registry = makeRegistry()
         for (tool in sampleTools) {
             val toolName = tool.descriptor.name
@@ -104,33 +106,44 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `conversational agent exposes expected 29 tools`() {
+    fun `conversational agent exposes expected 26 tools`() {
         val registry = makeRegistry()
         val names = ConversationalAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(29, names.size)
+        // 26, not 31: the five app_* automation tools moved to DEVICE_CONTROL only.
+        assertEquals(26, names.size)
         assertTrue(names.contains("shell"))
         assertTrue(names.contains("termux"))
         assertTrue(names.contains("generate_image"))
-        assertTrue(names.contains("app_launch"))
-        assertFalse(names.contains("calendar_add_event"))
+        assertFalse("app automation belongs to DEVICE_CONTROL", names.contains("app_launch"))
+        assertFalse(names.contains("calendar"))
+        assertTrue(names.contains("bookmarks"))
+        assertTrue(names.contains("mood"))
+        // The device tools this role does legitimately need still resolve, now
+        // by capability rather than by the blanket "device" category.
+        for (tool in listOf("alarm", "navigation", "media_control", "device_control")) {
+            assertTrue("conversational agent lost '$tool'", names.contains(tool))
+        }
     }
 
     @Test
-    fun `productivity agent exposes expected 18 tools`() {
+    fun `productivity agent exposes expected 20 tools`() {
         val registry = makeRegistry()
         val names = ProductivityAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(18, names.size)
-        assertTrue(names.contains("calendar_add_event"))
+        assertEquals(20, names.size)
+        assertTrue(names.contains("calendar"))
+        assertTrue(names.contains("bookmarks"))
+        assertTrue(names.contains("mood"))
         assertTrue(names.contains("contact_lookup"))
         assertFalse(names.contains("shell"))
         assertFalse(names.contains("generate_image"))
     }
 
     @Test
-    fun `research agent exposes expected 10 tools`() {
+    fun `research agent exposes expected 11 tools`() {
         val registry = makeRegistry()
         val names = ResearchAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(10, names.size)
+        assertEquals(11, names.size)
+        assertTrue(names.contains("bookmarks"))
         assertTrue(names.contains("web_search"))
         assertTrue(names.contains("web_fetch"))
         assertFalse(names.contains("shell"))
@@ -148,10 +161,11 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `creative agent exposes expected 10 tools`() {
+    fun `creative agent exposes expected 11 tools`() {
         val registry = makeRegistry()
         val names = CreativeAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(10, names.size)
+        assertEquals(11, names.size)
+        assertTrue(names.contains("bookmarks"))
         assertTrue(names.contains("generate_image"))
         assertTrue(names.contains("speak"))
         assertFalse(names.contains("shell"))
@@ -173,10 +187,41 @@ class AgentToolAccessTest {
         assertTrue((researchTools intersect dangerousShell).isEmpty())
         assertTrue((creativeTools intersect dangerousShell).isEmpty())
 
-        // App automation is available to the general assistant and the dedicated device role.
+        // App automation drives arbitrary apps, so it belongs to DEVICE_CONTROL
+        // alone. This assertion previously covered every role except the one
+        // that actually had the grant, which is how the widening survived.
+        val conversationalTools = registry.toolsFor(AgentRole.CONVERSATIONAL).map { it.name }.toSet()
+        val deviceTools = registry.toolsFor(AgentRole.DEVICE_CONTROL).map { it.name }.toSet()
+
         assertTrue((productivityTools intersect dangerousAppAutomation).isEmpty())
         assertTrue((researchTools intersect dangerousAppAutomation).isEmpty())
         assertTrue((creativeTools intersect dangerousAppAutomation).isEmpty())
+        assertTrue(
+            "app automation must not be reachable from a conversational turn",
+            (conversationalTools intersect dangerousAppAutomation).isEmpty(),
+        )
+        assertEquals(
+            "DEVICE_CONTROL is the only role that may drive other apps",
+            dangerousAppAutomation,
+            deviceTools intersect dangerousAppAutomation,
+        )
+    }
+
+    /**
+     * A category grant hands a role every present and future tool in that
+     * category. CONVERSATIONAL is the role an ordinary chat turn runs as, so a
+     * new device tool must not arrive pre-approved there.
+     */
+    @Test
+    fun `a new device-category tool is not auto-granted to the conversational role`() {
+        val registry = makeRegistry()
+        registry.register(StubTool(desc("device_wipe", "device", setOf("some_new_capability"))))
+
+        val conversationalTools = registry.toolsFor(AgentRole.CONVERSATIONAL).map { it.name }
+        assertFalse(
+            "a device tool must be granted deliberately, not by category",
+            "device_wipe" in conversationalTools,
+        )
     }
 
     @Test

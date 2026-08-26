@@ -55,9 +55,10 @@ fun AdvancedSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val backupState by viewModel.backupState.collectAsStateWithLifecycle()
     val localBackupState by viewModel.localBackupState.collectAsStateWithLifecycle()
     val exportState by viewModel.exportState.collectAsStateWithLifecycle()
+    val privilegedStatus by viewModel.privilegedStatus.collectAsStateWithLifecycle()
+    val retryGateStatus by viewModel.privilegedRetryGateStatus.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     Scaffold(
@@ -80,26 +81,23 @@ fun AdvancedSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            SectionHeader(text = "Privileged Shell (Shizuku)")
+            PrivilegedShellSection(
+                enabled = settings.privilegedShellEnabled,
+                status = privilegedStatus,
+                gateStatus = retryGateStatus,
+                onToggleEnabled = viewModel::setPrivilegedShellEnabled,
+                onRequestPermission = viewModel::requestPrivilegedPermission,
+                onRefresh = viewModel::refreshPrivilegedStatus,
+                onResetGate = viewModel::resetPrivilegedGate,
+            )
+
             SectionHeader(text = "Local Backup & Restore")
             LocalBackupSection(
                 state = localBackupState,
                 onBackup = viewModel::createLocalBackup,
                 onRestore = viewModel::restoreLocalBackup,
                 onDismiss = viewModel::dismissLocalBackupState,
-            )
-
-            SectionHeader(text = "GitHub Gist Backup")
-            BackupSection(
-                githubPat = settings.githubPat,
-                gistId = settings.gistId,
-                lastBackupTimestamp = settings.lastBackupTimestamp,
-                state = backupState,
-                onPatChange = viewModel::setGithubPat,
-                onGistIdChange = viewModel::setGistId,
-                onBackup = viewModel::backupNow,
-                onRestore = viewModel::restoreBackup,
-                onDismiss = viewModel::dismissBackupState,
-                onClearGistId = viewModel::clearGistId,
             )
 
             SectionHeader(text = "Self-Evolution")
@@ -122,6 +120,127 @@ fun AdvancedSettingsScreen(
                 onDismiss = viewModel::dismissExportState,
             )
 
+        }
+    }
+}
+
+@Composable
+private fun PrivilegedShellSection(
+    enabled: Boolean,
+    status: com.hermes.agent.domain.device.PrivilegedShellBackend.PrivilegedStatus,
+    gateStatus: com.hermes.agent.data.device.PrivilegedShellRetryGate.GateStatus,
+    onToggleEnabled: (Boolean) -> Unit,
+    onRequestPermission: () -> Unit,
+    onRefresh: () -> Unit,
+    onResetGate: () -> Unit,
+) {
+    val context = LocalContext.current
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Enable Privileged Shell", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Allows the shell tool to run with ADB privileges (UID 2000) via Shizuku.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                androidx.compose.material3.Switch(
+                    checked = enabled,
+                    onCheckedChange = onToggleEnabled,
+                )
+            }
+
+            androidx.compose.material3.HorizontalDivider()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Shizuku Status",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                androidx.compose.material3.TextButton(onClick = onRefresh) {
+                    Text("Check Status")
+                }
+            }
+
+            when (status.status) {
+                com.hermes.agent.domain.device.PrivilegedShellBackend.Status.READY -> {
+                    Text(
+                        text = "● Connected (UID ${status.uid} · Version ${status.version})",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                com.hermes.agent.domain.device.PrivilegedShellBackend.Status.PERMISSION_REQUIRED -> {
+                    Text(
+                        text = "⚠️ Permission Required: Hermes needs Shizuku access.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Button(
+                        onClick = onRequestPermission,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Grant Shizuku Permission")
+                    }
+                }
+                com.hermes.agent.domain.device.PrivilegedShellBackend.Status.DEAD -> {
+                    Text(
+                        text = "⚠️ Shizuku service is not running.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Text(
+                        text = "Start it via ADB:\n${com.hermes.agent.data.device.PrivilegedShellGateway.ADB_START_COMMAND}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("ADB Command", com.hermes.agent.data.device.PrivilegedShellGateway.ADB_START_COMMAND)
+                            clipboard.setPrimaryClip(clip)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Copy ADB Command")
+                    }
+                }
+                com.hermes.agent.domain.device.PrivilegedShellBackend.Status.NOT_INSTALLED -> {
+                    Text(
+                        text = "Shizuku app is not installed on this device.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            if (gateStatus.state == com.hermes.agent.data.device.PrivilegedShellRetryGate.State.DIRTY_UNWIND) {
+                androidx.compose.material3.HorizontalDivider()
+                Text(
+                    text = "⚠️ Execution Gate Locked: ${gateStatus.reason}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                OutlinedButton(
+                    onClick = onResetGate,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Reset Execution Gate")
+                }
+            }
         }
     }
 }
@@ -199,157 +318,6 @@ private fun ExportSection(
 }
 
 @Composable
-private fun BackupSection(
-    githubPat: String,
-    gistId: String,
-    lastBackupTimestamp: Long,
-    state: BackupUiState,
-    onPatChange: (String) -> Unit,
-    onGistIdChange: (String) -> Unit,
-    onBackup: () -> Unit,
-    onRestore: () -> Unit,
-    onDismiss: () -> Unit,
-    onClearGistId: () -> Unit,
-) {
-    val dateFmt = remember { SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(
-                    imageVector = Icons.Outlined.Backup,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-                Text("GitHub Gist Backup", style = MaterialTheme.typography.bodyLarge)
-            }
-            Text(
-                "Backs up Cloud LLM settings (excluding credentials), memories, " +
-                    "skills, cron jobs, notes, and alarms to a private GitHub Gist — " +
-                    "Locked or encrypted notes are skipped. Keep the PAT and gist safe. " +
-                    "To restore on a new install, paste " +
-                    "the same PAT and Gist ID below, then tap Restore.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            var pat by remember(githubPat) { mutableStateOf(githubPat) }
-            OutlinedTextField(
-                value = pat,
-                onValueChange = {
-                    pat = it
-                    onPatChange(it)
-                },
-                label = { Text("GitHub Personal Access Token") },
-                supportingText = {
-                    Text(
-                        "Classic PAT: github.com → Settings → Developer settings → " +
-                            "Personal access tokens (classic) → gist scope.\n" +
-                            "Fine-grained PAT: enable Gists → Read and write."
-                    )
-                },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            var gist by remember(gistId) { mutableStateOf(gistId) }
-            OutlinedTextField(
-                value = gist,
-                onValueChange = {
-                    gist = it
-                    onGistIdChange(it)
-                },
-                label = { Text("Gist ID") },
-                supportingText = {
-                    Text(
-                        "Auto-filled after your first backup. On a new install, paste " +
-                            "the Gist ID from your previous device (the id in the gist URL)."
-                    )
-                },
-                singleLine = true,
-                trailingIcon = {
-                    if (gist.isNotBlank()) {
-                        Text(
-                            "Clear",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier
-                                .clickable {
-                                    gist = ""
-                                    onClearGistId()
-                                }
-                                .padding(horizontal = 12.dp),
-                        )
-                    }
-                },
-                colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            if (lastBackupTimestamp > 0L) {
-                Text(
-                    "Last backup: ${dateFmt.format(Date(lastBackupTimestamp))}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            when (state) {
-                is BackupUiState.InProgress -> {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Text("Working…", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                is BackupUiState.Success -> {
-                    Text(
-                        state.message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                        Text("Dismiss")
-                    }
-                }
-                is BackupUiState.Error -> {
-                    Text(
-                        state.message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                else -> Unit
-            }
-
-            if (state !is BackupUiState.InProgress && state !is BackupUiState.Success) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(
-                        onClick = onBackup,
-                        modifier = Modifier.weight(1f),
-                        enabled = githubPat.isNotBlank(),
-                    ) {
-                        Text("Backup now")
-                    }
-                    OutlinedButton(
-                        onClick = onRestore,
-                        modifier = Modifier.weight(1f),
-                        enabled = githubPat.isNotBlank() && gistId.isNotBlank(),
-                    ) {
-                        Text("Restore")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun LocalBackupSection(
     state: BackupUiState,
     onBackup: () -> Unit,
@@ -376,8 +344,13 @@ private fun LocalBackupSection(
                 Text("On-Device Backup", style = MaterialTheme.typography.bodyLarge)
             }
             Text(
+                // Deliberately does not name a folder. The export falls back
+                // across three locations depending on storage permission, and
+                // this line used to promise Download/… for a file that lands in
+                // Hermes Agent/Backup. The success message reports the path the
+                // file actually went to.
                 "Creates a complete snapshot of all app data, chats, and settings. " +
-                "The backup is saved to your Download/Hermes Agent/Backup folder.",
+                "The folder it lands in is shown once the backup finishes.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

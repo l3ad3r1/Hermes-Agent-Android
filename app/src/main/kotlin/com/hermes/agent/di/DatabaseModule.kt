@@ -10,6 +10,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hermes.agent.data.local.HermesDatabase
 import com.hermes.agent.data.local.dao.ActivityLedgerDao
 import com.hermes.agent.data.local.dao.AgentTaskDao
+import com.hermes.agent.data.local.dao.BookmarkDao
+import com.hermes.agent.data.local.dao.CalendarEventDao
 import com.hermes.agent.data.local.dao.ConnectorDao
 import com.hermes.agent.data.local.dao.ConversationDao
 import com.hermes.agent.data.local.dao.DocumentChunkDao
@@ -18,11 +20,15 @@ import com.hermes.agent.data.local.dao.ExecutionPlanDao
 import com.hermes.agent.data.local.dao.KanbanTicketDao
 import com.hermes.agent.data.local.dao.MemoryDao
 import com.hermes.agent.data.local.dao.MessageDao
+import com.hermes.agent.data.local.dao.NoteDao
 import com.hermes.agent.data.local.dao.PromptRevisionDao
 import com.hermes.agent.data.local.dao.ScheduledTaskDao
 import com.hermes.agent.data.local.dao.SkillDao
 import com.hermes.agent.data.local.dao.SkillRevisionDao
 import com.hermes.agent.data.local.dao.SupplementalPromptDao
+import com.hermes.agent.data.local.dao.TodoTaskDao
+import com.hermes.agent.data.local.dao.MoodEntryDao
+import com.hermes.agent.data.local.dao.ScriptPluginDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -55,6 +61,11 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_10_11,
                 HermesDatabase.MIGRATION_11_12,
                 HermesDatabase.MIGRATION_12_13,
+                HermesDatabase.MIGRATION_13_14,
+                HermesDatabase.MIGRATION_14_15,
+                HermesDatabase.MIGRATION_15_16,
+                HermesDatabase.MIGRATION_16_17,
+                HermesDatabase.MIGRATION_17_18,
             )
             // conversation_fts is not a Room entity, so a fresh install creates
             // its schema from the entity list and runs no migrations at all —
@@ -89,4 +100,10 @@ object DatabaseModule {
     @Provides fun provideKanbanTicketDao(db: HermesDatabase): KanbanTicketDao = db.kanbanTicketDao()
     @Provides fun provideExecutionPlanDao(db: HermesDatabase): ExecutionPlanDao = db.executionPlanDao()
     @Provides fun provideActivityLedgerDao(db: HermesDatabase): ActivityLedgerDao = db.activityLedgerDao()
+    @Provides fun provideNoteDao(db: HermesDatabase): NoteDao = db.noteDao()
+    @Provides fun provideTodoTaskDao(db: HermesDatabase): TodoTaskDao = db.todoTaskDao()
+    @Provides fun provideCalendarEventDao(db: HermesDatabase): CalendarEventDao = db.calendarEventDao()
+    @Provides fun provideBookmarkDao(db: HermesDatabase): BookmarkDao = db.bookmarkDao()
+    @Provides fun provideMoodEntryDao(db: HermesDatabase): MoodEntryDao = db.moodEntryDao()
+    @Provides fun provideScriptPluginDao(db: HermesDatabase): ScriptPluginDao = db.scriptPluginDao()
 }

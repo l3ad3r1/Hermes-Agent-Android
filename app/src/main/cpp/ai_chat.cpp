@@ -2,6 +2,7 @@
 #include <jni.h>
 #include <iomanip>
 #include <cmath>
+#include <mutex>
 #include <string>
 #include <unistd.h>
 #include <sampling.h>
@@ -39,6 +40,14 @@ static llama_batch                        g_batch;
 static common_chat_templates_ptr          g_chat_templates;
 static common_sampler                   * g_sampler;
 
+// Secondary defense layer behind the Kotlin coroutine dispatcher
+// (Dispatchers.IO.limitedParallelism(1) in InferenceEngineImpl), which is
+// expected to already serialize all calls into this file. This mutex guards
+// against a stray call arriving from an unexpected thread (e.g. a second
+// engine instance, or a JNI call issued off the intended dispatcher) racing
+// on the global model/context/batch/sampler state above and corrupting it.
+static std::mutex g_state_mutex;
+
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_init(JNIEnv *env, jobject /*unused*/, jstring nativeLibDir) {
@@ -59,6 +68,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_init(JNIEnv *env, jobject /*unu
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_load(JNIEnv *env, jobject, jstring jmodel_path) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = 0; // Offload to GPU if Vulkan is available (disabled for Adreno stability)
     model_params.use_mmap = true;
@@ -115,6 +125,7 @@ static common_sampler *new_sampler(float temp) {
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_prepare(JNIEnv * /*env*/, jobject /*unused*/) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     auto *context = init_context(g_model);
     if (!context) { return 1; }
     g_context = context;
@@ -146,6 +157,7 @@ extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_benchModel(JNIEnv *env, jobject /*unused*/, jint pp, jint tg,
                                                       jint pl, jint nr) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     auto *context = init_context(g_model, pp);
     if (!context) {
         const auto *const err_msg = "Fail to init_context! Bench aborted.";
@@ -359,6 +371,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
         jobject /*unused*/,
         jstring jsystem_prompt
 ) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     // Reset long-term & short-term states
     reset_long_term_states();
     reset_short_term_states();
@@ -409,6 +422,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         jstring juser_prompt,
         jint n_predict
 ) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     // Reset short-term states
     reset_short_term_states();
 
@@ -492,6 +506,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
         JNIEnv *env,
         jobject /*unused*/
 ) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     // Infinite text generation via context shifting
     if (current_position >= DEFAULT_CONTEXT_SIZE - OVERFLOW_HEADROOM) {
         LOGw("%s: Context full! Shifting...", __func__);
@@ -549,6 +564,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_unload(JNIEnv * /*unused*/, jobject /*unused*/) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     // Reset long-term & short-term states
     reset_long_term_states();
     reset_short_term_states();

@@ -102,6 +102,78 @@ class HermesDatabaseMigrationTest {
         }
     }
 
+    /**
+     * The whole 13 -> 17 chain, validated against Room's own expectation.
+     *
+     * The unit-test counterpart to this compares column names only, which cannot
+     * see a column's affinity or nullability, a wrong primary key, or an index
+     * the entities never declared. `runMigrationsAndValidate` reads the schema
+     * Room generated for version 17 and fails on any of those — the difference
+     * between "the table exists" and "the table is the one Room expects".
+     *
+     * Versions 14, 15 and 16 have no exported schema (they were never a
+     * committed state), so the chain is created at 13 and validated at 17.
+     * MigrationTestHelper only needs the schema of the version it creates and
+     * the version it validates, so the intermediate gap does not weaken this.
+     */
+    @Test
+    fun migrate13To17_matchesTheSchemaRoomGenerates() {
+        val conversationId = "productivity-migration-conversation"
+
+        helper.createDatabase(TEST_DB, 13).use { db ->
+            // Same reasoning as the 12 -> 13 case: a schema can validate
+            // perfectly after a migration that threw the rows away.
+            db.execSQL(
+                """
+                INSERT INTO conversations
+                    (id, title, created_at, updated_at, last_message_preview, message_count)
+                VALUES (?, 'before productivity upgrade', 1, 1, 'survived', 0)
+                """.trimIndent(),
+                arrayOf<Any>(conversationId),
+            )
+
+            // MigrationTestHelper builds this database from the exported schema,
+            // which lists only Room entities — so it has no search index, while
+            // a real version-13 database does. Create it here or the assertion
+            // below tests the fixture rather than the migrations.
+            HermesDatabase.createSearchIndex(db)
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB,
+            17,
+            false,
+            HermesDatabase.MIGRATION_13_14,
+            HermesDatabase.MIGRATION_14_15,
+            HermesDatabase.MIGRATION_15_16,
+            HermesDatabase.MIGRATION_16_17,
+        )
+
+        db.query(
+            "SELECT title FROM conversations WHERE id = ?", arrayOf<Any>(conversationId),
+        ).use { cursor ->
+            assertTrue("the pre-upgrade conversation must survive", cursor.moveToFirst())
+            assertEquals("before productivity upgrade", cursor.getString(0))
+        }
+
+        listOf("notes", "todo_tasks", "calendar_events", "bookmarks", "mood_entries").forEach { table ->
+            db.query(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+                arrayOf<Any>(table),
+            ).use { cursor ->
+                assertTrue("migration must create $table", cursor.moveToFirst())
+            }
+        }
+
+        // Carried across the productivity migrations as well, not just 12 -> 13:
+        // none of them may drop the index that Chats searches through.
+        db.query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'conversation_fts'",
+        ).use { cursor ->
+            assertTrue("the search index must survive the upgrade", cursor.moveToFirst())
+        }
+    }
+
     private companion object {
         const val TEST_DB = "hermes-migration-test.db"
     }

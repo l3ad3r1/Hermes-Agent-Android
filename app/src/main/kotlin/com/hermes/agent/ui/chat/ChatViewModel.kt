@@ -14,6 +14,7 @@ import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.Message
+import com.hermes.agent.domain.model.MessageRole
 import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.ConversationRepository
 import com.hermes.agent.domain.repository.ExecutionPlanRepository
@@ -105,6 +106,7 @@ class ChatViewModel @Inject constructor(
                 streamingAgentRole = ephemeral.streamingAgentRole,
                 isSending = ephemeral.isSending,
                 errorMessage = ephemeral.errorMessage,
+                notice = ephemeral.notice,
                 title = conversation?.title ?: "New conversation",
                 currentPlan = ephemeral.plan,
                 toolCalls = ephemeral.toolCalls,
@@ -138,17 +140,78 @@ class ChatViewModel @Inject constructor(
 
     val state: StateFlow<ChatUiState> get() = uiState
 
+    /**
+     * Edit a turn in place.
+     *
+     * The original turn is removed first. Prefilling the composer alone left
+     * the old message sitting above its own replacement, so an edited turn
+     * appeared twice and the model saw both — an edit is meant to change a
+     * message, not add one.
+     */
     fun editMessage(message: Message) {
-        _inputPrefill.value = message.content
+        viewModelScope.launch {
+            runCatching { conversationRepository.rewindTo(conversationId, message) }
+                .onFailure { Timber.tag("Chat").w(it, "could not clear the turn being edited") }
+            _inputPrefill.value = message.content
+        }
     }
 
+    /**
+     * Rewind: drop this message and everything after it. Destructive by
+     * definition, so the UI confirms first; the text is handed back to the
+     * composer so the turn can be retried without retyping it.
+     */
+    fun rewindTo(message: Message) {
+        viewModelScope.launch {
+            runCatching { conversationRepository.rewindTo(conversationId, message) }
+                .onSuccess { removed ->
+                    if (message.role == MessageRole.USER) _inputPrefill.value = message.content
+                    _ephemeral.value = _ephemeral.value.copy(
+                        errorMessage = null,
+                        notice = "Rewound $removed message${if (removed == 1) "" else "s"}",
+                    )
+                }
+                .onFailure { t ->
+                    Timber.tag("Chat").w(t, "rewind failed")
+                    _ephemeral.value = _ephemeral.value.copy(errorMessage = "Could not rewind this chat.")
+                }
+        }
+    }
+
+    /**
+     * Fork: copy the transcript up to this message into a new conversation and
+     * hand back its id so the caller can navigate there. Non-destructive, which
+     * is what makes it the safe counterpart to rewind.
+     */
+    fun forkFrom(message: Message, onForked: (String) -> Unit) {
+        viewModelScope.launch {
+            val title = message.content.take(40).ifBlank { "Forked chat" }
+            runCatching { conversationRepository.forkFrom(conversationId, message, title) }
+                .onSuccess(onForked)
+                .onFailure { t ->
+                    Timber.tag("Chat").w(t, "fork failed")
+                    _ephemeral.value = _ephemeral.value.copy(errorMessage = "Could not fork this chat.")
+                }
+        }
+    }
+
+    /**
+     * Re-run a turn against a different model.
+     *
+     * Like [editMessage], this replaces the turn rather than appending one:
+     * retrying used to leave "Update to high" and "[ultrabrain] Update to high"
+     * stacked in the transcript, which reads as the user asking twice.
+     */
     fun retryWithAlias(message: Message, alias: String) {
         val cleanContent = message.content
             .removePrefix("[ultrabrain] ")
             .removePrefix("[quick] ")
             .trim()
-        val prompt = "[$alias] $cleanContent"
-        sendMessage(prompt)
+        viewModelScope.launch {
+            runCatching { conversationRepository.rewindTo(conversationId, message) }
+                .onFailure { Timber.tag("Chat").w(it, "could not clear the turn being retried") }
+            sendMessage("[$alias] $cleanContent")
+        }
     }
 
     fun sendMessage(content: String) {
@@ -307,6 +370,10 @@ class ChatViewModel @Inject constructor(
 
     fun dismissError() {
         _ephemeral.value = _ephemeral.value.copy(errorMessage = null)
+    }
+
+    fun dismissNotice() {
+        _ephemeral.value = _ephemeral.value.copy(notice = null)
     }
 
     fun renameConversation(newTitle: String) {
@@ -513,6 +580,7 @@ private data class ChatEphemeralState(
     val streamingAgentRole: com.hermes.agent.domain.model.AgentRole? = null,
     val isSending: Boolean = false,
     val errorMessage: String? = null,
+    val notice: String? = null,
     val plan: PlanSummary? = null,
     val toolCalls: List<ToolCallSummary> = emptyList(),
     val activeModel: String = "",

@@ -25,9 +25,7 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "can run shell commands on the user's Android device.\n\n" +
             "Your capabilities:\n" +
             "- device_settings: read or set screen brightness and media volume\n" +
-            "- shell: execute a shell command (runs as app user, not root; 10 s timeout; " +
-            "stdout+stderr returned combined). Use for inspecting files, processes, or " +
-            "device state via adb-shell-compatible commands.\n" +
+            "- shell: execute a shell command (target='local' runs as app user, target='privileged' runs with elevated ADB privileges via Shizuku, target='remote' runs over SSH). Use for inspecting files, processes, packages, or device state.\n" +
             "- termux: run a Linux command in the user's Termux app — full package manager " +
             "(pkg/apt), python, git, ssh, compilers. Prefer termux over shell when the task " +
             "needs real Linux tooling or installed packages.\n" +

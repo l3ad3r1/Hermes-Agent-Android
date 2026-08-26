@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Hermes Agent — AndroidManifest
-    Phase 1 (Foundation) of the technical plan.
-
-    Permissions:
-      - INTERNET / ACCESS_NETWORK_STATE : cloud LLM fallback (Phase 1 stub wired)
-      - RECORD_AUDIO                    : voice input placeholder (Phase 3)
-      - POST_NOTIFICATIONS              : notification agent placeholder (Phase 3)
-    Hardware features (Knox) are declared as not-required so the app installs on
-    any Android 10+ device for development & testing.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
@@ -20,6 +12,8 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <package android:name="com.termux" />
+        <package android:name="moe.shizuku.privileged.api" />
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -43,9 +37,7 @@
     <!-- On-device LLM models: download GGUF files into a user-visible top-level
          "AI Models" folder (or any folder the user names). A true top-level folder
          on shared storage requires All-Files access on Android 11+; granted at
-         runtime via Settings (Environment.isExternalStorageManager). This is a
-         sideloaded app, so the Play Store's restriction on this permission does
-         not apply. -->
+         runtime via Settings (Environment.isExternalStorageManager). -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
     <!-- Android 10 (API 29) has no All-Files access; it uses legacy raw-path
@@ -57,7 +49,7 @@
     <!-- SMS gateway (sent via the notify tool / SmsManager). -->
     <uses-permission android:name="android.permission.SEND_SMS" />
 
-    <!-- Setup journey: capabilities the agent can use (requested at runtime). -->
+    <!-- Capabilities the agent can use (requested at runtime). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
@@ -68,12 +60,16 @@
     <!-- Run commands in the separately-installed Termux app (RUN_COMMAND). -->
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
 
-    <!-- Android 11+ package visibility: allow resolving/launching Termux. -->
-    <queries>
-        <package android:name="com.termux" />
-    </queries>
+    <!-- Shizuku (privileged shell execution via ADB UID 2000). -->
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Signature permission to protect automation/Tasker plugin execution against unauthorized 3rd-party broadcast exploits -->
+    <permission
+        android:name="com.hermes.agent.permission.TASKER_PLUGIN"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.hermes.agent.permission.TASKER_PLUGIN" />
 
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
@@ -89,6 +85,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HermesAgent"
         tools:targetApi="34">
+
+        <!-- Shizuku provider binding -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <activity
             android:name=".ui.share.ShareTargetActivity"
@@ -127,9 +132,7 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- Opt-in notification capture for the daily digest. Dormant until the
-             user grants notification access in system settings AND enables the
-             in-app switch (Settings -> Proactive). -->
+        <!-- Opt-in notification capture for the daily digest. -->
         <service
             android:name=".service.HermesNotificationListener"
             android:exported="false"
@@ -263,5 +266,53 @@
                 android:name="com.hermes.agent.data.performance.MemoryMonitorInitializer"
                 android:value="androidx.startup" />
         </provider>
+
+        <!-- OAuth deep-link callback handler -->
+        <activity
+            android:name=".ui.oauth.OAuthCallbackActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="hermes"
+                    android:host="oauth"
+                    android:pathPrefix="/callback" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="agent.hermes"
+                    android:pathPrefix="/oauth/callback" />
+            </intent-filter>
+        </activity>
+
+        <!-- Tasker / Locale Automation Plugin -->
+        <activity
+            android:name=".plugin.tasker.TaskerPluginActivity"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="Hermes Agent">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".plugin.tasker.TaskerPluginReceiver"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="Hermes Agent"
+            android:permission="com.hermes.agent.permission.TASKER_PLUGIN">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

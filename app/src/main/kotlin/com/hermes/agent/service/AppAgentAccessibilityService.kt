@@ -10,6 +10,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.CompletableDeferred
 import timber.log.Timber
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
@@ -18,7 +19,7 @@ import java.util.concurrent.Executors
  */
 class AppAgentAccessibilityService : AccessibilityService() {
 
-    private val executor: Executor = Executors.newSingleThreadExecutor()
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -39,6 +40,7 @@ class AppAgentAccessibilityService : AccessibilityService() {
         if (instance == this) {
             instance = null
         }
+        executor.shutdown()
         Timber.i("AppAgentAccessibilityService destroyed")
     }
 

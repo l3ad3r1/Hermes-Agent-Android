@@ -46,6 +46,31 @@ class AgentLoopRunnerTest {
     }
 
     @Test
+    fun `a recovered call repeated by the model is executed once`() = runTest {
+        // On the S24 the local model could not read the tool result and reissued
+        // the same heading-and-JSON call every round. Each one was executed, so
+        // one "add a task" request wrote a duplicate row per round until the
+        // loop hit its limit. A call rebuilt from that loose format is answered
+        // from the first result instead of run again.
+        val call = ToolCall(
+            id = AgentLoopRunner.RECOVERED_CALL_PREFIX + "1",
+            name = "todo",
+            arguments = mapOf("action" to JsonPrimitive("create"), "title" to JsonPrimitive("Buy milk")),
+        )
+        val fixture = fixture { LlmToolResponse("", listOf(call), 1, "fake", "tool_calls") }
+        fixture.registry.register(stubTool("todo"))
+        coEvery { fixture.executor.execute(any(), confirmationGate = null) } returnsMany listOf(
+            ToolResult.ok("Created task #1"),
+            ToolResult.ok("Created task #2"),
+            ToolResult.ok("Created task #3"),
+        )
+
+        fixture.runWithTools()
+
+        coVerify(exactly = 1) { fixture.executor.execute(any(), confirmationGate = null) }
+    }
+
+    @Test
     fun `repeated identical tool round stops with actionable failure`() = runTest {
         val call = ToolCall("changing-id-is-ignored", "lookup", mapOf("q" to JsonPrimitive("same")))
         val fixture = fixture { LlmToolResponse("", listOf(call), 1, "fake", "tool_calls") }

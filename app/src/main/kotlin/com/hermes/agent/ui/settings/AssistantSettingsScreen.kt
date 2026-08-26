@@ -4,6 +4,7 @@ import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,7 +13,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -214,6 +217,28 @@ private fun OnDeviceAiCard(
                 }
             }
 
+            // ── RAM Preflight status ─────────────────────────────────────────
+            val preflight = remember(settings.selectedModelId, settings.localModelUri) {
+                viewModel.evaluatePreflightForSelectedModel(settings)
+            }
+            when (preflight.level) {
+                com.hermes.agent.data.llm.PreflightLevel.BLOCKED -> {
+                    Text(
+                        text = "⚠️ Preflight: ${preflight.detail}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                com.hermes.agent.data.llm.PreflightLevel.WARNING -> {
+                    Text(
+                        text = "ℹ️ Preflight: ${preflight.detail}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                com.hermes.agent.data.llm.PreflightLevel.OPTIMAL -> Unit
+            }
+
             // ── Download folder ─────────────────────────────────────────────
             var dirText by remember(settings.modelDownloadDir) { mutableStateOf(settings.modelDownloadDir) }
             OutlinedTextField(
@@ -279,11 +304,28 @@ private fun OnDeviceAiCard(
                 }
                 isDownloading -> {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Downloading… (${(downloadProgress * 100).toInt()}%)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "Downloading… (${(downloadProgress * 100).toInt()}%)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            IconButton(
+                                onClick = { viewModel.cancelModelDownload() },
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel download",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
                         androidx.compose.material3.LinearProgressIndicator(
                             progress = { downloadProgress },
                             modifier = Modifier.fillMaxWidth(),
