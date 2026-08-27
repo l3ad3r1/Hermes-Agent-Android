@@ -38,7 +38,13 @@ class OnboardingViewModelTest {
 
     /** Build a VM with the current 3-arg constructor; memory + profiler relaxed. */
     private fun vm(settings: SettingsRepository = mockSettings()) =
-        OnboardingViewModel(settings, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true))
+        OnboardingViewModel(
+            settings,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+        )
 
     @Test
     fun `initial step is WELCOME`() = runTest {

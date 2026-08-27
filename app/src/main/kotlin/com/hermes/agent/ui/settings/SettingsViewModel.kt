@@ -21,7 +21,6 @@ import com.hermes.agent.data.export.ImportMode
 import com.hermes.agent.data.export.BackupSection
 import com.hermes.agent.data.security.CredentialVault
 import com.hermes.agent.data.export.JsonBackupManager
-import com.hermes.agent.data.backup.LocalBackupManager
 import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -85,7 +84,6 @@ class SettingsViewModel @Inject constructor(
     private val sessionExporter: SessionExporter,
     private val cloudModelCatalog: CloudModelCatalog,
     private val localLlmManager: com.hermes.agent.data.llm.LocalLlmManager,
-    private val localBackupManager: LocalBackupManager,
     private val jsonBackupManager: JsonBackupManager,
     private val credentialVault: CredentialVault,
     private val deviceAuthenticationService: DeviceAuthenticationService = DeviceAuthenticationService(),
@@ -359,8 +357,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private val _localBackupState = MutableStateFlow<BackupUiState>(BackupUiState.Idle)
-    val localBackupState: StateFlow<BackupUiState> = _localBackupState.asStateFlow()
 
     private val _exportState = MutableStateFlow<ExportUiState>(ExportUiState.Idle)
     val exportState: StateFlow<ExportUiState> = _exportState.asStateFlow()
@@ -792,49 +788,7 @@ class SettingsViewModel @Inject constructor(
         _updateState.value = UpdateUiState.Idle
     }
 
-    // --- Local On-Device Backup ---
-
-    fun createLocalBackup() {
-        if (_localBackupState.value is BackupUiState.InProgress) return
-        _localBackupState.value = BackupUiState.InProgress
-        viewModelScope.launch {
-            val result = localBackupManager.exportToZip()
-            val location = result.getOrNull()
-            if (location != null) {
-                // Report where the file actually landed: the export falls back
-                // to app-private storage when MediaStore is unavailable, and a
-                // hard-coded Downloads path sent the user hunting for a file
-                // that was never written there.
-                _localBackupState.value =
-                    BackupUiState.Success("Local backup saved to ${location.displayPath}")
-            } else {
-                _localBackupState.value = BackupUiState.Error(result.exceptionOrNull()?.message ?: "Failed to save backup")
-            }
-        }
-    }
-
-    fun restoreLocalBackup(uri: Uri) {
-        if (_localBackupState.value is BackupUiState.InProgress) return
-        _localBackupState.value = BackupUiState.InProgress
-        viewModelScope.launch {
-            val result = localBackupManager.restoreFromZip(uri)
-            if (result.isSuccess) {
-                // The restart lives here, not inside the manager. It used to kill
-                // the process before this line ran, so a restore showed no
-                // confirmation — and a rejected archive killed the app just the
-                // same, with no way to tell the two apart.
-                _localBackupState.value = BackupUiState.Success("Backup restored. Restarting...")
-                delay(RESTART_NOTICE_MS)
-                localBackupManager.restartApp()
-            } else {
-                _localBackupState.value = BackupUiState.Error(result.exceptionOrNull()?.message ?: "Failed to restore backup")
-            }
-        }
-    }
-
-    fun dismissLocalBackupState() {
-        _localBackupState.value = BackupUiState.Idle
-    }
+ 
 
     // --- Session export (for offline self-evolution) ---
 

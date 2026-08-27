@@ -79,7 +79,6 @@ class SettingsViewModelCloudModelsTest {
             otaUpdateChecker = mockk<OtaUpdateChecker>(relaxed = true),
             otaInstaller = mockk<OtaInstaller>(relaxed = true),
             sessionExporter = mockk<SessionExporter>(relaxed = true),
-            localBackupManager = mockk<com.hermes.agent.data.backup.LocalBackupManager>(relaxed = true),
             jsonBackupManager = mockk<com.hermes.agent.data.export.JsonBackupManager>(relaxed = true),
             credentialVault = mockk<com.hermes.agent.data.security.CredentialVault>(relaxed = true),
             cloudModelCatalog = catalog,

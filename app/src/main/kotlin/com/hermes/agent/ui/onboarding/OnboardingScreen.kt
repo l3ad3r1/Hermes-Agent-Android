@@ -167,11 +167,15 @@ private fun WelcomeStep() {
 @Composable
 private fun RestoreStep(viewModel: OnboardingViewModel) {
     val scheme = MaterialTheme.colorScheme
+    var restorePassword by androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableStateOf("")
+    }
+
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            viewModel.restoreLocalBackup(uri)
+            viewModel.restoreBackup(uri, restorePassword.ifBlank { null })
         }
     }
 
@@ -197,15 +201,27 @@ private fun RestoreStep(viewModel: OnboardingViewModel) {
         )
         Spacer(Modifier.height(14.dp))
         Text(
-            "If you have a local backup zip file on this device, you can restore it now. This will skip the rest of the setup.",
+            "If you have a backup file on this device, you can restore it now. "
+                + "This will skip the rest of the setup.",
             style = MaterialTheme.typography.bodyLarge,
             color = scheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.widthIn(max = 300.dp),
         )
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(20.dp))
+        // Without this an encrypted backup would be a dead end at first run,
+        // with no way forward but to skip setup and go to Settings.
+        androidx.compose.material3.OutlinedTextField(
+            value = restorePassword,
+            onValueChange = { restorePassword = it },
+            label = { Text("Password (only if the backup has one)") },
+            singleLine = true,
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.widthIn(max = 320.dp),
+        )
+        Spacer(Modifier.height(20.dp))
         Button(
-            onClick = { launcher.launch(arrayOf("application/zip")) },
+            onClick = { launcher.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
             shape = MaterialTheme.shapes.medium,
         ) {
             Text("Select Backup File")

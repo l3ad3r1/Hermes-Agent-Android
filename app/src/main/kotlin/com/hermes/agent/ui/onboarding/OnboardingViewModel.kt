@@ -6,9 +6,11 @@ import com.hermes.agent.data.device.DeviceProfile
 import com.hermes.agent.data.device.DeviceProfiler
 import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.repository.MemoryRepository
-import com.hermes.agent.data.backup.LocalBackupManager
+import com.hermes.agent.data.export.ImportMode
+import com.hermes.agent.data.export.JsonBackupManager
 import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +40,8 @@ class OnboardingViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val memory: MemoryRepository,
     private val deviceProfiler: DeviceProfiler,
-    private val localBackupManager: LocalBackupManager,
+    private val jsonBackupManager: JsonBackupManager,
+    @ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
     private val _step = MutableStateFlow(WELCOME)
@@ -102,21 +105,28 @@ class OnboardingViewModel @Inject constructor(
     /** Skip the remaining steps but still persist whatever was entered/scanned. */
     fun skip() = finish()
 
-    fun restoreLocalBackup(uri: Uri) {
+    /**
+     * Restores a backup file during first-run setup.
+     *
+     * Merges rather than replaces, so a restore run on a device that already
+     * has a little data cannot silently discard it, and needs no restart —
+     * setup simply continues.
+     */
+    fun restoreBackup(uri: Uri, password: String?) {
         if (_saving.value) return
         viewModelScope.launch {
             _saving.value = true
-            try {
-                _error.value = null
-                val result = localBackupManager.restoreFromZip(uri)
-                if (result.isFailure) {
-                    _error.value = result.exceptionOrNull()?.message ?: "Failed to restore backup"
-                }
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to restore backup"
-            } finally {
-                _saving.value = false
+            _error.value = null
+            runCatching {
+                val text = appContext.contentResolver.openInputStream(uri)?.use { input ->
+                    input.readBytes().toString(Charsets.UTF_8)
+                } ?: error("Could not open that file.")
+                val backup = jsonBackupManager.decode(text, password)
+                jsonBackupManager.import(backup, ImportMode.OVERWRITE_EXISTING)
+            }.onFailure {
+                _error.value = it.message ?: "Failed to restore backup"
             }
+            _saving.value = false
         }
     }
 
