@@ -32,7 +32,9 @@ object HermesSettings {
     const val FONT_SYSTEM = "system"
     const val FONT_SERIF = "serif"
     const val FONT_MONO = "mono"
-    val FONT_FAMILIES: Set<String> = setOf(FONT_GEIST, FONT_SYSTEM, FONT_SERIF, FONT_MONO)
+    const val FONT_RUBIK = "rubik"
+    const val FONT_IBM_PLEX = "ibm_plex"
+    val FONT_FAMILIES: Set<String> = setOf(FONT_GEIST, FONT_SYSTEM, FONT_SERIF, FONT_MONO, FONT_RUBIK, FONT_IBM_PLEX)
     const val DEFAULT_FONT_SCALE_PERCENT = 100
     const val MIN_FONT_SCALE_PERCENT = 85
     const val MAX_FONT_SCALE_PERCENT = 130

@@ -27,21 +27,32 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.core.settings.HermesSettings
+import com.hermes.agent.core.theme.IbmPlexSans
+import com.hermes.agent.core.theme.Rubik
+import kotlin.math.roundToInt
+
+/** 85%–130% in 5% detents: ten stops, so eight between the two ends. */
+private const val FONT_SCALE_STEPS = 8
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,18 +159,20 @@ fun AppearanceSettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
+                Spacer(Modifier.height(8.dp))
+                // A list rather than a row of initials: each row can render the
+                // font's own name plus a sample line in that typeface, which is
+                // what actually lets you tell the faces apart before choosing.
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     listOf(
                         FontOption(HermesSettings.FONT_GEIST, "Geist", null),
-                        FontOption(HermesSettings.FONT_SYSTEM, "Sans", FontFamily.SansSerif),
+                        FontOption(HermesSettings.FONT_SYSTEM, "Sans Serif", FontFamily.SansSerif),
                         FontOption(HermesSettings.FONT_SERIF, "Serif", FontFamily.Serif),
-                        FontOption(HermesSettings.FONT_MONO, "Mono", FontFamily.Monospace),
+                        FontOption(HermesSettings.FONT_MONO, "Monospace", FontFamily.Monospace),
+                        FontOption(HermesSettings.FONT_RUBIK, "Rubik", Rubik),
+                        FontOption(HermesSettings.FONT_IBM_PLEX, "IBM Plex Sans", IbmPlexSans),
                     ).forEach { option ->
-                        CircleChoice(
+                        FontListRow(
                             label = option.label,
                             selected = fontFamily == option.value,
                             onClick = { viewModel.setFontFamily(option.value) },
@@ -170,28 +183,49 @@ fun AppearanceSettingsScreen(
             }
 
             AppearanceCard {
+                // Dragging is previewed locally and only committed when the
+                // finger lifts: each commit writes to prefs and rebuilds the
+                // app-wide typography, which is far too costly to run on every
+                // pixel of a drag.
+                var pending by remember(fontScalePercent) {
+                    mutableFloatStateOf(fontScalePercent.toFloat())
+                }
                 Text("Font size", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "$fontScalePercent% · applies throughout the app",
+                    "${pending.roundToInt()}% · applies throughout the app",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    listOf(85 to "S", 100 to "M", 115 to "L", 130 to "XL").forEach { (size, label) ->
-                        CircleChoice(
-                            label = label,
-                            selected = fontScalePercent == size,
-                            onClick = { viewModel.setFontScalePercent(size) },
-                        )
-                    }
+                    Text("A", style = MaterialTheme.typography.labelMedium)
+                    Slider(
+                        value = pending,
+                        onValueChange = { pending = it },
+                        onValueChangeFinished = {
+                            viewModel.setFontScalePercent(pending.roundToInt())
+                        },
+                        valueRange = HermesSettings.MIN_FONT_SCALE_PERCENT.toFloat()..
+                            HermesSettings.MAX_FONT_SCALE_PERCENT.toFloat(),
+                        // One detent per 5%, so the slider lands on round numbers.
+                        steps = FONT_SCALE_STEPS,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp),
+                    )
+                    Text("A", style = MaterialTheme.typography.titleLarge)
                 }
                 Text(
                     "The quick brown fox",
-                    style = MaterialTheme.typography.bodyLarge,
+                    // Previews the value under the finger rather than the saved
+                    // one, so the sample resizes while dragging.
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = MaterialTheme.typography.bodyLarge.fontSize *
+                            (pending / fontScalePercent.toFloat()),
+                    ),
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
             }
@@ -221,7 +255,7 @@ private data class FontOption(
 )
 
 @Composable
-private fun CircleChoice(
+private fun FontListRow(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -229,41 +263,49 @@ private fun CircleChoice(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(66.dp),
-        shape = CircleShape,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         color = if (selected) {
-            MaterialTheme.colorScheme.primary
-        } else MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            Color.Transparent
+        },
         contentColor = if (selected) {
-            MaterialTheme.colorScheme.onPrimary
-        } else MaterialTheme.colorScheme.onSurfaceVariant,
-        border = if (selected) null else androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant,
-        ),
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
                 Text(
-                    label.take(1),
+                    label,
                     style = MaterialTheme.typography.titleMedium,
                     fontFamily = fontFamily,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 )
-                if (label.length > 1) {
-                    Text(
-                        label,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = fontFamily,
-                    )
-                }
-                if (selected) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                    )
-                }
+                Text(
+                    "The quick brown fox jumps over the lazy dog",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = fontFamily,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            if (selected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = "Selected",
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
     }

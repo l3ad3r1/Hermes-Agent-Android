@@ -3,7 +3,9 @@ package com.hermes.agent.core.theme
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -26,6 +28,48 @@ val GeistMono = FontFamily(
     Font(R.font.geist_mono_regular, FontWeight.Normal),
     Font(R.font.geist_mono_medium, FontWeight.Medium),
     Font(R.font.geist_mono_semibold, FontWeight.SemiBold),
+)
+
+/**
+ * Rubik and IBM Plex Sans, offered alongside Geist in Appearance settings.
+ *
+ * Both ship as single variable fonts rather than one file per weight, so the
+ * weight axis has to be driven explicitly through [FontVariation]; supplying
+ * only a [FontWeight] would load every weight at the file's default and every
+ * style would render identically. Rubik's wght axis starts at 300 and IBM Plex
+ * Sans' tops out at 700, so requested weights are clamped into each font's own
+ * range instead of being passed through blind.
+ *
+ * Licensed under the SIL Open Font License 1.1 (see licenses/fonts/), which is
+ * independent of this project's own licence.
+ */
+@OptIn(ExperimentalTextApi::class)
+private fun variableFont(resId: Int, weight: FontWeight, min: Int, max: Int): Font {
+    val axis = weight.weight.coerceIn(min, max)
+    return Font(
+        resId,
+        FontWeight(axis),
+        variationSettings = FontVariation.Settings(FontVariation.weight(axis)),
+    )
+}
+
+private fun rubik(weight: FontWeight) = variableFont(R.font.rubik_variable, weight, 300, 900)
+
+private fun ibmPlexSans(weight: FontWeight) =
+    variableFont(R.font.ibm_plex_sans_variable, weight, 100, 700)
+
+val Rubik = FontFamily(
+    rubik(FontWeight.Normal),
+    rubik(FontWeight.Medium),
+    rubik(FontWeight.SemiBold),
+    rubik(FontWeight.Bold),
+)
+
+val IbmPlexSans = FontFamily(
+    ibmPlexSans(FontWeight.Normal),
+    ibmPlexSans(FontWeight.Medium),
+    ibmPlexSans(FontWeight.SemiBold),
+    ibmPlexSans(FontWeight.Bold),
 )
 
 val HermesTypography = Typography(
@@ -119,6 +163,8 @@ fun hermesTypography(
         "system" -> FontFamily.SansSerif
         "serif" -> FontFamily.Serif
         "mono" -> FontFamily.Monospace
+        "rubik" -> Rubik
+        "ibm_plex" -> IbmPlexSans
         else -> Geist
     }
     val scale = scalePercent.coerceIn(85, 130) / 100f
