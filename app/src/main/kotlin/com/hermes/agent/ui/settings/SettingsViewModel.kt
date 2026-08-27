@@ -300,8 +300,11 @@ class SettingsViewModel @Inject constructor(
                 val backup = jsonBackupManager
                     .export(APP_ID, BuildConfig.VERSION_CODE, sections)
                     .copy(
+                        // Dropped when there is nothing stored, so the file does
+                        // not claim to carry keys it does not have — and so an
+                        // empty selection cannot force a password for nothing.
                         credentials = if (BackupSection.CREDENTIALS in sections) {
-                            credentialVault.collect()
+                            credentialVault.collect().takeUnless { it.isEmpty }
                         } else {
                             null
                         },
