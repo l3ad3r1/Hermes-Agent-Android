@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -19,7 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hermes.agent.core.settings.HermesSettings
+import com.hermes.agent.ui.theme.alt.ThemeStyle
+import com.hermes.agent.ui.theme.alt.tileAccent
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -67,6 +73,10 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val context = LocalContext.current
+    val themeStyleKey by HermesSettings.themeStyleFlow(context)
+        .collectAsStateWithLifecycle(initialValue = HermesSettings.THEME_STYLE_CLASSIC)
+    val themeStyle = ThemeStyle.fromStorageKey(themeStyleKey)
 
     androidx.compose.runtime.LaunchedEffect(startAtSettings) {
         if (startAtSettings) navController.navigate(TopLevelDestination.SETTINGS.route)
@@ -78,8 +88,17 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
-                    bottomNavDestinations.forEach { dest ->
+                    val scheme = MaterialTheme.colorScheme
+                    bottomNavDestinations.forEachIndexed { index, dest ->
                         val selected = currentRoute == dest.route
+                        // Cortex/Material You: each tab gets its own accent rather
+                        // than one repeated hue, matching the "colour per section"
+                        // feel of the tile grid rather than a flat monochrome bar.
+                        val accent = if (themeStyle != ThemeStyle.CLASSIC) {
+                            tileAccent(themeStyle, scheme, index)
+                        } else {
+                            scheme.onSecondaryContainer
+                        }
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
@@ -101,7 +120,11 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                                         .clip(MaterialTheme.shapes.medium)
                                         .background(
                                             if (selected) {
-                                                MaterialTheme.colorScheme.secondaryContainer
+                                                if (themeStyle != ThemeStyle.CLASSIC) {
+                                                    accent.copy(alpha = 0.18f)
+                                                } else {
+                                                    scheme.secondaryContainer
+                                                }
                                             } else {
                                                 Color.Transparent
                                             },
@@ -109,11 +132,18 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                                         .padding(horizontal = 20.dp, vertical = 6.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(dest.icon, contentDescription = null)
+                                    Icon(
+                                        dest.icon,
+                                        contentDescription = null,
+                                        tint = if (selected && themeStyle != ThemeStyle.CLASSIC) accent else LocalContentColor.current,
+                                    )
                                 }
                             },
                             label = { Text(dest.label) },
-                            colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent),
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = Color.Transparent,
+                                selectedTextColor = if (themeStyle != ThemeStyle.CLASSIC) accent else scheme.onSurface,
+                            ),
                         )
                     }
                 }

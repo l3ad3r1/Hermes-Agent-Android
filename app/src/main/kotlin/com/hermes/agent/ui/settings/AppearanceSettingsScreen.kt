@@ -99,39 +99,6 @@ fun AppearanceSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             AppearanceCard {
-                Text("Monochrome", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    if (darkMode) "OLED black · white · grayscale" else "Pure white · black · grayscale",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(82.dp)
-                        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(22.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(22.dp))
-                        .padding(14.dp),
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(
-                            Modifier.fillMaxWidth(0.7f).height(9.dp)
-                                .background(MaterialTheme.colorScheme.onBackground, CircleShape),
-                        )
-                        Box(
-                            Modifier.fillMaxWidth(0.45f).height(7.dp)
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape),
-                        )
-                        Box(
-                            Modifier.fillMaxWidth().height(20.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                        )
-                    }
-                }
-            }
-
-            AppearanceCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -171,8 +138,8 @@ fun AppearanceSettingsScreen(
                             null,
                         ),
                         ThemeStyleOption(
-                            HermesSettings.THEME_STYLE_MYBRAIN, "My Brain",
-                            "Cyan and violet, in the style of the My Brain app",
+                            HermesSettings.THEME_STYLE_CORTEX, "Cortex",
+                            "Cyan and violet, with rounded squircle cards",
                             listOf(Color(0xFF28B0DF), Color(0xFF5F12CA)),
                         ),
                         ThemeStyleOption(

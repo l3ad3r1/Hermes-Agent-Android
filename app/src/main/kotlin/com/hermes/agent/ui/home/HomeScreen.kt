@@ -19,6 +19,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ViewKanban
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,9 +48,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hermes.agent.core.settings.HermesSettings
 import com.hermes.agent.domain.model.Conversation
 import com.hermes.agent.ui.bloub.HermesBot
 import com.hermes.agent.core.theme.GeistMono
+import com.hermes.agent.ui.theme.alt.SpaceTile
+import com.hermes.agent.ui.theme.alt.ThemeStyle
+import com.hermes.agent.ui.theme.alt.tileAccent
 
 /**
  * Home dashboard — the app's landing surface: greeting, the active cloud model,
@@ -63,6 +78,9 @@ fun HomeScreen(
     val presence by viewModel.presence.collectAsStateWithLifecycle()
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
+    val themeStyleKey by HermesSettings.themeStyleFlow(context)
+        .collectAsStateWithLifecycle(initialValue = HermesSettings.THEME_STYLE_CLASSIC)
+    val themeStyle = ThemeStyle.fromStorageKey(themeStyleKey)
 
     Column(
         modifier = Modifier
@@ -106,12 +124,18 @@ fun HomeScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Active-model card
+        // Active-model card. Cortex/Material You get a two-accent gradient
+        // (a splash of colour) instead of the flat monochrome surface blend.
+        val modelCardGradient = if (themeStyle != ThemeStyle.CLASSIC) {
+            Brush.linearGradient(listOf(tileAccent(themeStyle, scheme, 1), tileAccent(themeStyle, scheme, 4)))
+        } else {
+            Brush.linearGradient(listOf(scheme.surfaceVariant, scheme.surfaceContainerHigh))
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.large)
-                .background(Brush.linearGradient(listOf(scheme.surfaceVariant, scheme.surfaceContainerHigh)))
+                .background(modelCardGradient)
                 .padding(18.dp),
         ) {
             Text("Active model", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelSmall)
@@ -137,12 +161,18 @@ fun HomeScreen(
             QuickAction(
                 title = "New Chat",
                 subtitle = "Ask or delegate",
+                icon = Icons.AutoMirrored.Filled.Chat,
+                accent = tileAccent(themeStyle, scheme, 0),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.createNewConversation(onNewChat) },
             )
             QuickAction(
                 title = "Kanban Board",
                 subtitle = "Task queue",
+                icon = Icons.Filled.ViewKanban,
+                accent = tileAccent(themeStyle, scheme, 1),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenKanban,
             )
@@ -154,12 +184,18 @@ fun HomeScreen(
             QuickAction(
                 title = "Starmap Memory",
                 subtitle = "Knowledge graph",
+                icon = Icons.Filled.Hub,
+                accent = tileAccent(themeStyle, scheme, 2),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenMemory,
             )
             QuickAction(
                 title = "Skill Studio",
                 subtitle = "Custom tools",
+                icon = Icons.Filled.Psychology,
+                accent = tileAccent(themeStyle, scheme, 3),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenSkills,
             )
@@ -171,12 +207,18 @@ fun HomeScreen(
             QuickAction(
                 title = "CRON Routines",
                 subtitle = "Scheduled triggers",
+                icon = Icons.Filled.Schedule,
+                accent = tileAccent(themeStyle, scheme, 4),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenSchedule,
             )
             QuickAction(
                 title = "Messaging & Bot",
                 subtitle = "Telegram gateway",
+                icon = Icons.Filled.Forum,
+                accent = tileAccent(themeStyle, scheme, 0),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenConnections,
             )
@@ -188,12 +230,18 @@ fun HomeScreen(
             QuickAction(
                 title = "A/B Benchmark",
                 subtitle = "Latency & tok/s",
+                icon = Icons.Filled.Bolt,
+                accent = tileAccent(themeStyle, scheme, 1),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenExperiment,
             )
             QuickAction(
                 title = "Knowledge Base",
                 subtitle = "Documents & RAG",
+                icon = Icons.AutoMirrored.Filled.LibraryBooks,
+                accent = tileAccent(themeStyle, scheme, 2),
+                themeStyle = themeStyle,
                 modifier = Modifier.weight(1f),
                 onClick = onOpenDocuments,
             )
@@ -208,7 +256,9 @@ fun HomeScreen(
             EmptyHint("No conversations yet — start a new chat.")
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                threads.forEach { thread -> ThreadRow(thread, onClick = { onNewChat(thread.id) }) }
+                threads.forEachIndexed { index, thread ->
+                    ThreadRow(thread, themeStyle, index, onClick = { onNewChat(thread.id) })
+                }
             }
         }
     }
@@ -226,8 +276,22 @@ private fun QuickAction(
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    accent: Color? = null,
+    themeStyle: ThemeStyle = ThemeStyle.CLASSIC,
     onClick: () -> Unit,
 ) {
+    if (themeStyle != ThemeStyle.CLASSIC && icon != null && accent != null) {
+        SpaceTile(
+            title = title,
+            subtitle = subtitle,
+            icon = icon,
+            accent = accent,
+            modifier = modifier.aspectRatio(1f),
+            onClick = onClick,
+        )
+        return
+    }
     val scheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier
@@ -296,8 +360,11 @@ private fun SectionHeader(title: String, action: String, onAction: () -> Unit) {
 }
 
 @Composable
-private fun ThreadRow(thread: Conversation, onClick: () -> Unit) {
+private fun ThreadRow(thread: Conversation, themeStyle: ThemeStyle, index: Int, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    // A different accent per row under Cortex/Material You — a splash of
+    // colour down the thread list rather than one repeated primary dot.
+    val dotColor = if (themeStyle != ThemeStyle.CLASSIC) tileAccent(themeStyle, scheme, index) else scheme.primary
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -312,7 +379,7 @@ private fun ThreadRow(thread: Conversation, onClick: () -> Unit) {
             modifier = Modifier
                 .size(9.dp)
                 .clip(RoundedCornerShape(percent = 50))
-                .background(scheme.primary),
+                .background(dotColor),
         )
         Spacer(Modifier.size(12.dp))
         Column(Modifier.weight(1f)) {
