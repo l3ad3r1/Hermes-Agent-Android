@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -61,6 +63,7 @@ fun AppearanceSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val themeStyle by viewModel.themeStyle.collectAsStateWithLifecycle()
     val fontFamily by viewModel.fontFamily.collectAsStateWithLifecycle()
     val fontScalePercent by viewModel.fontScalePercent.collectAsStateWithLifecycle()
     val darkMode = themeMode != HermesSettings.THEME_LIGHT
@@ -149,6 +152,46 @@ fun AppearanceSettingsScreen(
                             )
                         },
                     )
+                }
+            }
+
+            AppearanceCard {
+                Text("Theme", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Choose a colour style for Hermes",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    listOf(
+                        ThemeStyleOption(
+                            HermesSettings.THEME_STYLE_CLASSIC, "Classic",
+                            "Hermes's own default look",
+                            null,
+                        ),
+                        ThemeStyleOption(
+                            HermesSettings.THEME_STYLE_MYBRAIN, "My Brain",
+                            "Cyan and violet, in the style of the My Brain app",
+                            listOf(Color(0xFF28B0DF), Color(0xFF5F12CA)),
+                        ),
+                        ThemeStyleOption(
+                            HermesSettings.THEME_STYLE_MATERIAL_YOU, "Material You",
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                "Colours drawn from your wallpaper"
+                            } else {
+                                "Requires Android 12 or newer"
+                            },
+                            null,
+                            enabled = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S,
+                        ),
+                    ).forEach { option ->
+                        ThemeStyleRow(
+                            option = option,
+                            selected = themeStyle == option.value,
+                            onClick = { viewModel.setThemeStyle(option.value) },
+                        )
+                    }
                 }
             }
 
@@ -306,6 +349,86 @@ private fun FontListRow(
                     contentDescription = "Selected",
                     modifier = Modifier.size(20.dp),
                 )
+            }
+        }
+    }
+}
+
+private data class ThemeStyleOption(
+    val value: String,
+    val label: String,
+    val description: String,
+    val swatches: List<Color>?,
+    val enabled: Boolean = true,
+)
+
+/**
+ * One row per colour style: swatches for the two fixed palettes, a live
+ * preview of the current scheme's own primary for Classic, and a disabled
+ * state (with the reason in the description) when Material You is not
+ * available on this OS version.
+ */
+@Composable
+private fun ThemeStyleRow(
+    option: ThemeStyleOption,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = option.enabled,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            Color.Transparent
+        },
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+                val swatches = option.swatches ?: listOf(MaterialTheme.colorScheme.primary)
+                swatches.forEach { c ->
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .background(c, CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    option.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (option.enabled) {
+                        LocalContentColor.current
+                    } else {
+                        LocalContentColor.current.copy(alpha = 0.5f)
+                    },
+                )
+                Text(
+                    option.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            if (selected) {
+                Icon(Icons.Default.Check, contentDescription = "Selected", modifier = Modifier.size(20.dp))
             }
         }
     }

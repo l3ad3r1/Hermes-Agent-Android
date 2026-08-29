@@ -61,6 +61,8 @@ class MainActivity : FragmentActivity() {
         setContent {
             val themeMode by HermesSettings.themeModeFlow(this)
                 .collectAsState(initial = HermesSettings.themeMode(this))
+            val themeStyle by HermesSettings.themeStyleFlow(this)
+                .collectAsState(initial = HermesSettings.themeStyle(this))
             val fontFamily by HermesSettings.fontFamilyFlow(this)
                 .collectAsState(initial = HermesSettings.fontFamily(this))
             val fontScalePercent by HermesSettings.fontScalePercentFlow(this)
@@ -68,6 +70,7 @@ class MainActivity : FragmentActivity() {
 
             HermesTheme(
                 darkTheme = themeMode != HermesSettings.THEME_LIGHT,
+                themeStyle = com.hermes.agent.ui.theme.alt.ThemeStyle.fromStorageKey(themeStyle),
                 fontFamilyName = fontFamily,
                 fontScalePercent = fontScalePercent,
             ) {

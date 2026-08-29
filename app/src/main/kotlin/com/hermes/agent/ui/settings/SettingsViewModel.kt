@@ -157,6 +157,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeMode(mode: String) = HermesSettings.setThemeMode(appContext, mode)
 
+    val themeStyle: StateFlow<String> = HermesSettings.themeStyleFlow(appContext)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.THEME_STYLE_CLASSIC)
+
+    fun setThemeStyle(style: String) = HermesSettings.setThemeStyle(appContext, style)
+
     val fontFamily: StateFlow<String> = HermesSettings.fontFamilyFlow(appContext)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.FONT_GEIST)
 

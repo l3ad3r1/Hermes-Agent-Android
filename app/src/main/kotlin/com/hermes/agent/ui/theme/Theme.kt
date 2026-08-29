@@ -16,6 +16,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.hermes.agent.ui.theme.alt.ThemeStyle
+import com.hermes.agent.ui.theme.alt.resolveAltColorScheme
 import com.hermes.agent.core.theme.hermesColorScheme
 import com.hermes.agent.core.theme.hermesTypography
 
@@ -32,11 +34,12 @@ enum class AppTheme {
 fun HermesTheme(
     appTheme: AppTheme? = null,
     darkTheme: Boolean = isSystemInDarkTheme(),
+    themeStyle: ThemeStyle = ThemeStyle.DEFAULT,
     fontFamilyName: String = "geist",
     fontScalePercent: Int = 100,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = hermesColorScheme(darkTheme)
+    val colorScheme = resolveAltColorScheme(themeStyle, darkTheme) ?: hermesColorScheme(darkTheme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
