@@ -203,19 +203,43 @@ fun MessageBubble(
                 }
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            CompositionLocalProvider(
-                LocalTextToolbar provides snippetToolbar,
-                LocalTextSelectionColors provides selectionColors,
-            ) {
-                SelectionContainer {
-                    Text(
-                        text = message.content,
-                        color = textColor,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+            Column {
+                if (message.attachmentUri != null) {
+                    Row(
+                        modifier = Modifier
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(textColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Visibility,
+                            contentDescription = "Image attached",
+                            tint = textColor,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.size(6.dp))
+                        Text(
+                            text = "Image attached",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor,
+                        )
+                    }
+                }
+                CompositionLocalProvider(
+                    LocalTextToolbar provides snippetToolbar,
+                    LocalTextSelectionColors provides selectionColors,
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = message.content,
+                            color = textColor,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
             }
-
         }
 
         // Actions live under the bubble rather than in a dropdown, so what is

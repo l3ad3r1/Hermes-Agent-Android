@@ -189,6 +189,9 @@ fun ChatScreen(
                             onVoiceChatToggle = viewModel::toggleVoiceChat,
                             prefillText = uiState.inputPrefill,
                             voiceChatActive = uiState.voiceChatActive,
+                            onSendWithAttachment = { text, uri, mime ->
+                                viewModel.sendMessage(text, uri, mime)
+                            },
                         )
                     }
                 }

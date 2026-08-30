@@ -74,7 +74,7 @@ import com.hermes.agent.data.local.entity.ScriptPluginEntity
         MoodEntryEntity::class,
         ScriptPluginEntity::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = true,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -662,6 +662,16 @@ abstract class HermesDatabase : RoomDatabase() {
                     """.trimIndent(),
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_script_plugins_enabled ON script_plugins(enabled)")
+            }
+        }
+
+        /**
+         * Adds multimodal attachment columns to messages (Phase 2: Vision).
+         */
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE messages ADD COLUMN attachment_uri TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE messages ADD COLUMN attachment_mime_type TEXT DEFAULT NULL")
             }
         }
 

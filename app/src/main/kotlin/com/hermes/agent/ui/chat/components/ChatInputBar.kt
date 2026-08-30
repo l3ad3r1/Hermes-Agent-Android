@@ -1,14 +1,18 @@
 package com.hermes.agent.ui.chat.components
 import com.hermes.agent.domain.settings.*
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -54,17 +58,33 @@ fun ChatInputBar(
     modifier: Modifier = Modifier,
     prefillText: String = "",
     voiceChatActive: Boolean = false,
+    onSendWithAttachment: ((String, String?, String?) -> Unit)? = null,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var text by remember(prefillText) { mutableStateOf(prefillText) }
+    var attachedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var quickActionsOpen by remember { mutableStateOf(false) }
     val listeningDescription = stringResource(R.string.a11y_listening)
     val endVoiceChatDescription = stringResource(R.string.a11y_end_voice_chat)
 
+    val imagePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri: android.net.Uri? ->
+        attachedImageUri = uri
+    }
+
     fun submit() {
         val message = text.trim()
-        if (message.isNotEmpty()) {
-            onSend(message)
+        if (message.isNotEmpty() || attachedImageUri != null) {
+            val uriStr = attachedImageUri?.toString()
+            val mime = attachedImageUri?.let { context.contentResolver.getType(it) }
+            if (onSendWithAttachment != null) {
+                onSendWithAttachment(message, uriStr, mime)
+            } else {
+                onSend(message)
+            }
             text = ""
+            attachedImageUri = null
         }
     }
 
@@ -75,6 +95,39 @@ fun ChatInputBar(
                 text = cmd.template
             },
         )
+
+        attachedImageUri?.let { uri ->
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.GraphicEq,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.size(6.dp))
+                Text(
+                    text = "Image attached",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    text = "✕",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .clickable { attachedImageUri = null }
+                        .padding(horizontal = 4.dp),
+                )
+            }
+        }
 
         Surface(
             modifier = Modifier
@@ -98,6 +151,13 @@ fun ChatInputBar(
                     expanded = quickActionsOpen,
                     onDismissRequest = { quickActionsOpen = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Attach image") },
+                        onClick = {
+                            quickActionsOpen = false
+                            imagePickerLauncher.launch("image/*")
+                        },
+                    )
                     listOf(
                         "Plan my day" to "Help me plan my day",
                         "Create a note" to "Create a note for me",

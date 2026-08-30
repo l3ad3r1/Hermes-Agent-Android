@@ -169,4 +169,54 @@ class HermesDatabaseMigrationTest {
             assertEquals("Unexpected indices for $table", expected, actual)
         }
     }
+
+    @Test
+    fun `migration 18 to 19 adds attachment columns to messages`() {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(
+            ApplicationProvider.getApplicationContext(),
+        ).name(null).callback(object : SupportSQLiteOpenHelper.Callback(18) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE messages (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        conversation_id TEXT NOT NULL,
+                        role TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        agent_role TEXT,
+                        timestamp INTEGER NOT NULL,
+                        tokens INTEGER NOT NULL DEFAULT 0,
+                        is_on_device INTEGER NOT NULL DEFAULT 1,
+                        evidence_state TEXT
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("INSERT INTO messages (id, conversation_id, role, content, timestamp) VALUES ('msg-1', 'conv-1', 'user', 'hello', 1000)")
+            }
+
+            override fun onUpgrade(
+                db: androidx.sqlite.db.SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }).build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        val database = checkNotNull(helper).writableDatabase
+
+        HermesDatabase.MIGRATION_18_19.migrate(database)
+
+        val columns = mutableSetOf<String>()
+        database.query("PRAGMA table_info('messages')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) columns += cursor.getString(nameIndex)
+        }
+        assertTrue("attachment_uri" in columns)
+        assertTrue("attachment_mime_type" in columns)
+
+        database.query("SELECT attachment_uri, attachment_mime_type FROM messages WHERE id = 'msg-1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertTrue(cursor.isNull(0))
+            assertTrue(cursor.isNull(1))
+        }
+    }
 }

@@ -78,6 +78,8 @@ class ConversationRepositoryImpl @Inject constructor(
                 tokens = message.tokens,
                 isOnDevice = message.isOnDevice,
                 evidenceState = message.evidenceState?.name,
+                attachmentUri = message.attachmentUri,
+                attachmentMimeType = message.attachmentMimeType,
             )
             messageDao.upsert(entity)
             conversationDao.touchAfterMessage(
@@ -170,4 +172,6 @@ private fun MessageEntity.toDomain() = Message(
     tokens = tokens,
     isOnDevice = isOnDevice,
     evidenceState = evidenceState?.let { runCatching { com.hermes.agent.domain.model.EvidenceState.valueOf(it) }.getOrNull() },
+    attachmentUri = attachmentUri,
+    attachmentMimeType = attachmentMimeType,
 )

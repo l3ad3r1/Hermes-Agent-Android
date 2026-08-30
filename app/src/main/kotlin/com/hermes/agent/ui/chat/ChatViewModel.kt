@@ -214,9 +214,13 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendMessage(content: String) {
+    fun sendMessage(
+        content: String,
+        attachmentUri: String? = null,
+        attachmentMimeType: String? = null,
+    ) {
         val trimmed = content.trim()
-        if (trimmed.isEmpty() || _ephemeral.value.isSending) return
+        if ((trimmed.isEmpty() && attachmentUri.isNullOrBlank()) || _ephemeral.value.isSending) return
 
         sendJob?.cancel()
         _ephemeral.value = ChatEphemeralState(
@@ -234,7 +238,13 @@ class ChatViewModel @Inject constructor(
                     return@launch
                 }
                 
-                chatRepository.sendMessageOrchestrated(conversationId, trimmed, ExecutionOrigin.INTERACTIVE).collect { event ->
+                chatRepository.sendMessageOrchestrated(
+                    conversationId = conversationId,
+                    content = trimmed,
+                    origin = ExecutionOrigin.INTERACTIVE,
+                    attachmentUri = attachmentUri,
+                    attachmentMimeType = attachmentMimeType,
+                ).collect { event ->
                     handleOrchestratorEvent(event)
                 }
             } catch (cancelled: CancellationException) {

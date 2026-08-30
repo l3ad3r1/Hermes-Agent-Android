@@ -35,13 +35,13 @@ internal object AgentToolAccess {
             // Every device tool this role legitimately needs is granted below by
             // capability instead, so a new device tool has to be granted on
             // purpose rather than arriving pre-approved.
-            categories = setOf("information", "memory", "productivity", "communication", "creative", "system", "automation"),
+            categories = setOf("information", "memory", "productivity", "communication", "creative", "system", "automation", "vision"),
             capabilities = setOf(
                 "common", "time", "web", "conversation_search", "calculator", "notification",
                 "notes", "device_alarm", "notes_and_reminders", "navigation", "phone", "contacts",
                 "media", "device_control", "skills", "user_memory", "scheduler", "shell", "termux",
                 "todo", "voice", "clarify", "delegate", "media_generation", "documents", "kanban",
-                "bookmarks", "mood", "home_assistant",
+                "bookmarks", "mood", "home_assistant", "vision",
             ),
             // Belt and braces: excludedCapabilities is checked before anything
             // else, so app automation stays out of a conversational turn even if
@@ -53,27 +53,27 @@ internal object AgentToolAccess {
                 "common", "time", "web", "conversation_search", "calculator", "calendar", "notes",
                 "skills", "user_memory", "scheduler", "todo", "clarify", "delegate", "notification",
                 "phone", "contacts", "navigation", "documents", "notes_and_reminders", "kanban",
-                "bookmarks", "mood",
+                "bookmarks", "mood", "vision",
             ),
         ),
         AgentRole.RESEARCH to RoleGrant(
             capabilities = setOf(
                 "common", "web", "conversation_search", "user_memory", "notes", "skills",
-                "calculator", "delegate", "bookmarks", "todo",
+                "calculator", "delegate", "bookmarks", "todo", "vision",
             ),
         ),
         AgentRole.DEVICE_CONTROL to RoleGrant(
-            categories = setOf("automation", "system"),
+            categories = setOf("automation", "system", "vision"),
             capabilities = setOf(
                 "common", "device_settings", "time", "user_memory", "shell", "termux", "voice",
                 "app_automation", "device_alarm", "navigation", "media", "device_control",
-                "phone", "contacts", "home_assistant",
+                "phone", "contacts", "home_assistant", "vision",
             ),
         ),
         AgentRole.CREATIVE to RoleGrant(
             capabilities = setOf(
                 "common", "user_memory", "notes", "conversation_search", "skills",
-                "media_generation", "web", "voice", "creative", "bookmarks",
+                "media_generation", "web", "voice", "creative", "bookmarks", "vision",
             ),
         ),
     )

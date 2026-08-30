@@ -64,6 +64,8 @@ class ChatRepositoryImpl @Inject constructor(
     override fun sendMessage(
         conversationId: String,
         content: String,
+        attachmentUri: String?,
+        attachmentMimeType: String?,
     ): Flow<ChatStreamEvent> = flow {
         // 1. Persist the user message.
         val now = System.currentTimeMillis()
@@ -76,6 +78,8 @@ class ChatRepositoryImpl @Inject constructor(
             timestamp = now,
             tokens = (content.length / 4).coerceAtLeast(1),
             isOnDevice = true,
+            attachmentUri = attachmentUri,
+            attachmentMimeType = attachmentMimeType,
         )
         // The new-chat flow navigates to a client-generated id before any
         // conversation row exists — create it here so the message insert below
@@ -91,7 +95,14 @@ class ChatRepositoryImpl @Inject constructor(
         val llmMessages = buildList {
             add(LlmMessage(role = "system", content = SYSTEM_PROMPT))
             recent.forEach { m ->
-                add(LlmMessage(role = m.role.wireName, content = m.content))
+                add(
+                    LlmMessage(
+                        role = m.role.wireName,
+                        content = m.content,
+                        attachmentUri = m.attachmentUri,
+                        attachmentMimeType = m.attachmentMimeType,
+                    ),
+                )
             }
         }
 
@@ -150,6 +161,8 @@ class ChatRepositoryImpl @Inject constructor(
         conversationId: String,
         content: String,
         origin: ExecutionOrigin,
+        attachmentUri: String?,
+        attachmentMimeType: String?,
     ): Flow<OrchestratorEvent> = flow {
         // 1. Persist the user message first so the orchestrator can see it
         //    in the recent window.
@@ -163,6 +176,8 @@ class ChatRepositoryImpl @Inject constructor(
             timestamp = now,
             tokens = (content.length / 4).coerceAtLeast(1),
             isOnDevice = true,
+            attachmentUri = attachmentUri,
+            attachmentMimeType = attachmentMimeType,
         )
         // The new-chat flow navigates to a client-generated id before any
         // conversation row exists — create it here so the message insert below
@@ -179,7 +194,14 @@ class ChatRepositoryImpl @Inject constructor(
             // Orchestrator supplies its own system prompt per agent, so we
             // only include conversation turns here.
             recent.forEach { m ->
-                add(LlmMessage(role = m.role.wireName, content = m.content))
+                add(
+                    LlmMessage(
+                        role = m.role.wireName,
+                        content = m.content,
+                        attachmentUri = m.attachmentUri,
+                        attachmentMimeType = m.attachmentMimeType,
+                    ),
+                )
             }
         }
 
