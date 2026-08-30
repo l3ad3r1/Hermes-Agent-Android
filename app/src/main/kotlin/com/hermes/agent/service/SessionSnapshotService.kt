@@ -1,6 +1,11 @@
 package com.hermes.agent.service
 
+import android.content.ContentValues
 import android.content.Context
+import android.provider.MediaStore
+import com.hermes.agent.data.local.dao.ConversationDao
+import com.hermes.agent.data.local.dao.MessageDao
+import com.hermes.agent.data.local.entity.ConversationEntity
 import com.hermes.agent.data.local.entity.MessageEntity
 import com.hermes.agent.data.repository.SessionRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -9,6 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +35,8 @@ import javax.inject.Singleton
 class SessionSnapshotService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val sessionRepository: SessionRepository,
+    private val conversationDao: ConversationDao,
+    private val messageDao: MessageDao,
 ) {
 
     companion object {
@@ -109,13 +117,35 @@ class SessionSnapshotService @Inject constructor(
             throw IllegalStateException("Unsupported schema version: ${snapshot.schemaVersion}")
         }
 
-        // Create new conversation with imported data
-        // Note: SessionRepository needs a create method - for now, return placeholder
-        // TODO: Implement conversation creation in SessionRepository
-        throw NotImplementedError(
-            "Session import requires ConversationDao.insert() - not yet implemented. " +
-            "Export functionality works; import pending DAO extension."
+        // Import as a brand-new conversation (new id, not the original) so
+        // re-importing the same file — or importing on a device that already
+        // has the original session — never collides with or overwrites
+        // existing data.
+        val newConversationId = UUID.randomUUID().toString()
+        conversationDao.upsert(
+            ConversationEntity(
+                id = newConversationId,
+                title = "${snapshot.title} (imported)".trim(),
+                createdAt = snapshot.createdAt,
+                updatedAt = System.currentTimeMillis(),
+                lastMessagePreview = snapshot.messages.lastOrNull()?.content.orEmpty().take(120),
+                messageCount = snapshot.messages.size,
+            )
         )
+        snapshot.messages.forEach { msg ->
+            messageDao.upsert(
+                MessageEntity(
+                    id = UUID.randomUUID().toString(),
+                    conversationId = newConversationId,
+                    role = msg.role,
+                    content = msg.content,
+                    agentRole = msg.agentRole,
+                    timestamp = msg.timestamp,
+                )
+            )
+        }
+
+        newConversationId
     }
 
     /**
@@ -160,17 +190,60 @@ class SessionSnapshotService @Inject constructor(
     }
 
     /**
-     * Export session to user-accessible Downloads folder.
-     * Requires MANAGE_EXTERNAL_STORAGE or SAF for Android 11+.
+     * Export session to the user-accessible Downloads folder.
+     *
+     * Uses [MediaStore.Downloads] (API 29+, matching this app's minSdk) rather
+     * than a raw [File] path or a SAF picker round-trip: it writes into the
+     * public Downloads collection under scoped storage without requiring
+     * `WRITE_EXTERNAL_STORAGE` or blocking on a user-driven file-picker
+     * intent, and the file remains visible to the user (and other apps) in
+     * Downloads/HermesSessions afterward.
+     *
+     * @return the resulting `content://` URI as a string, or null if the
+     *   MediaStore insert/write failed.
      */
     suspend fun exportToDownloads(sessionId: String): String? = withContext(Dispatchers.IO) {
-        // Note: Android 11+ requires Storage Access Framework for Downloads access
-        // This is a placeholder - real implementation needs SAF intent
-        val internalPath = exportSession(sessionId)
-        
-        // For now, just return internal path
-        // TODO: Implement SAF export for Android 11+
-        internalPath
+        val session = sessionRepository.getSessionById(sessionId)
+            ?: throw IllegalArgumentException("Session not found: $sessionId")
+
+        val snapshot = SessionSnapshot(
+            schemaVersion = 1,
+            exportedAt = System.currentTimeMillis(),
+            sessionId = session.conversation.id,
+            title = session.conversation.title,
+            createdAt = session.conversation.createdAt,
+            updatedAt = session.conversation.updatedAt,
+            messageCount = session.messages.size,
+            messages = session.messages.map { msg ->
+                SnapshotMessage(
+                    id = msg.id,
+                    role = msg.role,
+                    content = msg.content,
+                    agentRole = msg.agentRole,
+                    timestamp = msg.timestamp,
+                )
+            },
+        )
+        val json = JSON_FORMAT.encodeToString(SessionSnapshot.serializer(), snapshot)
+        val filename = "${sessionId}_${System.currentTimeMillis()}$FILE_EXTENSION"
+
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, filename)
+            put(MediaStore.Downloads.MIME_TYPE, "application/json")
+            put(MediaStore.Downloads.RELATIVE_PATH, "Download/HermesSessions")
+        }
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: return@withContext null
+        val wrote = runCatching {
+            resolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } != null
+        }.getOrDefault(false)
+
+        if (!wrote) {
+            resolver.delete(uri, null, null)
+            return@withContext null
+        }
+        uri.toString()
     }
 
     /**

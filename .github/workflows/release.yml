@@ -24,36 +24,57 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # If the four signing secrets aren't configured yet, skip the job
-      # gracefully instead of failing red: the release APK can also be built
-      # and signed locally and attached by hand. A missing-secret skip is
-      # expected setup state, not a broken build.
-      - name: Check signing secrets
-        id: secrets
+      # A tag push is an explicit instruction to cut a release. If the signing
+      # secrets are missing there is nothing this job can produce, so it fails
+      # loudly here rather than skipping every remaining step and reporting
+      # success — a green Release run must always mean "a signed APK shipped".
+      # To release by hand instead, delete the tag rather than pushing it.
+      - name: Require signing secrets
         run: |
-          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Signing secrets not configured; skipping CI-signed build. Attach a locally signed APK to the release instead."
+          missing=""
+          [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]   || missing="$missing RELEASE_KEYSTORE_BASE64"
+          [ -n "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" ] || missing="$missing RELEASE_KEYSTORE_PASSWORD"
+          [ -n "${{ secrets.RELEASE_KEY_ALIAS }}" ]         || missing="$missing RELEASE_KEY_ALIAS"
+          [ -n "${{ secrets.RELEASE_KEY_PASSWORD }}" ]      || missing="$missing RELEASE_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Cannot build a signed release. Missing repo secrets:$missing"
+            echo "Set them under Settings -> Secrets and variables -> Actions, then re-run this job."
+            exit 1
           fi
 
-      - if: steps.secrets.outputs.available == 'true'
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - if: steps.secrets.outputs.available == 'true'
-        uses: actions/setup-java@v4
+      # The :core:* Gradle projects live in the separate agent-core repo and are
+      # mapped in by settings.gradle.kts. agent-core.ref pins the engine commit,
+      # so the APK attached to a tag is reproducible from two recorded SHAs.
+      - name: Resolve pinned agent-core ref
+        id: engine
+        run: |
+          REF=$(grep -vE '^\s*(#|$)' agent-core.ref | head -1)
+          if [ -z "$REF" ]; then
+            echo "::error::agent-core.ref contains no ref"
+            exit 1
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Building against agent-core @ $REF"
+
+      - name: Check out the agent-core engine
+        uses: actions/checkout@v4
+        with:
+          repository: l3ad3r1/agent-core
+          ref: ${{ steps.engine.outputs.ref }}
+          path: agent-core
+
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      - if: steps.secrets.outputs.available == 'true'
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Write signing config (from secrets, runner-local only)
-        if: steps.secrets.outputs.available == 'true'
         run: |
           echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
           cat > hermes.local.properties <<EOF
@@ -64,13 +85,11 @@ jobs:
           EOF
 
       - name: Build signed release APK
-        if: steps.secrets.outputs.available == 'true'
         run: ./gradlew --no-daemon :app:assembleRelease
 
       # Verify the signer before anything ships. Hard-fails the job rather than
       # publishing an APK signed with the wrong (or no) key.
       - name: Verify signer
-        if: steps.secrets.outputs.available == 'true'
         run: |
           APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
           echo "Checking: $APK"
@@ -84,7 +103,6 @@ jobs:
           echo "APK_PATH=$APK" >> "$GITHUB_ENV"
 
       - name: Attach APK to the GitHub Release
-        if: steps.secrets.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

@@ -70,6 +70,7 @@ import com.hermes.agent.ui.chat.components.MessageBubble
 import com.hermes.agent.ui.chat.components.StreamingBubble
 import com.hermes.agent.ui.components.PulsingDot
 import com.hermes.agent.core.theme.GeistMono
+import com.hermes.agent.data.terminal.HermesCliProbe
 
 /**
  * Main chat screen. Renders the message list, the streaming bubble (when
@@ -98,6 +99,18 @@ fun ChatScreen(
     var planDrawerOpen by remember { mutableStateOf(false) }
     var chatTab by remember { mutableStateOf(0) } // 0=Chat, 1=Terminal
     val pendingConfirmation by viewModel.pendingToolConfirmation.collectAsStateWithLifecycle()
+
+    // Act on a pending intent-driven action (share-to-Hermes, notification
+    // reply, voice quick-tile) exactly once when this screen opens — see
+    // MainActivity.handleIntent() / PendingChatIntent.
+    LaunchedEffect(conversationId) {
+        when (val action = PendingChatIntent.pending.value) {
+            is PendingChatIntent.Action.SendText -> viewModel.sendMessage(action.text)
+            is PendingChatIntent.Action.ArmVoiceListen -> viewModel.toggleVoiceInput()
+            null -> {}
+        }
+        PendingChatIntent.consume()
+    }
 
     // Auto-scroll only when the user is already near the bottom of the list.
     // This prevents pulling users away from earlier content they're reading.
@@ -627,15 +640,15 @@ private fun TerminalPanel() {
         if (probing || !runner.isTermuxInstalled()) return
         probing = true
         val result = runner.run(
-            "command -v hermes >/dev/null 2>&1 && echo __HERMES_OK__ || echo __HERMES_NO__",
-            timeoutMs = 20_000,
+            HermesCliProbe.COMMAND,
+            timeoutMs = HermesCliProbe.TIMEOUT_MS,
         )
         when {
-            result.contains("__HERMES_OK__") -> {
+            result.contains(HermesCliProbe.PRESENT) -> {
                 hermesInstalled = true
                 settings.setTermuxHermesInstalled(true)
             }
-            result.contains("__HERMES_NO__") -> {
+            result.contains(HermesCliProbe.ABSENT) -> {
                 hermesInstalled = false
                 settings.setTermuxHermesInstalled(false)
             }

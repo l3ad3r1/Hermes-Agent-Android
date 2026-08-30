@@ -12,12 +12,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.fragment.app.FragmentActivity
 import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.ui.chat.PendingChatIntent
 import com.hermes.agent.ui.navigation.HermesNavGraph
 import com.hermes.agent.ui.onboarding.OnboardingScreen
 import com.hermes.agent.ui.theme.HermesTheme
@@ -28,6 +31,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.foundation.isSystemInDarkTheme
 
 /**
  * Single-activity entry point. The Compose nav graph owns the screen
@@ -44,6 +48,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var deviceAuthenticationService: DeviceAuthenticationService
+
+    /** Set by [handleIntent] on cold start (onCreate) or a re-delivered intent (onNewIntent). */
+    private var pendingChatIntentTrigger by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,14 +70,24 @@ class MainActivity : FragmentActivity() {
                 .collectAsState(initial = HermesSettings.themeMode(this))
             val themeStyle by HermesSettings.themeStyleFlow(this)
                 .collectAsState(initial = HermesSettings.themeStyle(this))
+            val themeAccentColor by HermesSettings.themeAccentColorFlow(this)
+                .collectAsState(initial = HermesSettings.themeAccentColor(this))
             val fontFamily by HermesSettings.fontFamilyFlow(this)
                 .collectAsState(initial = HermesSettings.fontFamily(this))
             val fontScalePercent by HermesSettings.fontScalePercentFlow(this)
                 .collectAsState(initial = HermesSettings.fontScalePercent(this))
 
             HermesTheme(
-                darkTheme = themeMode != HermesSettings.THEME_LIGHT,
+                // 'System' has to actually follow the system. Testing only against
+                // THEME_LIGHT made THEME_SYSTEM -- the default -- resolve to dark
+                // forever, so the three-way setting only ever offered two.
+                darkTheme = when (themeMode) {
+                    HermesSettings.THEME_LIGHT -> false
+                    HermesSettings.THEME_DARK -> true
+                    else -> isSystemInDarkTheme()
+                },
                 themeStyle = com.hermes.agent.ui.theme.alt.ThemeStyle.fromStorageKey(themeStyle),
+                themeAccentColor = themeAccentColor,
                 fontFamilyName = fontFamily,
                 fontScalePercent = fontScalePercent,
             ) {
@@ -92,6 +109,8 @@ class MainActivity : FragmentActivity() {
                             startAtSettings = intent?.getBooleanExtra(
                                 OtaUpdateWorker.EXTRA_OPEN_UPDATES, false,
                             ) == true,
+                            startPendingChatIntent = pendingChatIntentTrigger,
+                            onPendingChatIntentConsumed = { pendingChatIntentTrigger = false },
                         )
                     }
                 }
@@ -152,21 +171,27 @@ class MainActivity : FragmentActivity() {
         if (intent == null) return
         when (intent.action) {
             "com.hermes.agent.action.ASK_HERMES" -> {
-                // To open chat directly, we should start the ChatScreen, but it's handled via nav graph.
-                // For now, doing nothing leaves it in the MainActivity which opens to the nav graph.
+                // Opens to the nav graph's home screen — nothing further to route.
             }
             "com.hermes.agent.action.SHARE_TO_HERMES" -> {
-                val shareAction = intent.getStringExtra("EXTRA_SHARE_ACTION")
+                // EXTRA_SHARE_ACTION (e.g. "summarize", "explain") is not yet used to
+                // pick a persona/prompt template — the shared text is sent as-is.
                 val shareText = intent.getStringExtra("EXTRA_SHARE_TEXT")
-                // TODO: Handle passing this to the agent / chat screen.
-                // For now we just route to ChatScreen via nav graph and maybe pre-fill or send immediately.
+                if (!shareText.isNullOrBlank()) {
+                    PendingChatIntent.publish(PendingChatIntent.Action.SendText(shareText))
+                    pendingChatIntentTrigger = true
+                }
             }
             "com.hermes.agent.action.START_VOICE_LISTEN" -> {
-                // TODO: Open ChatScreen directly and arm voice listening.
+                PendingChatIntent.publish(PendingChatIntent.Action.ArmVoiceListen)
+                pendingChatIntentTrigger = true
             }
             "com.hermes.agent.action.NOTIFICATION_REPLY" -> {
                 val replyText = intent.getStringExtra("EXTRA_REPLY_TEXT")
-                // TODO: Send this directly to the agent.
+                if (!replyText.isNullOrBlank()) {
+                    PendingChatIntent.publish(PendingChatIntent.Action.SendText(replyText))
+                    pendingChatIntentTrigger = true
+                }
             }
         }
     }

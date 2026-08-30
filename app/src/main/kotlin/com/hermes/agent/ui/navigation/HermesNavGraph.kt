@@ -69,7 +69,12 @@ private val bottomNavDestinations = listOf(
 )
 
 @Composable
-fun HermesNavGraph(startAtSettings: Boolean = false) {
+fun HermesNavGraph(
+    startAtSettings: Boolean = false,
+    /** True once, right after a cold/warm start driven by a share/voice/reply intent. */
+    startPendingChatIntent: Boolean = false,
+    onPendingChatIntentConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -77,9 +82,23 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
     val themeStyleKey by HermesSettings.themeStyleFlow(context)
         .collectAsStateWithLifecycle(initialValue = HermesSettings.THEME_STYLE_CLASSIC)
     val themeStyle = ThemeStyle.fromStorageKey(themeStyleKey)
+    val themeAccentArgb by HermesSettings.themeAccentColorFlow(context)
+        .collectAsStateWithLifecycle(initialValue = HermesSettings.themeAccentColor(context))
+    val accentSeed = themeAccentArgb?.let { Color(it) }
 
     androidx.compose.runtime.LaunchedEffect(startAtSettings) {
         if (startAtSettings) navController.navigate(TopLevelDestination.SETTINGS.route)
+    }
+
+    // Share-to-Hermes / notification-reply / voice quick-tile: jump straight
+    // into a fresh chat. ChatScreen itself consumes the queued PendingChatIntent
+    // action (send the text, or arm voice listening) once it opens.
+    androidx.compose.runtime.LaunchedEffect(startPendingChatIntent) {
+        if (startPendingChatIntent) {
+            val newId = java.util.UUID.randomUUID().toString()
+            navController.navigate(TopLevelDestination.chatRoute(newId))
+            onPendingChatIntentConsumed()
+        }
     }
 
     val showBottomBar = currentRoute in bottomNavDestinations.map { it.route }.toSet()
@@ -95,7 +114,7 @@ fun HermesNavGraph(startAtSettings: Boolean = false) {
                         // than one repeated hue, matching the "colour per section"
                         // feel of the tile grid rather than a flat monochrome bar.
                         val accent = if (themeStyle != ThemeStyle.CLASSIC) {
-                            tileAccent(themeStyle, scheme, index)
+                            tileAccent(themeStyle, scheme, index, accentSeed)
                         } else {
                             scheme.onSecondaryContainer
                         }

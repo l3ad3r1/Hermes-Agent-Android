@@ -36,11 +36,13 @@ fun HermesTheme(
     appTheme: AppTheme? = null,
     darkTheme: Boolean = isSystemInDarkTheme(),
     themeStyle: ThemeStyle = ThemeStyle.DEFAULT,
+    themeAccentColor: Int? = null,
     fontFamilyName: String = "geist",
     fontScalePercent: Int = 100,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = resolveAltColorScheme(themeStyle, darkTheme) ?: hermesColorScheme(darkTheme)
+    val colorScheme = resolveAltColorScheme(themeStyle, darkTheme, themeAccentColor?.let { Color(it) })
+        ?: hermesColorScheme(darkTheme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

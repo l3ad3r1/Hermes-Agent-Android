@@ -34,6 +34,7 @@ object HermesSettings {
     const val THEME_STYLE_MATERIAL_YOU = "material_you"
     val THEME_STYLES: Set<String> =
         setOf(THEME_STYLE_CLASSIC, THEME_STYLE_CORTEX, THEME_STYLE_MATERIAL_YOU)
+    const val KEY_THEME_ACCENT_COLOR = "theme_accent_color"
 
     const val FONT_GEIST = "geist"
     const val FONT_SYSTEM = "system"
@@ -80,6 +81,28 @@ object HermesSettings {
         p.getString(KEY_THEME_STYLE, THEME_STYLE_CLASSIC)
             ?.takeIf { it in THEME_STYLES }
             ?: THEME_STYLE_CLASSIC
+    }
+
+    /**
+     * A user-chosen accent colour (ARGB int) for the Cortex/Material You
+     * theme styles, overriding Cortex's fixed ember/teal or Material You's
+     * wallpaper palette — the same "pick your own colour" idea as the Bloub
+     * bot customiser's swatch row. Null means "use that style's own default".
+     */
+    fun themeAccentColor(context: Context): Int? =
+        if (prefs(context).contains(KEY_THEME_ACCENT_COLOR)) {
+            prefs(context).getInt(KEY_THEME_ACCENT_COLOR, 0)
+        } else {
+            null
+        }
+
+    fun setThemeAccentColor(context: Context, argb: Int?) =
+        prefs(context).edit().apply {
+            if (argb == null) remove(KEY_THEME_ACCENT_COLOR) else putInt(KEY_THEME_ACCENT_COLOR, argb)
+        }.apply()
+
+    fun themeAccentColorFlow(context: Context): Flow<Int?> = prefFlow(context) { p ->
+        if (p.contains(KEY_THEME_ACCENT_COLOR)) p.getInt(KEY_THEME_ACCENT_COLOR, 0) else null
     }
 
     fun fontFamily(context: Context): String =

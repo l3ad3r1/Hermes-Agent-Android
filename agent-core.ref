@@ -1,0 +1,11 @@
+# The agent-core commit this app builds against.
+#
+# The :core:* Gradle projects are mapped into a separate checkout of
+# https://github.com/l3ad3r1/agent-core (see settings.gradle.kts). CI reads
+# the first non-comment, non-blank line of this file and checks out exactly
+# that ref, so a green build names the engine it was green against.
+#
+# Bump this whenever an engine change lands that this app needs, and commit
+# the bump together with the app-side change that depends on it. A branch
+# name works but is not a pin: prefer a full 40-character SHA.
+45966c71bfbdec6eb26c8a5590390fc4af7747b6

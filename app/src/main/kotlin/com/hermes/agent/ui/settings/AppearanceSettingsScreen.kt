@@ -3,6 +3,8 @@ import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +59,25 @@ import kotlin.math.roundToInt
 /** 85%–130% in 5% detents: ten stops, so eight between the two ends. */
 private const val FONT_SCALE_STEPS = 8
 
+/**
+ * Curated accent swatches for Cortex/Material You's "custom colour" picker —
+ * the same fixed-palette-of-circles idea as the Bloub bot customiser's own
+ * [ColorId] row, kept separate since this palette is about theme accents
+ * rather than the bot's body colour.
+ */
+private val ACCENT_SWATCHES: List<Int> = listOf(
+    0xFFC1440E.toInt(), // Ember (Cortex default)
+    0xFF0D6E7C.toInt(), // Deep teal (Cortex default)
+    0xFF2965C9.toInt(), // Blue
+    0xFFD53A2F.toInt(), // Red
+    0xFF1E9651.toInt(), // Green
+    0xFFE78A00.toInt(), // Orange
+    0xFF6F4CAD.toInt(), // Purple
+    0xFFE152B0.toInt(), // Pink
+    0xFF2FBFA0.toInt(), // Teal
+    0xFFF0B429.toInt(), // Amber
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppearanceSettingsScreen(
@@ -64,6 +86,7 @@ fun AppearanceSettingsScreen(
 ) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val themeStyle by viewModel.themeStyle.collectAsStateWithLifecycle()
+    val themeAccentColor by viewModel.themeAccentColor.collectAsStateWithLifecycle()
     val fontFamily by viewModel.fontFamily.collectAsStateWithLifecycle()
     val fontScalePercent by viewModel.fontScalePercent.collectAsStateWithLifecycle()
     val darkMode = themeMode != HermesSettings.THEME_LIGHT
@@ -99,6 +122,106 @@ fun AppearanceSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             AppearanceCard {
+                Text("Theme", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Choose a colour style for Hermes",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    listOf(
+                        ThemeStyleOption(
+                            HermesSettings.THEME_STYLE_CLASSIC, "Classic",
+                            "Monochrome, with outlined squircle cards",
+                            null,
+                        ),
+                        ThemeStyleOption(
+                            HermesSettings.THEME_STYLE_CORTEX, "Cortex",
+                            "Ember and teal, with rounded squircle cards",
+                            listOf(Color(0xFFC1440E), Color(0xFF0D6E7C)),
+                        ),
+                        ThemeStyleOption(
+                            HermesSettings.THEME_STYLE_MATERIAL_YOU, "Material You",
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                "One colour drawn from your wallpaper"
+                            } else {
+                                "Requires Android 12 or newer"
+                            },
+                            null,
+                            enabled = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S,
+                        ),
+                    ).forEach { option ->
+                        ThemeStyleRow(
+                            option = option,
+                            selected = themeStyle == option.value,
+                            onClick = { viewModel.setThemeStyle(option.value) },
+                        )
+                    }
+                }
+
+                // ── custom accent colour ──────────────────────────────────
+                // Cortex's fixed ember/teal, and the one colour Material You
+                // takes from the wallpaper, can clash or just not suit taste —
+                // offer the same "pick your own colour" swatch row the Bloub
+                // bot customiser uses instead of forcing either.
+                if (themeStyle != HermesSettings.THEME_STYLE_CLASSIC) {
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Custom colour", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                if (themeStyle == HermesSettings.THEME_STYLE_MATERIAL_YOU) {
+                                    "Use this colour instead of your wallpaper's"
+                                } else {
+                                    "Override Cortex's ember/teal with one colour"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = themeAccentColor != null,
+                            onCheckedChange = { enabled ->
+                                viewModel.setThemeAccentColor(if (enabled) ACCENT_SWATCHES.first() else null)
+                            },
+                        )
+                    }
+                    if (themeAccentColor != null) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            for (argb in ACCENT_SWATCHES) {
+                                val chosen = argb == themeAccentColor
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(argb))
+                                        .border(
+                                            width = if (chosen) 3.dp else 1.dp,
+                                            color = if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                            shape = CircleShape,
+                                        )
+                                        .clickable { viewModel.setThemeAccentColor(argb) },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (chosen) {
+                                        Icon(Icons.Filled.Check, contentDescription = "Selected", tint = Color.White)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            AppearanceCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -119,46 +242,6 @@ fun AppearanceSettingsScreen(
                             )
                         },
                     )
-                }
-            }
-
-            AppearanceCard {
-                Text("Theme", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Choose a colour style for Hermes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    listOf(
-                        ThemeStyleOption(
-                            HermesSettings.THEME_STYLE_CLASSIC, "Classic",
-                            "Hermes's own default look",
-                            null,
-                        ),
-                        ThemeStyleOption(
-                            HermesSettings.THEME_STYLE_CORTEX, "Cortex",
-                            "Cyan and violet, with rounded squircle cards",
-                            listOf(Color(0xFF28B0DF), Color(0xFF5F12CA)),
-                        ),
-                        ThemeStyleOption(
-                            HermesSettings.THEME_STYLE_MATERIAL_YOU, "Material You",
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                "Colours drawn from your wallpaper"
-                            } else {
-                                "Requires Android 12 or newer"
-                            },
-                            null,
-                            enabled = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S,
-                        ),
-                    ).forEach { option ->
-                        ThemeStyleRow(
-                            option = option,
-                            selected = themeStyle == option.value,
-                            onClick = { viewModel.setThemeStyle(option.value) },
-                        )
-                    }
                 }
             }
 

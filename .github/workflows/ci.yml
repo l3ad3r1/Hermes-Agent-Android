@@ -19,6 +19,30 @@ jobs:
         with:
           submodules: recursive
 
+      # The :core:* Gradle projects live in the separate agent-core repo and
+      # are mapped in by settings.gradle.kts. Without this checkout Gradle
+      # fails during settings evaluation with "projectDirectory does not
+      # exist" — which is exactly how every run between the engine split and
+      # 2026-08-30 failed. agent-core.ref pins the engine commit so a green
+      # run names the engine it was green against.
+      - name: Resolve pinned agent-core ref
+        id: engine
+        run: |
+          REF=$(grep -vE '^\s*(#|$)' agent-core.ref | head -1)
+          if [ -z "$REF" ]; then
+            echo "::error::agent-core.ref contains no ref"
+            exit 1
+          fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Building against agent-core @ $REF"
+
+      - name: Check out the agent-core engine
+        uses: actions/checkout@v4
+        with:
+          repository: l3ad3r1/agent-core
+          ref: ${{ steps.engine.outputs.ref }}
+          path: agent-core
+
       # AGP 9 / Kotlin 2.2 toolchain runs on JDK 21 (repo builds with JBR 21).
       - uses: actions/setup-java@v4
         with:

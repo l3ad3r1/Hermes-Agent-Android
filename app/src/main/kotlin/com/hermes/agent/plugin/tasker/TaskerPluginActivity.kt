@@ -28,6 +28,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -41,21 +42,81 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hermes.agent.domain.model.AgentRole
 import com.hermes.agent.ui.theme.HermesTheme
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class TaskerPluginActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var hostAuthority: TaskerHostAuthority
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val initialConfig = TaskerBundleHelper.fromIntent(intent)
 
+        // Tasker launches this with startActivityForResult, so unlike the fire
+        // broadcast the caller IS identifiable here. This is the only point in
+        // the plugin protocol where the user can be shown who is asking.
+        val hostPackage = callingActivity?.packageName ?: callingPackage
+
         setContent {
             HermesTheme {
+                if (hostPackage == null) {
+                    // Reached without startActivityForResult — no caller to name,
+                    // so there is nothing the user could meaningfully approve.
+                    UnknownHostScreen(
+                        onClose = {
+                            setResult(Activity.RESULT_CANCELED)
+                            finish()
+                        },
+                    )
+                    return@HermesTheme
+                }
+
+                val label = remember(hostPackage) { hostAuthority.label(hostPackage) }
+                val fingerprint = remember(hostPackage) { hostAuthority.signingCertificate(hostPackage) }
+                var approved by remember(hostPackage) {
+                    mutableStateOf(hostAuthority.isApproved(hostPackage))
+                }
+
+                if (!approved) {
+                    HostApprovalScreen(
+                        label = label,
+                        packageName = hostPackage,
+                        fingerprint = fingerprint,
+                        onApprove = {
+                            approved = hostAuthority.approve(hostPackage) != null
+                        },
+                        onCancel = {
+                            setResult(Activity.RESULT_CANCELED)
+                            finish()
+                        },
+                    )
+                    return@HermesTheme
+                }
+
                 TaskerPluginConfigScreen(
                     initialConfig = initialConfig,
+                    hostLabel = label,
+                    onRevokeHost = {
+                        hostAuthority.revoke(hostPackage)
+                        setResult(Activity.RESULT_CANCELED)
+                        finish()
+                    },
                     onSave = { config ->
+                        // The token travels in the configuration Tasker stores and
+                        // sends back on every fire; it is what the receiver checks.
+                        val token = hostAuthority.tokenFor(hostPackage)
+                        if (token == null) {
+                            setResult(Activity.RESULT_CANCELED)
+                            finish()
+                            return@TaskerPluginConfigScreen
+                        }
+                        val authorized = config.copy(hostToken = token)
                         val resultIntent = Intent().apply {
-                            putExtra(TaskerBundleHelper.EXTRA_BUNDLE, config.toBundle())
-                            putExtra(TaskerBundleHelper.EXTRA_BLURB, config.toBlurb())
+                            putExtra(TaskerBundleHelper.EXTRA_BUNDLE, authorized.toBundle())
+                            putExtra(TaskerBundleHelper.EXTRA_BLURB, authorized.toBlurb())
                         }
                         setResult(Activity.RESULT_OK, resultIntent)
                         finish()
@@ -76,6 +137,8 @@ fun TaskerPluginConfigScreen(
     initialConfig: TaskerBundleHelper.TaskerConfig,
     onSave: (TaskerBundleHelper.TaskerConfig) -> Unit,
     onCancel: () -> Unit,
+    hostLabel: String = "",
+    onRevokeHost: () -> Unit = {},
 ) {
     var selectedRole by remember { mutableStateOf(initialConfig.agentRole) }
     var promptTemplate by remember { mutableStateOf(initialConfig.promptTemplate) }
@@ -208,6 +271,140 @@ fun TaskerPluginConfigScreen(
             ) {
                 Text("Save Action")
             }
+
+            if (hostLabel.isNotBlank()) {
+                Text(
+                    "$hostLabel is allowed to run Hermes tasks.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // Withdrawing mints nothing and clears the stored token, so every
+                // action this host already saved stops firing immediately.
+                TextButton(
+                    onClick = onRevokeHost,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Stop allowing $hostLabel", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Shown the first time an automation app configures a Hermes action, and again
+ * whenever that app's signing certificate stops matching what was approved.
+ *
+ * The fingerprint is on screen because the package name alone is not identity:
+ * a package name can be squatted, a signing certificate cannot be forged.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HostApprovalScreen(
+    label: String,
+    packageName: String,
+    fingerprint: String?,
+    onApprove: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Allow $label?") },
+                navigationIcon = {
+                    IconButton(onClick = onCancel) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                "$label wants to run Hermes agent tasks on your behalf. Anything it " +
+                    "triggers runs with the same access you have in the app — including " +
+                    "tools that read and change things on this phone.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("App", style = MaterialTheme.typography.labelMedium)
+                    Text(packageName, style = MaterialTheme.typography.bodySmall)
+                    Text("Signing certificate (SHA-256)", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        fingerprint ?: "Unavailable — the app could not be inspected",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+
+            Text(
+                "Only allow this if you installed $label yourself and recognise it. " +
+                    "You can withdraw it later from this screen, and Hermes withdraws it " +
+                    "automatically if the app is ever replaced by a build from a different signer.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f),
+                ) { Text("Not now") }
+                Button(
+                    onClick = onApprove,
+                    enabled = fingerprint != null,
+                    modifier = Modifier.weight(1f),
+                ) { Text("Allow") }
+            }
+        }
+    }
+}
+
+/**
+ * Fallback when the activity is opened without `startActivityForResult`, which
+ * leaves no caller to identify. Configuring in that state would produce a token
+ * bound to nobody.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnknownHostScreen(onClose: () -> Unit) {
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Tasker Hermes Action") }) },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                "Open this from your automation app instead.",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                "Hermes could not tell which app opened this screen, so there is nothing " +
+                    "it can ask you to approve. Add the Hermes action from inside Tasker " +
+                    "(or whichever automation app you use) and this screen will open with " +
+                    "that app's identity attached.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Close") }
         }
     }
 }

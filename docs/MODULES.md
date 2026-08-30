@@ -1,5 +1,15 @@
 # Module Reference
 
+> **Where the code lives.** The packages below under `com.hermes.agent.data.*`,
+> `com.hermes.agent.domain.*` and `com.hermes.agent.ui.theme.*` are split across
+> two repositories: the shared engine modules (`:core:util`, `:core:domain`,
+> `:core:theme`, `:core:plugin`, `:core:settings`, `:core:persistence`,
+> `:core:memory`, `:core:llm`, `:core:tools`) live in
+> [`agent-core`](https://github.com/l3ad3r1/agent-core) and are mapped into this
+> build by `settings.gradle.kts`. Kotlin package names are identical on both
+> sides, so an import does not tell you which repository a file is in — search
+> both. Anything not in a `:core:*` module is in `app/`.
+
 Per-package documentation for the Hermes Agent Android app. Each entry
 below lists the package's responsibility, its public API, and its
 dependencies on other packages.

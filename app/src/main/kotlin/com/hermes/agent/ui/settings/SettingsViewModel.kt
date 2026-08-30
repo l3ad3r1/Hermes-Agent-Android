@@ -162,6 +162,12 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeStyle(style: String) = HermesSettings.setThemeStyle(appContext, style)
 
+    val themeAccentColor: StateFlow<Int?> = HermesSettings.themeAccentColorFlow(appContext)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.themeAccentColor(appContext))
+
+    /** Null clears the override and returns to that style's own default colour. */
+    fun setThemeAccentColor(argb: Int?) = HermesSettings.setThemeAccentColor(appContext, argb)
+
     val fontFamily: StateFlow<String> = HermesSettings.fontFamilyFlow(appContext)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.FONT_GEIST)
 
@@ -695,6 +701,11 @@ class SettingsViewModel @Inject constructor(
     fun setLocalModelUri(uri: String) = viewModelScope.launch {
         localLlmManager.setLocalModelUri(uri)
         isModelDownloaded.value = localLlmManager.isModelDownloaded()
+    }
+
+    /** Hard off switch for the on-device fallback (see [HybridLlmRouter]). */
+    fun setLocalLlmEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setLocalLlmEnabled(enabled)
     }
 
     // --- Local API server ---

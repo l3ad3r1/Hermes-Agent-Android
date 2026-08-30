@@ -40,3 +40,12 @@ scratch/
 # Completed agent task/report artifacts belong in canonical docs, not repo roots.
 /ANTIGRAVITY-*.md
 /test-run/
+
+# CI checks the shared engine out here (settings.gradle.kts resolves it);
+# locally it lives at ../agent-core. Never commit a nested copy.
+/agent-core/
+
+# On-device test captures (DB dumps, screenshots, logcat) from agent test runs.
+# Same rule as /test-run/: artifacts belong in canonical docs, not the repo, and
+# a DB dump can carry real conversation data.
+/test_artifacts/

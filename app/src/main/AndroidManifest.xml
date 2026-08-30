@@ -65,11 +65,12 @@
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Signature permission to protect automation/Tasker plugin execution against unauthorized 3rd-party broadcast exploits -->
-    <permission
-        android:name="com.hermes.agent.permission.TASKER_PLUGIN"
-        android:protectionLevel="signature" />
-    <uses-permission android:name="com.hermes.agent.permission.TASKER_PLUGIN" />
+    <!-- The Tasker fire receiver used to be guarded by a signature-level
+         permission. That was airtight and useless: Tasker is signed by its own
+         publisher, so the only app that could satisfy it was Hermes itself, and
+         the integration could never work. Access is now gated by a capability
+         token minted when the user approves a specific automation app by
+         package AND signing certificate — see TaskerHostAuthority. -->
 
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
@@ -308,8 +309,10 @@
             android:name=".plugin.tasker.TaskerPluginReceiver"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
-            android:label="Hermes Agent"
-            android:permission="com.hermes.agent.permission.TASKER_PLUGIN">
+            android:label="Hermes Agent">
+            <!-- Reachable by any app, and useless to one: TaskerPluginReceiver
+                 drops every fire whose bundle does not carry a live token from
+                 an approved host. -->
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
             </intent-filter>

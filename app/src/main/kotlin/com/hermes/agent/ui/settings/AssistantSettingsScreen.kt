@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -179,6 +180,27 @@ private fun OnDeviceAiCard(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Local model", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Off skips the on-device fallback entirely — cloud-only, and a clear error " +
+                            "instead of a silent switch to local when cloud is unreachable.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.localLlmEnabled,
+                    onCheckedChange = viewModel::setLocalLlmEnabled,
+                )
+            }
+
+            if (!settings.localLlmEnabled) return@Column
+
             Text(
                 text = "Cloud models are preferred when enabled. This on-device model is the private " +
                     "offline fallback — pick a model, choose where to save it, and download.",

@@ -14,6 +14,21 @@
 Minimum runtime device: **Android 10 (API 29)**, **arm64-v8a**. The APK bundles
 the 64-bit ARM on-device inference runtime.
 
+> **Check out the shared engine too.** The `:core:*` Gradle projects are not in
+> this repository — they live in
+> [`l3ad3r1/agent-core`](https://github.com/l3ad3r1/agent-core) and are mapped
+> in by `settings.gradle.kts`. Without it, Gradle fails during settings
+> evaluation before it compiles a line. Clone it beside this checkout:
+>
+> ```bash
+> git clone https://github.com/l3ad3r1/agent-core.git ../agent-core
+> ```
+>
+> Any other location works via `-PagentCoreDir=<path>` or the
+> `AGENT_CORE_DIR` environment variable. `agent-core.ref` records the engine
+> commit CI builds against — bump it in the same commit as any app change that
+> needs a newer engine.
+
 > **Clone with submodules.** On-device inference is built from
 > `app/src/main/cpp/llama.cpp`, a git **submodule**. A plain `git clone` leaves
 > that directory empty and the native build fails at CMake `add_subdirectory`.

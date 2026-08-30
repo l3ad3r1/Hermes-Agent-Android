@@ -17,6 +17,14 @@ object TaskerBundleHelper {
     const val KEY_TIMEOUT_SECONDS = "com.hermes.agent.extra.TIMEOUT_SECONDS"
     const val KEY_SPEAK_RESPONSE = "com.hermes.agent.extra.SPEAK_RESPONSE"
 
+    /**
+     * Capability token minted when the user approved the automation host, and
+     * carried in the configuration the host persists. A broadcast has no sender
+     * identity, so this is the only evidence at fire time that the configuration
+     * came out of an approved handshake. See [TaskerHostAuthority].
+     */
+    const val KEY_HOST_TOKEN = "com.hermes.agent.extra.HOST_TOKEN"
+
     // Tasker variable output keys
     const val VAR_HERMES_RESULT = "%hermes_result"
     const val VAR_HERMES_EXIT_CODE = "%hermes_exit_code"
@@ -26,12 +34,14 @@ object TaskerBundleHelper {
         val promptTemplate: String = "",
         val timeoutSeconds: Int = 60,
         val speakResponse: Boolean = false,
+        val hostToken: String = "",
     ) {
         fun toBundle(): Bundle = Bundle().apply {
             putString(KEY_AGENT_ROLE, agentRole.name)
             putString(KEY_PROMPT_TEMPLATE, promptTemplate)
             putInt(KEY_TIMEOUT_SECONDS, timeoutSeconds)
             putBoolean(KEY_SPEAK_RESPONSE, speakResponse)
+            putString(KEY_HOST_TOKEN, hostToken)
         }
 
         fun toBlurb(): String {
@@ -57,6 +67,7 @@ object TaskerBundleHelper {
             promptTemplate = prompt,
             timeoutSeconds = timeout,
             speakResponse = speak,
+            hostToken = bundle.getString(KEY_HOST_TOKEN).orEmpty(),
         )
     }
 

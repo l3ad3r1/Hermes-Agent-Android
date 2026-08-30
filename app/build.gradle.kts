@@ -46,8 +46,8 @@ android {
         minSdk = 29          // Android 10 — covers ~95% of active devices
         targetSdk = 36       // Android 16
         // Single source of truth in gradle.properties.
-        versionCode = (project.findProperty("hermes.versionCode") as String?)?.toInt() ?: 60
-        versionName = project.findProperty("hermes.versionName") as String? ?: "0.9.0"
+        versionCode = (project.findProperty("hermes.versionCode") as String?)?.toInt() ?: 61
+        versionName = project.findProperty("hermes.versionName") as String? ?: "0.9.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // MigrationTestHelper loads the exported schemas from assets.

@@ -27,16 +27,35 @@ class TaskerPluginReceiver : BroadcastReceiver() {
     @Inject
     lateinit var voiceOutputManager: VoiceOutputManager
 
+    @Inject
+    lateinit var hostAuthority: TaskerHostAuthority
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TaskerBundleHelper.ACTION_FIRE_SETTING) return
 
         val config = TaskerBundleHelper.fromIntent(intent)
-        if (config.promptTemplate.isBlank()) {
-            Timber.w("TaskerPluginReceiver: Received empty prompt template")
+
+        // A broadcast carries no sender identity, so the token minted during
+        // configuration is the only evidence that this fire came from a host the
+        // user approved. No token, no run — this receiver drives the agent, and
+        // before this check any installed app could have fired it.
+        val host = hostAuthority.hostForToken(config.hostToken)
+        if (host == null) {
+            Timber.w(
+                "TaskerPluginReceiver: refused a fire with %s host token",
+                if (config.hostToken.isBlank()) "no" else "an unrecognised",
+            )
             return
         }
+
+        if (config.promptTemplate.isBlank()) {
+            Timber.w("TaskerPluginReceiver: %s sent an empty prompt template", host)
+            return
+        }
+
+        Timber.i("TaskerPluginReceiver: running a task for approved host %s", host)
 
         val pendingResult = runCatching { goAsync() }.getOrNull()
 
