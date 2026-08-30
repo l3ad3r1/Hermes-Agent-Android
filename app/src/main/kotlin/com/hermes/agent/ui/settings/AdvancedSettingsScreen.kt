@@ -105,6 +105,12 @@ fun AdvancedSettingsScreen(
                 onDismiss = viewModel::dismissJsonBackupState,
             )
 
+            SectionHeader(text = "Files & Workspace Access")
+            FilesWorkspaceSection(
+                rootUri = settings.filesRootUri,
+                onUpdateRoot = viewModel::setFilesRootUri,
+            )
+
             SectionHeader(text = "Self-Evolution")
             ExportSection(
                 state = exportState,
@@ -125,6 +131,59 @@ fun AdvancedSettingsScreen(
                 onDismiss = viewModel::dismissExportState,
             )
 
+        }
+    }
+}
+
+@Composable
+private fun FilesWorkspaceSection(
+    rootUri: String,
+    onUpdateRoot: (String) -> Unit,
+) {
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            onUpdateRoot(uri.toString())
+        }
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Workspace Root Directory",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = if (rootUri.isBlank()) {
+                    "Default: App Sandbox Internal Workspace"
+                } else {
+                    "Granted Root: $rootUri"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = { launcher.launch(null) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (rootUri.isBlank()) "Grant Directory" else "Change Directory")
+                }
+                if (rootUri.isNotBlank()) {
+                    OutlinedButton(
+                        onClick = { onUpdateRoot("") },
+                    ) {
+                        Text("Revoke / Reset")
+                    }
+                }
+            }
         }
     }
 }

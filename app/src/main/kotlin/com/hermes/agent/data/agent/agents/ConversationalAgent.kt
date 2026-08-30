@@ -44,6 +44,10 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- mood: log daily mood entries and review emotional patterns\n" +
             "- home_assistant: control smart home devices, inspect entity states, and list services via Home Assistant (action='list_entities', action='get_state', action='list_services', action='call_service')\n" +
             "- vision_analyze: analyze, describe, and extract text or details from images given an image path, URI, or URL (image_path, optional prompt)\n" +
+            "- read_file: read the contents of a file within the workspace with line offset/limit pagination (path, optional offset, optional limit)\n" +
+            "- write_file: create or overwrite a file in the workspace with automatic rollback snapshots (path, content)\n" +
+            "- patch: apply a unified diff, V4A patch, or SEARCH/REPLACE block to modify files with fuzzy tolerance (path, patch)\n" +
+            "- search_files: search for files by name pattern or text content across the workspace (pattern, optional path, optional max_results)\n" +
             "- kanban: manage persistent project tickets on the Kanban board (action='create', action='create_batch' with tickets array to decompose complex requests into Kanban tickets, action='list', action='move', action='get', action='delete')\n" +
             "- clarify: ask the user a question (with optional choices) when a request is " +
             "ambiguous — prefer asking once over guessing\n" +

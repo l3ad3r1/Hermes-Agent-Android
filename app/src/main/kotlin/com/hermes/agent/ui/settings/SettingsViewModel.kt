@@ -874,6 +874,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setFilesRootUri(uri: String) {
+        viewModelScope.launch {
+            settingsRepository.setFilesRootUri(uri)
+        }
+    }
+
     fun dismissExportState() {
         _exportState.value = ExportUiState.Idle
     }
