@@ -35,6 +35,7 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "- app_swipe: swipe the screen represented by that snapshot\n" +
             "- app_type: enter text into a tagged editable field from that snapshot\n" +
             "- memory: recall user preferences (e.g. preferred brightness level)\n" +
+            "- home_assistant: control smart home devices, inspect entity states, and list services via Home Assistant (action='list_entities', action='get_state', action='list_services', action='call_service')\n" +
             "- speak: read text aloud through the device speaker (use when asked to say/announce " +
             "something out loud)\n" +
             "- clarify: ask the user a short question when a request is ambiguous\n\n" +

@@ -739,6 +739,51 @@ class SettingsViewModel @Inject constructor(
     fun setSshUser(user: String) = viewModelScope.launch { settingsRepository.setSshUser(user) }
     fun setSshPassword(password: String) = viewModelScope.launch { settingsRepository.setSshPassword(password) }
 
+    fun setHomeAssistantUrl(url: String) = viewModelScope.launch {
+        settingsRepository.setHomeAssistantUrl(url)
+    }
+
+    fun setHomeAssistantToken(token: String) = viewModelScope.launch {
+        settingsRepository.setHomeAssistantToken(token)
+    }
+
+    fun testHomeAssistantConnection(onResult: (Boolean, String) -> Unit) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        val current = settingsRepository.current()
+        val url = current.homeAssistantUrl.trim().removeSuffix("/")
+        val token = current.homeAssistantToken.trim()
+        if (url.isBlank()) {
+            onResult(false, "Please specify the Home Assistant base URL.")
+            return@launch
+        }
+        if (token.isBlank()) {
+            onResult(false, "Please provide a Long-Lived Access Token.")
+            return@launch
+        }
+        try {
+            val client = okhttp3.OkHttpClient.Builder()
+                .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                .build()
+            val request = okhttp3.Request.Builder()
+                .url("$url/api/")
+                .header("Authorization", "Bearer $token")
+                .header("Content-Type", "application/json")
+                .get()
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    onResult(true, "Connected successfully: ${response.body?.string()?.take(60) ?: "API running."}")
+                } else if (response.code == 401) {
+                    onResult(false, "Unauthorized (HTTP 401): Check your Access Token.")
+                } else {
+                    onResult(false, "HTTP ${response.code}: ${response.message}")
+                }
+            }
+        } catch (e: Exception) {
+            onResult(false, "Connection error: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
     private fun generateApiKey(): String {
         val bytes = ByteArray(24)
         java.security.SecureRandom().nextBytes(bytes)

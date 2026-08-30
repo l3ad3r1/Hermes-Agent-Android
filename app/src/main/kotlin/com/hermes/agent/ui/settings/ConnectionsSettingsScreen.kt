@@ -87,6 +87,14 @@ fun ConnectionsSettingsScreen(
                 onUser = viewModel::setSshUser,
                 onPassword = viewModel::setSshPassword,
             )
+
+            SectionHeader(text = "Home Assistant")
+            HomeAssistantSection(
+                settings = settings,
+                onUrl = viewModel::setHomeAssistantUrl,
+                onToken = viewModel::setHomeAssistantToken,
+                onTestConnection = viewModel::testHomeAssistantConnection,
+            )
         }
     }
 }
@@ -263,6 +271,85 @@ private fun RemoteShellSection(
                 colors = hermesFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@Composable
+private fun HomeAssistantSection(
+    settings: UserSettings,
+    onUrl: (String) -> Unit,
+    onToken: (String) -> Unit,
+    onTestConnection: ((Boolean, String) -> Unit) -> Unit,
+) {
+    var tokenVisible by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var testing by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "Control lights, switches, climates, and scenes via your local or remote Home Assistant instance.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            var url by remember(settings.homeAssistantUrl) { mutableStateOf(settings.homeAssistantUrl) }
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it; onUrl(it) },
+                label = { Text("Base URL") },
+                placeholder = { Text("http://homeassistant.local:8123") },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            var token by remember(settings.homeAssistantToken) { mutableStateOf(settings.homeAssistantToken) }
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it; onToken(it) },
+                label = { Text("Long-lived access token") },
+                supportingText = { Text("Create under Profile -> Security -> Long-Lived Access Tokens in Home Assistant.") },
+                visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = { tokenVisible = !tokenVisible },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (tokenVisible) "Hide token" else "Reveal token")
+                }
+                OutlinedButton(
+                    onClick = {
+                        testing = true
+                        testResult = null
+                        onTestConnection { success, message ->
+                            testing = false
+                            testResult = success to message
+                        }
+                    },
+                    enabled = !testing,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (testing) "Testing…" else "Test connection")
+                }
+            }
+
+            testResult?.let { (success, message) ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                )
+            }
         }
     }
 }

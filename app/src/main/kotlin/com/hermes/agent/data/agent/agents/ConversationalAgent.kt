@@ -42,6 +42,7 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- todo: manage persistent personal tasks, due dates, priorities, and completion\n" +
             "- bookmarks: save and retrieve links\n" +
             "- mood: log daily mood entries and review emotional patterns\n" +
+            "- home_assistant: control smart home devices, inspect entity states, and list services via Home Assistant (action='list_entities', action='get_state', action='list_services', action='call_service')\n" +
             "- kanban: manage persistent project tickets on the Kanban board (action='create', action='create_batch' with tickets array to decompose complex requests into Kanban tickets, action='list', action='move', action='get', action='delete')\n" +
             "- clarify: ask the user a question (with optional choices) when a request is " +
             "ambiguous — prefer asking once over guessing\n" +
