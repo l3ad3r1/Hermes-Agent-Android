@@ -46,6 +46,9 @@ import com.hermes.agent.data.local.entity.NoteEntity
 import com.hermes.agent.data.local.entity.ScheduledTaskEntity
 import com.hermes.agent.data.local.entity.SkillEntity
 import com.hermes.agent.data.local.entity.TodoTaskEntity
+import com.hermes.agent.data.local.dao.McpDao
+import com.hermes.agent.data.local.entity.McpServerEntity
+import com.hermes.agent.data.local.entity.McpToolEntity
 import com.hermes.agent.data.local.entity.MoodEntryEntity
 import com.hermes.agent.data.local.entity.ScriptPluginEntity
 
@@ -73,8 +76,10 @@ import com.hermes.agent.data.local.entity.ScriptPluginEntity
         BookmarkEntity::class,
         MoodEntryEntity::class,
         ScriptPluginEntity::class,
+        McpServerEntity::class,
+        McpToolEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -99,6 +104,7 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun moodEntryDao(): MoodEntryDao
     abstract fun scriptPluginDao(): ScriptPluginDao
+    abstract fun mcpDao(): McpDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
@@ -672,6 +678,41 @@ abstract class HermesDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE messages ADD COLUMN attachment_uri TEXT DEFAULT NULL")
                 db.execSQL("ALTER TABLE messages ADD COLUMN attachment_mime_type TEXT DEFAULT NULL")
+            }
+        }
+
+        /**
+         * Adds MCP schema cache and server registry tables (Phase 4: MCP Client).
+         */
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS mcp_servers (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        url TEXT NOT NULL,
+                        transport TEXT NOT NULL,
+                        headersJson TEXT NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        lastError TEXT DEFAULT NULL,
+                        supportsParallelCalls INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS mcp_tools (
+                        serverId TEXT NOT NULL,
+                        toolName TEXT NOT NULL,
+                        qualifiedName TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        inputSchemaJson TEXT NOT NULL,
+                        PRIMARY KEY (serverId, toolName)
+                    )
+                    """.trimIndent()
+                )
             }
         }
 

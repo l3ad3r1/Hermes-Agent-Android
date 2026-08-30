@@ -219,4 +219,47 @@ class HermesDatabaseMigrationTest {
             assertTrue(cursor.isNull(1))
         }
     }
+
+    @Test
+    fun `migration 19 to 20 creates mcp schema`() {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(
+            ApplicationProvider.getApplicationContext(),
+        ).name(null).callback(object : SupportSQLiteOpenHelper.Callback(19) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+            override fun onUpgrade(
+                db: androidx.sqlite.db.SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }).build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        val database = checkNotNull(helper).writableDatabase
+
+        HermesDatabase.MIGRATION_19_20.migrate(database)
+
+        val tables = mutableSetOf<String>()
+        database.query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' " +
+                "AND name IN ('mcp_servers', 'mcp_tools')",
+        ).use { cursor ->
+            while (cursor.moveToNext()) tables += cursor.getString(0)
+        }
+        assertEquals(setOf("mcp_servers", "mcp_tools"), tables)
+
+        val serverCols = mutableSetOf<String>()
+        database.query("PRAGMA table_info('mcp_servers')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) serverCols += cursor.getString(nameIndex)
+        }
+        assertTrue("transport" in serverCols)
+        assertTrue("headersJson" in serverCols)
+
+        val toolCols = mutableSetOf<String>()
+        database.query("PRAGMA table_info('mcp_tools')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) toolCols += cursor.getString(nameIndex)
+        }
+        assertTrue("qualifiedName" in toolCols)
+        assertTrue("inputSchemaJson" in toolCols)
+    }
 }
