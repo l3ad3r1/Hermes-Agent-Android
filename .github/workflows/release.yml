@@ -92,12 +92,40 @@ jobs:
       - name: Verify signer
         run: |
           APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
-          echo "Checking: $APK"
-          FINGERPRINT=$("$ANDROID_HOME/build-tools"/*/apksigner verify --print-certs "$APK" \
-            | grep -i 'signer #1 certificate SHA-256' | awk '{print $NF}')
-          echo "Signer SHA-256: $FINGERPRINT"
-          if [ "$FINGERPRINT" != "99255c31ffba1932e4ab2abc12d99b82bf780874b8c686076497157996cf6d6f" ]; then
-            echo "::error::Signer mismatch - expected 99255c31..., got $FINGERPRINT"
+          if [ -z "$APK" ]; then
+            echo "::error::assembleRelease produced no APK"
+            exit 1
+          fi
+          # Pick one apksigner deterministically: the glob can match several
+          # installed build-tools versions, and passing all of them turns the
+          # extra paths into arguments to the first.
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          echo "Checking $APK with $APKSIGNER"
+
+          # An unsigned APK has to fail here rather than downstream: the Gradle
+          # config silently omits the signing config when the keystore path is
+          # blank, so "assembleRelease succeeded" is not evidence of a signature.
+          "$APKSIGNER" verify "$APK"
+
+          # apksigner labels the digest differently across build-tools versions
+          # ("Signer #1 certificate SHA-256 digest" up to 34, "V2 Signer:
+          # certificate SHA-256 digest" on 35+) and prints one line per
+          # signature scheme. Matching either exact label silently yields an
+          # empty fingerprint on the other, which then fails the comparison
+          # below for the wrong reason - so match only the stable part of the
+          # line and require every scheme to agree on one certificate.
+          DIGESTS=$("$APKSIGNER" verify --print-certs "$APK" \
+            | grep -iE 'certificate SHA-256 digest' \
+            | awk '{print $NF}' | sort -u)
+          COUNT=$(printf '%s\n' "$DIGESTS" | grep -c . || true)
+          if [ "$COUNT" -ne 1 ]; then
+            echo "::error::expected exactly one signing certificate, found $COUNT:"
+            printf '%s\n' "$DIGESTS"
+            exit 1
+          fi
+          echo "Signer SHA-256: $DIGESTS"
+          if [ "$DIGESTS" != "99255c31ffba1932e4ab2abc12d99b82bf780874b8c686076497157996cf6d6f" ]; then
+            echo "::error::Signer mismatch - expected 99255c31..., got $DIGESTS"
             exit 1
           fi
           echo "APK_PATH=$APK" >> "$GITHUB_ENV"
@@ -110,5 +138,5 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK_PATH" --clobber
           else
-            gh release create "$TAG" "$APK_PATH" --title "Hermes $TAG" --generate-notes
+            gh release create "$TAG" "$APK_PATH" --title "Hermes $TAG" --generate-notes --latest
           fi
