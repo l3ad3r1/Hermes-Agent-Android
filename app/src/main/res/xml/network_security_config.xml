@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is permitted only for the local-network hosts a self-hosted
+  Home Assistant instance or a local Ollama server can reasonably run on.
+  Everything else (cloud LLM providers, MCP servers, GitHub, etc.) still
+  requires HTTPS via the base-config default below.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">local</domain>
+        <domain includeSubdomains="false">192.168.8.183</domain>
+        <domain includeSubdomains="true">homeassistant.local</domain>
+    </domain-config>
+</network-security-config>

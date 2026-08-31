@@ -59,7 +59,7 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
    needs proof a key is set, cite the feature working or the `enc:v1:` blob, not
    the value.
 5. **Do not weaken or skip a check to make it pass.** Record failures with evidence.
-6. New bugs go on the `Known Issues` sheet **from K28 onward** — K01–K27 are taken.
+6. New bugs go on the `Known Issues` sheet **from K39 onward** — K01–K38 are taken (the sheet already had K20–K29 in use for an unrelated 2026-08-30 theme/CI pass; this port's issues were renumbered K30–K38 after a collision).
 
 ## Known gaps
 
@@ -70,13 +70,13 @@ pass rather than to record a problem:
 
 | | Was | Fixed by |
 |---|---|---|
-| K20 | Nothing could register an MCP server, so `mcp_servers` was always empty | Settings → Connections → MCP servers (T207, T208) |
-| K21 | `usage_insights` was tool-only — you spent tokens to see token spend | Settings → Features → Usage & cost (T225, T241, T242) |
-| K22 | Ported tools described only to Conversational despite wider grants | Every role describes what its grant reaches (T234, T240) |
-| K24 | `ToolSearchEngine.evaluate()` never called, so disclosure never ran | Wired into `OrchestratorImpl` (T214–T217, T243) |
-| K25 | Credential pool bypassed on the chat path | Passed through `CloudProviderFactory` (T226–T228) |
-| K26 | Checkpoints written but never restorable | `file_checkpoint` tool (T202, T237, T238) |
-| K27 | Six granted tools named in no prompt | All prompted; `alarm`'s grant dropped in Hermes (T239) |
+| K30 | Nothing could register an MCP server, so `mcp_servers` was always empty | Settings → Connections → MCP servers (T207, T208) |
+| K31 | `usage_insights` was tool-only — you spent tokens to see token spend | Settings → Features → Usage & cost (T225, T241, T242) |
+| K32 | Ported tools described only to Conversational despite wider grants | Every role describes what its grant reaches (T234, T240) |
+| K34 | `ToolSearchEngine.evaluate()` never called, so disclosure never ran | Wired into `OrchestratorImpl` (T214–T217, T243) |
+| K35 | Credential pool bypassed on the chat path | Passed through `CloudProviderFactory` (T226–T228) |
+| K36 | Checkpoints written but never restorable | `file_checkpoint` tool (T202, T237, T238) |
+| K37 | Six granted tools named in no prompt | All prompted; `alarm`'s grant dropped in Hermes (T239) |
 
 Two issues stay open and neither is ours to fix — do not spend the pass on them:
 
@@ -137,14 +137,14 @@ Notes).
 |---|---|
 | Device | Samsung Galaxy S24 Ultra, `SM-S928B`, serial `RZCY51R2A8D`, Android 16 |
 | Test packages | `com.hermes.agent.debug` **and** `com.jeeves.app.debug` — never the release packages |
-| Hermes repo | `E:\claude-projects\Hermes Agent Android App` (v0.10.2 + unreleased K21/K24 work on `main`) |
-| Jeeves repo | `E:\claude-projects\jeeves` (v0.16.7 + unreleased K21/K24 work on `master`) |
+| Hermes repo | `E:\claude-projects\Hermes Agent Android App` (v0.10.2 + unreleased K31/K34 work on `main`) |
+| Jeeves repo | `E:\claude-projects\jeeves` (v0.16.7 + unreleased K31/K34 work on `master`) |
 | Shared engine | `E:\claude-projects\agent-core` @ `ef78478` — must sit beside each app repo |
 | JAVA_HOME | `C:\Program Files\Android\Android Studio\jbr` |
 | ANDROID_HOME | `C:\Users\renja\AppData\Local\Android\Sdk` |
 
 **Build the debug packages from HEAD of each repo — do not install the release
-APKs.** The published v0.10.2 / v0.16.7 do not contain the K21 and K24 fixes
+APKs.** The published v0.10.2 / v0.16.7 do not contain the K31 and K34 fixes
 (the usage screen and progressive disclosure); those are committed but unreleased.
 All three repositories are clean and pushed. Record `git rev-parse HEAD` for each
 in T184's Notes so the results can be tied to a build later.
@@ -199,7 +199,7 @@ their personal apps or notification shade; relaunch rather than tapping blind.
 4. **§30–32** Skills Hub, usage insights, credential pool.
 5. **§28–29 MCP and tool search** — servers can be added through the UI now, so
    this block is fully runnable. You need one reachable HTTP/SSE MCP server;
-   ask the owner which to use. K24 still applies to §29.
+   ask the owner which to use. K34 still applies to §29.
 6. **§33 Jeeves parity** — switch device focus deliberately, `--stop` between
    repos.
 7. **§34 Release integrity** — desk work, no device needed.
@@ -211,7 +211,7 @@ their personal apps or notification shade; relaunch rather than tapping blind.
 - Every row T184–T243 has a status other than `Not run`, or a stated reason.
 - Every `Pass` carries evidence someone else could re-check.
 - The 11 new rows on `Tools (44)` are filled in.
-- New bugs are on `Known Issues` from **K28** onward, with repro and evidence.
+- New bugs are on `Known Issues` from **K39** onward, with repro and evidence.
 - Section 33 rows carry **Jeeves** evidence, not Hermes evidence.
 - `adb logcat -d | grep -c "FATAL EXCEPTION"` reported at the end of the pass.
 - `adb shell pm list packages | grep -E "hermes|jeeves"` shows only the `.debug`
