@@ -54,9 +54,9 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 4. **Never enter API keys, tokens or credentials.** Ask the owner for the Home
    Assistant token and any provider keys, and mark those rows `Blocked` meanwhile.
 5. **Do not weaken or skip a check to make it pass.** Record failures with evidence.
-6. New bugs go on the `Known Issues` sheet **from K24 onward** — K01–K23 are taken.
+6. New bugs go on the `Known Issues` sheet **from K27 onward** — K01–K26 are taken.
 
-## Three known gaps — expect to record them, not fix them
+## Known gaps — expect to record them, not fix them
 
 These were found by auditing the port on 2026-08-31. Rows exist specifically to
 document them. Do not spend the pass working around them, and do not report them
