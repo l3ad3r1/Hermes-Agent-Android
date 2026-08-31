@@ -62,7 +62,12 @@ These were found by auditing the port on 2026-08-31. Rows exist specifically to
 document them. Do not spend the pass working around them, and do not report them
 as new.
 
-- **K20 — there is no way to add an MCP server.** `McpClient`, `McpManager`,
+- **K20 — FIXED 2026-08-31.** The MCP server registry UI now exists in both apps
+  (Settings > Connections > MCP servers), with cold-start registration of cached
+  tools. T207 and T208 were rewritten as normal functional rows. The paragraph
+  below describes the state before the fix and is kept for context.
+
+  ~~**there is no way to add an MCP server.**~~ `McpClient`, `McpManager`,
   `McpTool`, the Room tables and the tool-search bridge all exist and are
   unit-tested, but nothing outside `McpRepositoryImpl` ever calls
   `saveServer`/`upsertServer`: no settings screen, no tool. `mcp_servers` is
@@ -71,6 +76,15 @@ as new.
   `mcp_servers` by hand against a real HTTP/SSE server and say so in Evidence, or
   mark them `Blocked`. Do not report MCP as working on the strength of unit tests.
 - **K21 — `usage_insights` has no screen.** Tool-only. T225 records it.
+- **K24 — progressive disclosure is never computed.** `ToolSearchEngine.evaluate()`
+  is called only from its own unit tests, so the bridge tools are always present
+  and the full catalogue is always sent. Rows T214–T217 record what actually
+  happens, not what the design intends.
+- **K25 — the chat path builds providers without the credential pool.**
+  `CloudProviderFactory.create()` omits it, so rotation never runs on ordinary
+  cloud turns. Rows T226–T228 will show no rotation; record that.
+- **K26 — checkpoints are written but never restored.** No tool exposes restore,
+  so T202's rollback is not reachable from chat.
 - **K22 — the new tools are prompted only in `ConversationalAgent`** (plus
   `home_assistant` in `DeviceControlAgent`), in both apps, while the grants extend
   to PRODUCTIVITY, RESEARCH and CREATIVE. Those roles hold tools they are never
