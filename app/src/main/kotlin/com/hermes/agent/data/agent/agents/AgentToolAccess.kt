@@ -38,7 +38,7 @@ internal object AgentToolAccess {
             categories = setOf("information", "memory", "productivity", "communication", "creative", "system", "automation", "vision", "files", "mcp"),
             capabilities = setOf(
                 "common", "time", "web", "conversation_search", "calculator", "notification",
-                "notes", "device_alarm", "notes_and_reminders", "navigation", "phone", "contacts",
+                "notes", "notes_and_reminders", "navigation", "phone", "contacts",
                 "media", "device_control", "skills", "user_memory", "scheduler", "shell", "termux",
                 "todo", "voice", "clarify", "delegate", "media_generation", "documents", "kanban",
                 "bookmarks", "mood", "home_assistant", "vision", "files", "mcp", "tool_search",
@@ -69,7 +69,7 @@ internal object AgentToolAccess {
             categories = setOf("automation", "system", "vision"),
             capabilities = setOf(
                 "common", "device_settings", "time", "user_memory", "shell", "termux", "voice",
-                "app_automation", "device_alarm", "navigation", "media", "device_control",
+                "app_automation", "navigation", "media", "device_control",
                 "phone", "contacts", "home_assistant", "vision",
             ),
         ),

@@ -42,6 +42,9 @@ class ProductivityAgent @Inject constructor() : Agent {
             "- delegate: hand focused or parallel subtasks to isolated subagents and get results back; " +
             "pass background=true for long tasks — the user is notified when done\n" +
             "- notify: send a message to the user's connected channels (Telegram, Discord, " +
+            "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
+            "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
+            "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
             "Signal, WhatsApp, webhook) when asked to forward or push something externally\n" +
             "- web_search / web_fetch: look things up online or read a specific URL\n\n" +
             "Be action-oriented: confirm what you did, not what you could do. " +

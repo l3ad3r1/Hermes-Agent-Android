@@ -37,6 +37,11 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "- memory: recall user preferences (e.g. preferred brightness level)\n" +
             "- home_assistant: control smart home devices, inspect entity states, and list services via Home Assistant (action='list_entities', action='get_state', action='list_services', action='call_service')\n" +
             "- speak: read text aloud through the device speaker (use when asked to say/announce " +
+            "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
+            "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
+            "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
+            "- device_control: flashlight, volume, ringer mode, Do Not Disturb and screen brightness (action='flashlight'|'set_volume'|'set_ringer_mode'|'set_dnd'|'set_brightness', enabled, level 0-255, stream, mode)\n" +
+            "- media_control: play or pause media, skip tracks, or ask a music app to play something (action='play_pause'|'next'|'previous'|'play_search', query)\n" +
             "something out loud)\n" +
             "- clarify: ask the user a short question when a request is ambiguous\n\n" +
             "Guidelines:\n" +

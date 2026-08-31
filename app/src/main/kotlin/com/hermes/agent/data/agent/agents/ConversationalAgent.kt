@@ -60,6 +60,11 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- delegate: hand focused or parallel subtasks to isolated subagents, get results back; " +
             "pass background=true for long tasks — the user is notified when done\n" +
             "- speak: read text aloud through the device speaker\n" +
+            "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
+            "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
+            "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
+            "- device_control: flashlight, volume, ringer mode, Do Not Disturb and screen brightness (action='flashlight'|'set_volume'|'set_ringer_mode'|'set_dnd'|'set_brightness', enabled, level 0-255, stream, mode)\n" +
+            "- media_control: play or pause media, skip tracks, or ask a music app to play something (action='play_pause'|'next'|'previous'|'play_search', query)\n" +
             "- generate_image: create an image from a text prompt and return its URL\n\n" +
             "When a tool fits the request, call it — don't just describe what you could do.\n\n" +
             "Any personal info the user mentions (name, preferences, habits) — save it " +

@@ -94,23 +94,33 @@ class AgentToolAccessTest {
     )
 
     @Test
-    fun `all 33 tools are granted to at least one agent`() {
+    fun `every tool except the deliberately ungranted alarm reaches an agent`() {
         val registry = makeRegistry()
+        // Hermes removed its alarm feature (PROGRESS 2026-07-24) but AlarmTool
+        // stays in the shared engine for Jeeves, so the grant was dropped here
+        // rather than the tool deleted. It must reach NO role: a granted tool
+        // nobody prompts is exactly the dead capability this drop removes.
+        val deliberatelyUngranted = setOf("alarm")
         for (tool in sampleTools) {
             val toolName = tool.descriptor.name
             val isGranted = agents.any { agent ->
                 agent.availableTools(registry).any { it.name == toolName }
             }
-            assertTrue("'$toolName' is not granted to any agent", isGranted)
+            if (toolName in deliberatelyUngranted) {
+                assertFalse("'$toolName' should be granted to no agent in Hermes", isGranted)
+            } else {
+                assertTrue("'$toolName' is not granted to any agent", isGranted)
+            }
         }
     }
 
     @Test
-    fun `conversational agent exposes expected 26 tools`() {
+    fun `conversational agent exposes expected 25 tools`() {
         val registry = makeRegistry()
         val names = ConversationalAgent().availableTools(registry).map { it.name }.toSet()
-        // 26, not 31: the five app_* automation tools moved to DEVICE_CONTROL only.
-        assertEquals(26, names.size)
+        // 25, not 31: the five app_* automation tools moved to DEVICE_CONTROL
+        // only, and alarm's grant was dropped when Hermes removed that feature.
+        assertEquals(25, names.size)
         assertTrue(names.contains("shell"))
         assertTrue(names.contains("termux"))
         assertTrue(names.contains("generate_image"))
@@ -120,9 +130,10 @@ class AgentToolAccessTest {
         assertTrue(names.contains("mood"))
         // The device tools this role does legitimately need still resolve, now
         // by capability rather than by the blanket "device" category.
-        for (tool in listOf("alarm", "navigation", "media_control", "device_control")) {
+        for (tool in listOf("navigation", "media_control", "device_control")) {
             assertTrue("conversational agent lost '$tool'", names.contains(tool))
         }
+        assertFalse("Hermes dropped the alarm grant", names.contains("alarm"))
     }
 
     @Test
@@ -151,10 +162,12 @@ class AgentToolAccessTest {
     }
 
     @Test
-    fun `device control agent exposes expected 19 tools including full app automation`() {
+    fun `device control agent exposes expected 18 tools including full app automation`() {
         val registry = makeRegistry()
         val names = DeviceControlAgent().availableTools(registry).map { it.name }.toSet()
-        assertEquals(19, names.size)
+        // 18, not 19: alarm's grant was dropped along with Hermes' alarm feature.
+        assertEquals(18, names.size)
+        assertFalse("Hermes dropped the alarm grant", names.contains("alarm"))
         for (tool in listOf("app_launch", "app_analyze_screen", "app_tap", "app_swipe", "app_type", "shell", "termux")) {
             assertTrue("device-control agent missing '$tool'", names.contains(tool))
         }
