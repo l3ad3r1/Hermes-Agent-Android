@@ -11,6 +11,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -20,13 +24,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -34,6 +41,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hermes.agent.domain.mcp.McpServerConfig
+import com.hermes.agent.domain.mcp.McpTransportType
 import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.service.ApiServerController
 import com.hermes.agent.ui.components.DestructiveActionDialog
@@ -95,6 +104,9 @@ fun ConnectionsSettingsScreen(
                 onToken = viewModel::setHomeAssistantToken,
                 onTestConnection = viewModel::testHomeAssistantConnection,
             )
+
+            SectionHeader(text = "MCP servers")
+            McpServersSection()
         }
     }
 }
@@ -352,4 +364,235 @@ private fun HomeAssistantSection(
             }
         }
     }
+}
+
+
+/**
+ * Registry for Model Context Protocol servers.
+ *
+ * This is the only place a server can be added, so without it the `mcp_servers`
+ * table stayed empty for every install: no MCP tool was ever registered, and the
+ * tool-search bridge never had anything to defer. Adding a server syncs it
+ * immediately so a bad URL is visible here rather than as silence in chat.
+ */
+@Composable
+private fun McpServersSection(
+    viewModel: McpSettingsViewModel = hiltViewModel(),
+) {
+    val servers by viewModel.servers.collectAsStateWithLifecycle()
+    val toolCounts by viewModel.toolCounts.collectAsStateWithLifecycle()
+    val busyServerId by viewModel.busyServerId.collectAsStateWithLifecycle()
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<McpServerConfig?>(null) }
+    var banner by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                "Connect Model Context Protocol servers over HTTP or SSE. Their tools become " +
+                    "available to the agent, namespaced per server and confirmation-gated before " +
+                    "they run.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (servers.isEmpty()) {
+                Text(
+                    "No servers configured. The agent has no MCP tools until you add one.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            servers.forEach { server ->
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(server.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            server.url,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        val count = toolCounts[server.id] ?: 0
+                        Text(
+                            "${server.transport.name} - $count tool(s)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        server.lastError?.let { err ->
+                            Text(
+                                "Last error: $err",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = server.enabled,
+                        onCheckedChange = { viewModel.setEnabled(server.id, it) },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            banner = null
+                            viewModel.sync(server.id) { ok, message -> banner = ok to message }
+                        },
+                        enabled = server.enabled && busyServerId == null,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(if (busyServerId == server.id) "Syncing..." else "Sync tools")
+                    }
+                    OutlinedButton(
+                        onClick = { pendingDelete = server },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Remove")
+                    }
+                }
+            }
+
+            banner?.let { (ok, message) ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                )
+            }
+
+            HorizontalDivider()
+            OutlinedButton(
+                onClick = { banner = null; showAddDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Add MCP server")
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        AddMcpServerDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { name, url, transport, headerName, headerValue ->
+                viewModel.addServer(name, url, transport, headerName, headerValue) { ok, message ->
+                    banner = ok to message
+                    if (ok) showAddDialog = false
+                }
+            },
+        )
+    }
+
+    pendingDelete?.let { server ->
+        DestructiveActionDialog(
+            title = "Remove ${server.name}?",
+            message = "Its tools are unregistered and its cached catalogue is deleted. The server " +
+                "itself is not affected.",
+            confirmLabel = "Remove",
+            onConfirm = {
+                viewModel.deleteServer(server.id)
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null },
+        )
+    }
+}
+
+@Composable
+private fun AddMcpServerDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, String, McpTransportType, String, String) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+    var transport by remember { mutableStateOf(McpTransportType.HTTP) }
+    var headerName by remember { mutableStateOf("") }
+    var headerValue by remember { mutableStateOf("") }
+    var headerVisible by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add MCP server") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    placeholder = { Text("context7") },
+                    singleLine = true,
+                    colors = hermesFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("URL") },
+                    placeholder = { Text("https://example.com/mcp") },
+                    supportingText = {
+                        Text("HTTP or SSE endpoint. Servers that run as a local process are not " +
+                            "supported in the app sandbox - run them under Termux and point here " +
+                            "at their localhost port.")
+                    },
+                    singleLine = true,
+                    colors = hermesFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    McpTransportType.entries.forEach { option ->
+                        FilterChip(
+                            selected = transport == option,
+                            onClick = { transport = option },
+                            label = { Text(option.name) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                OutlinedTextField(
+                    value = headerName,
+                    onValueChange = { headerName = it },
+                    label = { Text("Auth header name (optional)") },
+                    placeholder = { Text("Authorization") },
+                    singleLine = true,
+                    colors = hermesFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = headerValue,
+                    onValueChange = { headerValue = it },
+                    label = { Text("Auth header value (optional)") },
+                    visualTransformation = if (headerVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    singleLine = true,
+                    colors = hermesFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TextButton(onClick = { headerVisible = !headerVisible }) {
+                    Text(if (headerVisible) "Hide value" else "Reveal value")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onAdd(name, url, transport, headerName, headerValue) }) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }

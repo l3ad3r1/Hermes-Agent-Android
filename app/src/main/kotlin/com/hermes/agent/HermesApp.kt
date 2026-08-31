@@ -18,6 +18,7 @@ import com.hermes.agent.data.performance.MemoryPressureMonitor
 import com.hermes.agent.debug.DebugScreenAwake
 import com.hermes.agent.core.settings.HermesSettings
 import com.hermes.agent.domain.repository.ExecutionPlanRepository
+import com.hermes.agent.data.mcp.McpManager
 import com.hermes.agent.data.plugin.ScriptPluginRepository
 import com.hermes.agent.domain.repository.SkillRepository
 import dagger.hilt.android.HiltAndroidApp
@@ -65,6 +66,9 @@ class HermesApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var scriptPluginRepositoryProvider: Provider<ScriptPluginRepository>
+
+    @Inject
+    lateinit var mcpManagerProvider: Provider<McpManager>
 
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
@@ -116,6 +120,15 @@ class HermesApp : Application(), Configuration.Provider {
                     }
                 }
                 .onFailure { Timber.tag("Modules").w(it, "module loading unavailable") }
+        }
+
+        // MCP tools are cached in Room after their first sync, but nothing loads
+        // them back into the ToolRegistry on a cold start, so a configured server
+        // would go quiet until the user opened Settings again. Same failure mode
+        // the skills and modules seeding above exists to prevent.
+        applicationScope.launch {
+            runCatching { mcpManagerProvider.get().loadAndRegisterCachedTools() }
+                .onFailure { Timber.tag("Mcp").w(it, "cached MCP tool registration failed") }
         }
 
         applicationScope.launch {
