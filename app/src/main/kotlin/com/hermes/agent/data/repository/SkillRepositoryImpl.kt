@@ -42,6 +42,10 @@ class SkillRepositoryImpl @Inject constructor(
         requiresTools: List<String>,
         fallbackForTools: List<String>,
         revisionNote: String?,
+        sourceUrl: String?,
+        pinnedCommit: String?,
+        installedAt: Long?,
+        lintStatus: String?,
     ): Skill {
         val existing = dao.getByName(name)
         val now = System.currentTimeMillis()
@@ -85,6 +89,10 @@ class SkillRepositoryImpl @Inject constructor(
             pinned = existing?.pinned ?: false,
             useCount = existing?.useCount ?: 0,
             lastUsedAt = existing?.lastUsedAt,
+            sourceUrl = sourceUrl ?: existing?.sourceUrl,
+            pinnedCommit = pinnedCommit ?: existing?.pinnedCommit,
+            installedAt = installedAt ?: existing?.installedAt,
+            lintStatus = lintStatus ?: existing?.lintStatus,
         )
         dao.upsert(entity)
         return entity.toDomain()

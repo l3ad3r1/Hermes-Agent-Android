@@ -262,4 +262,56 @@ class HermesDatabaseMigrationTest {
         assertTrue("qualifiedName" in toolCols)
         assertTrue("inputSchemaJson" in toolCols)
     }
+
+    @Test
+    fun `migration 20 to 21 adds provenance and lint columns to skills`() {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(
+            ApplicationProvider.getApplicationContext(),
+        ).name(null).callback(object : SupportSQLiteOpenHelper.Callback(20) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS skills (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        version TEXT NOT NULL DEFAULT '1.0.0',
+                        content TEXT NOT NULL,
+                        category TEXT NOT NULL DEFAULT 'general',
+                        tagsJson TEXT NOT NULL DEFAULT '[]',
+                        isBuiltIn INTEGER NOT NULL DEFAULT 0,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        requiresToolsJson TEXT NOT NULL DEFAULT '[]',
+                        fallbackForToolsJson TEXT NOT NULL DEFAULT '[]',
+                        lifecycleState TEXT NOT NULL DEFAULT 'ACTIVE',
+                        lastUsedAt INTEGER,
+                        useCount INTEGER NOT NULL DEFAULT 0,
+                        pinned INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+            }
+            override fun onUpgrade(
+                db: androidx.sqlite.db.SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }).build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        val database = checkNotNull(helper).writableDatabase
+
+        HermesDatabase.MIGRATION_20_21.migrate(database)
+
+        val columns = mutableSetOf<String>()
+        database.query("PRAGMA table_info('skills')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) columns += cursor.getString(nameIndex)
+        }
+        assertTrue("sourceUrl" in columns)
+        assertTrue("pinnedCommit" in columns)
+        assertTrue("installedAt" in columns)
+        assertTrue("lintStatus" in columns)
+    }
 }
+

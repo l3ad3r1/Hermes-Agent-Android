@@ -51,6 +51,8 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- tool_search: search for available external or deferred MCP tools by keyword or task description (query, optional limit)\n" +
             "- tool_describe: inspect full parameter schemas for a deferred tool (tool_name)\n" +
             "- tool_call: execute a deferred MCP tool by name with arguments (tool_name, optional arguments)\n" +
+            "- skills_hub: discover, inspect, and install curated community skills from GitHub (action='search', action='inspect', action='install', action='list_taps')\n" +
+            "- usage_insights: query token consumption, estimated USD API billing expenses, and tool invocation stats (window='today'|'7d'|'30d'|'all')\n" +
             "- kanban: manage persistent project tickets on the Kanban board (action='create', action='create_batch' with tickets array to decompose complex requests into Kanban tickets, action='list', action='move', action='get', action='delete')\n" +
             "- clarify: ask the user a question (with optional choices) when a request is " +
             "ambiguous — prefer asking once over guessing\n" +
