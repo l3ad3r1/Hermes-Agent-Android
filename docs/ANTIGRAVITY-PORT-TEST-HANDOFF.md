@@ -30,14 +30,14 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 
 | § | Area | Rows | Ships in |
 |---|---|---|---|
-| 25 | Home Assistant | T184–T190 | Hermes v0.9.7 / Jeeves v0.16.4 |
-| 26 | Vision & attachments | T191–T197 | same |
-| 27 | File tools & workspace | T198–T206 | v0.10.0 / v0.16.5 |
-| 28 | MCP client | T207–T213 | same |
-| 29 | Tool search | T214–T217 | same |
-| 30 | Skills Hub | T218–T222 | v0.10.1 / v0.16.6 |
-| 31 | Usage insights | T223–T225 | same |
-| 32 | Credential pool | T226–T228 | same |
+| 25 | Home Assistant | T184–T190 | v0.10.2 / v0.16.7 |
+| 26 | Vision & attachments | T191–T197 | v0.10.2 / v0.16.7 |
+| 27 | File tools & workspace | T198–T206 | v0.10.2 / v0.16.7 |
+| 28 | MCP client | T207–T213 | v0.10.2 / v0.16.7 |
+| 29 | Tool search | T214–T217 | v0.10.2 / v0.16.7 |
+| 30 | Skills Hub | T218–T222 | v0.10.2 / v0.16.7 |
+| 31 | Usage insights | T223–T225 | v0.10.2 / v0.16.7 |
+| 32 | Credential pool | T226–T228 | v0.10.2 / v0.16.7 |
 | 33 | Jeeves parity | T229–T234 | all of the above |
 | 34 | Release integrity | T235–T236 | — |
 
@@ -58,39 +58,31 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 
 ## Known gaps — expect to record them, not fix them
 
-These were found by auditing the port on 2026-08-31. Rows exist specifically to
-document them. Do not spend the pass working around them, and do not report them
-as new.
+Only two gaps remain open. Rows exist to document them; do not work around them,
+and do not report them as new.
 
-- **K20 — FIXED 2026-08-31.** The MCP server registry UI now exists in both apps
-  (Settings > Connections > MCP servers), with cold-start registration of cached
-  tools. T207 and T208 were rewritten as normal functional rows. The paragraph
-  below describes the state before the fix and is kept for context.
-
-  ~~**there is no way to add an MCP server.**~~ `McpClient`, `McpManager`,
-  `McpTool`, the Room tables and the tool-search bridge all exist and are
-  unit-tested, but nothing outside `McpRepositoryImpl` ever calls
-  `saveServer`/`upsertServer`: no settings screen, no tool. `mcp_servers` is
-  always empty, so no MCP tool ever loads and progressive disclosure never has
-  anything to defer. **T207 expects Fail/Blocked.** For T208–T213, either seed
-  `mcp_servers` by hand against a real HTTP/SSE server and say so in Evidence, or
-  mark them `Blocked`. Do not report MCP as working on the strength of unit tests.
-- **K21 — `usage_insights` has no screen.** Tool-only. T225 records it.
+- **K21 — `usage_insights` has no screen.** The capability is tool-only, reachable
+  by asking in chat. T225 records it — do not hunt for a screen that does not exist.
 - **K24 — progressive disclosure is never computed.** `ToolSearchEngine.evaluate()`
-  is called only from its own unit tests, so the bridge tools are always present
-  and the full catalogue is always sent. Rows T214–T217 record what actually
-  happens, not what the design intends.
-- **K25 and K26 — FIXED 2026-08-31.** The credential pool is now passed through
-  `CloudProviderFactory` and the aux provider, so rotation runs on the chat path
-  (T226–T228 should pass). `file_checkpoint` now exposes list/restore, so T202 is
-  reachable; T237 and T238 cover it, T238 being the security case.
-- **K27 — six granted tools are named in no prompt** (`communication`,
-  `contact_lookup`, `device_control`, `media_control`, `navigation` in both apps;
-  `alarm` in Hermes). Predates the port. T239 records which the model reaches.
-- **K22 — the new tools are prompted only in `ConversationalAgent`** (plus
-  `home_assistant` in `DeviceControlAgent`), in both apps, while the grants extend
-  to PRODUCTIVITY, RESEARCH and CREATIVE. Those roles hold tools they are never
-  told about. T234 measures which roles actually reach them.
+  is called only from its own unit tests, so the three bridge tools sit in the
+  tools array even with zero MCP servers and the full catalogue is always sent.
+  Rows T214–T217 record what actually happens, not what the design intends.
+
+**Five gaps were found and closed since the regimen was written**, so the rows
+that used to document them now verify the fix instead. Expect these to pass:
+
+| | Was | Now |
+|---|---|---|
+| K20 | Nothing could register an MCP server | Settings → Connections → MCP servers (T207, T208) |
+| K22 | Ported tools prompted only to Conversational | Every role describes what its grant reaches (T234, T240) |
+| K25 | Credential pool bypassed on the chat path | Passed through `CloudProviderFactory` and the aux provider (T226–T228) |
+| K26 | Checkpoints written but never restorable | `file_checkpoint` tool, list + restore (T202, T237, T238) |
+| K27 | Six granted tools named in no prompt | All prompted; `alarm`'s grant dropped in Hermes (T239) |
+
+One deliberate negative case: **in Hermes an alarm request must reach no tool.**
+The feature was removed in July and the grant has now been dropped, so the model
+should say it cannot. Jeeves keeps its alarm tool and still sets alarms. T239
+covers both halves.
 
 ## Environment
 
@@ -98,14 +90,18 @@ as new.
 |---|---|
 | Device | Samsung Galaxy S24 Ultra, `SM-S928B`, serial `RZCY51R2A8D`, Android 16 |
 | Test packages | `com.hermes.agent.debug` **and** `com.jeeves.app.debug` — never the release packages |
-| Hermes repo | `E:\claude-projects\Hermes Agent Android App` (v0.10.1, versionCode 68) |
-| Jeeves repo | `E:\claude-projects\jeeves` (v0.16.6, versionCode 92) |
-| Shared engine | `E:\claude-projects\agent-core` @ `c8c09bb` — must sit beside each app repo |
+| Hermes repo | `E:\claude-projects\Hermes Agent Android App` (v0.10.2, versionCode 69) |
+| Jeeves repo | `E:\claude-projects\jeeves` (v0.16.7, versionCode 93) |
+| Shared engine | `E:\claude-projects\agent-core` @ `afd5cf7` — must sit beside each app repo |
 | JAVA_HOME | `C:\Program Files\Android\Android Studio\jbr` |
 | ANDROID_HOME | `C:\Users\renja\AppData\Local\Android\Sdk` |
 
-All three repositories are clean and pushed. Record `git rev-parse HEAD` for each
-in T184's Notes so the results can be tied to a build later.
+All three repositories are clean and pushed, and both apps are released: Hermes
+[v0.10.2](https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.10.2) and
+Jeeves [v0.16.7](https://github.com/l3ad3r1/Jeeves/releases/tag/v0.16.7). Build the
+debug packages from those commits rather than installing the release APKs. Record
+`git rev-parse HEAD` for each repo in T184's Notes so the results can be tied to a
+build later.
 
 ```bash
 ./gradlew :app:assembleDebug -PSAGE_SKIP_NATIVE_BUILD=true && adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -155,8 +151,9 @@ their personal apps or notification shade; relaunch rather than tapping blind.
    rest of the block is not blocked behind it.
 3. **§26 Vision T191–T197**, except the migration row.
 4. **§30–32** Skills Hub, usage insights, credential pool.
-5. **§28–29 MCP and tool search** — read K20 first; most of this block is
-   seed-or-block.
+5. **§28–29 MCP and tool search** — servers can be added through the UI now, so
+   this block is fully runnable. You need one reachable HTTP/SSE MCP server;
+   ask the owner which to use. K24 still applies to §29.
 6. **§33 Jeeves parity** — switch device focus deliberately, `--stop` between
    repos.
 7. **§34 Release integrity** — desk work, no device needed.
@@ -168,7 +165,7 @@ their personal apps or notification shade; relaunch rather than tapping blind.
 - Every row T184–T236 has a status other than `Not run`, or a stated reason.
 - Every `Pass` carries evidence someone else could re-check.
 - The 11 new rows on `Tools (44)` are filled in.
-- New bugs are on `Known Issues` from **K24** onward, with repro and evidence.
+- New bugs are on `Known Issues` from **K28** onward, with repro and evidence.
 - Section 33 rows carry **Jeeves** evidence, not Hermes evidence.
 - `adb logcat -d | grep -c "FATAL EXCEPTION"` reported at the end of the pass.
 - `adb shell pm list packages | grep -E "hermes|jeeves"` shows only the `.debug`
