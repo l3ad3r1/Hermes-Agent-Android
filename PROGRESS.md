@@ -1,5 +1,30 @@
 # Hermes Agent — Progress
 
+## Release-artifact fixes (2026-08-31, post-v0.10.1)
+- **v0.10.1 APK was corrupt and has been replaced.** The published asset and the
+  local `app/build/outputs/apk/release/app-release.apk` were byte-identical
+  (`sha256 ad975180…`), the right length, and ended in zero padding with no zip
+  end-of-central-directory record — not a valid archive, so it could not install.
+  Rebuilt from HEAD with `:app:assembleRelease` (no `-PSAGE_SKIP_NATIVE_BUILD`),
+  verified: valid EOCD, 507 entries, 17 `lib/arm64-v8a/*.so` (9 `libggml*`),
+  `versionCode 68 / 0.10.1`, signer SHA-256 `99255c31…`. Uploaded with
+  `--clobber` and re-downloaded to confirm the stored asset matches
+  (`sha256 f3281e8d…`).
+- **v0.9.7 shipped a mis-stamped APK.** That tag points at a commit still reading
+  `versionCode=66 / versionName=0.9.6`; the bump landed one commit later in
+  v0.10.0. The tag was not rewritten — a correction note was added to the release
+  pointing at v0.10.1.
+- **Release rule going forward:** never build a release with
+  `-PSAGE_SKIP_NATIVE_BUILD=true` (it drops the llama.cpp libs), always verify the
+  APK is a readable archive before upload, and re-download the asset afterwards.
+  A cheap check: `unzip -l <apk> | tail`.
+- Re-verified while investigating: MCP tool calls **are** confirmation-gated
+  (`McpTool` and `ToolSearchEngine.callToolDescriptor` both set
+  `requiresConfirmation = true`; `ToolCallExecutor` enforces it). Unit suites
+  re-run from clean: 420 agent-core + 209 Hermes + 248 Jeeves = 877 tests, 0 failures.
+
+---
+
 ## RELEASED: v0.10.1 (2026-08-31) — Release Group C (Full Upstream Parity)
 - GitHub release **v0.10.1** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.10.1 (versionCode 68).
 - **Phase 6: Skills Hub & Linter**

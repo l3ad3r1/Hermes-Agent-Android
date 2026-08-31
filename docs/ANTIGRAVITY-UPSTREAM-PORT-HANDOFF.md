@@ -431,7 +431,15 @@ directory and the build fails on a locked jar without it. Run it in whichever
 repo you are leaving, every time you switch.
 
 `-PSAGE_SKIP_NATIVE_BUILD=true` skips the llama.cpp NDK build and turns a
-multi-minute build into ~20s. Drop it only when testing on-device inference.
+multi-minute build into ~20s. It is a debug-loop shortcut only: **never pass it to
+`assembleRelease`** — a release built with it ships without the llama.cpp libs and
+has no on-device inference. Drop it whenever you are testing on-device inference.
+
+Before publishing any release APK, confirm it is a readable archive
+(`unzip -l <apk> | tail` succeeds), check `apksigner verify --print-certs` reports
+signer SHA-256 `99255c31…`, and re-download the uploaded asset to confirm the
+stored bytes match. A v0.10.1 APK was published truncated — correct length, zero
+tail, no central directory — and nothing caught it because nothing opened it.
 
 Device is the owner's daily driver — every trap in
 `docs/ANTIGRAVITY-TEST-HANDOFF.md` still applies, in particular: check
