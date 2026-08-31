@@ -6,20 +6,20 @@ Paste everything below this line into Antigravity as the task prompt.
 
 ## Your job
 
-Run a device test pass over the **53 new rows** added to the test regimen for the
+Run a device test pass over the **57 new rows** added to the test regimen for the
 2026-08-31 upstream capability port, and record every row with real evidence.
 
 **The checklist is the source of truth and the deliverable:**
 `E:\claude-projects\Hermes Agent Android App\Hermes-Test-Regimen.xlsx`
 
-Your scope is **T184–T236 only** — sections 25 through 34. Everything before T184
+Your scope is **T184–T240 only** — sections 25 through 35. Everything before T184
 is the completed 2026-08-30 pass: 178 Pass, 4 Blocked, 1 Fail. **Leave those rows
 exactly as they are.** Do not re-run them, do not clear them, do not "tidy" them.
 
 Set `Status`, `Evidence (path / log line)`, `Tester` (= `Antigravity`) and `Date`
 on each of your rows. Status vocabulary: `Not run` / `Pass` / `Fail` / `Blocked` /
 `Not testable` / `N/A`. Also fill the `Status` and `Evidence` columns for the 11
-new tools on the `Tools (44)` sheet (rows 35–45: `home_assistant`,
+new tools on the `Tools (45)` sheet (rows 35–46: `home_assistant`,
 `vision_analyze`, `read_file`, `write_file`, `patch`, `search_files`,
 `tool_search`, `tool_describe`, `tool_call`, `skills_hub`, `usage_insights`).
 
@@ -41,7 +41,7 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 | 33 | Jeeves parity | T229–T234 | all of the above |
 | 34 | Release integrity | T235–T236 | — |
 
-29 of the 53 are P0.
+31 of the 57 are P0.
 
 ## Rules
 
@@ -54,7 +54,7 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 4. **Never enter API keys, tokens or credentials.** Ask the owner for the Home
    Assistant token and any provider keys, and mark those rows `Blocked` meanwhile.
 5. **Do not weaken or skip a check to make it pass.** Record failures with evidence.
-6. New bugs go on the `Known Issues` sheet **from K27 onward** — K01–K26 are taken.
+6. New bugs go on the `Known Issues` sheet **from K28 onward** — K01–K27 are taken.
 
 ## Known gaps — expect to record them, not fix them
 
@@ -80,11 +80,13 @@ as new.
   is called only from its own unit tests, so the bridge tools are always present
   and the full catalogue is always sent. Rows T214–T217 record what actually
   happens, not what the design intends.
-- **K25 — the chat path builds providers without the credential pool.**
-  `CloudProviderFactory.create()` omits it, so rotation never runs on ordinary
-  cloud turns. Rows T226–T228 will show no rotation; record that.
-- **K26 — checkpoints are written but never restored.** No tool exposes restore,
-  so T202's rollback is not reachable from chat.
+- **K25 and K26 — FIXED 2026-08-31.** The credential pool is now passed through
+  `CloudProviderFactory` and the aux provider, so rotation runs on the chat path
+  (T226–T228 should pass). `file_checkpoint` now exposes list/restore, so T202 is
+  reachable; T237 and T238 cover it, T238 being the security case.
+- **K27 — six granted tools are named in no prompt** (`communication`,
+  `contact_lookup`, `device_control`, `media_control`, `navigation` in both apps;
+  `alarm` in Hermes). Predates the port. T239 records which the model reaches.
 - **K22 — the new tools are prompted only in `ConversationalAgent`** (plus
   `home_assistant` in `DeviceControlAgent`), in both apps, while the grants extend
   to PRODUCTIVITY, RESEARCH and CREATIVE. Those roles hold tools they are never
