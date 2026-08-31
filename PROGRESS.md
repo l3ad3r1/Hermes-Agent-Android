@@ -1,5 +1,29 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.10.2 (2026-08-31) — MCP registry + wiring fixes
+- GitHub release **v0.10.2** marked **Latest** (versionCode 69). APK verified as a readable
+  archive before and after upload: 507 entries, 17 `lib/arm64-v8a/*.so` (9 `libggml*`),
+  signer SHA-256 `99255c31…`.
+- **MCP server registry UI (K20)** — `Settings → Connections → MCP servers`. Nothing could
+  register a server before, so `mcp_servers` was empty on every install and no MCP tool
+  ever loaded. Add/enable/sync/remove, per-server tool count and last error, plus
+  cold-start registration of cached tools in `HermesApp`.
+- **Credential pool on the chat path (K25)** — `CloudProviderFactory` built every
+  profile-backed provider without the pool, so rotation and the 429 cooldown never ran on
+  ordinary turns. The aux provider was missing it too.
+- **Checkpoint restore (K26)** — new confirmation-gated `file_checkpoint` tool
+  (`list`/`restore`). Refuses a checkpoint whose target now sits outside the current
+  workspace root, and hides it from `list`.
+- **Prompt coverage (K27, K22)** — `communication`, `contact_lookup`, `device_control`,
+  `media_control` and `navigation` were granted but named in no prompt; and the ported
+  tools (files, vision, MCP bridge, skills_hub, usage_insights) were described only to
+  CONVERSATIONAL despite wider grants. Every role now describes exactly what its own grant
+  reaches. `alarm`'s grant was dropped instead — Hermes removed that feature in July.
+- Test regimen grows to 240 rows; `AgentToolAccessTest` now asserts `alarm` reaches no role.
+- All suites green in both apps. Not device-verified — that is the T184–T240 pass.
+
+---
+
 ## Release-artifact fixes (2026-08-31, post-v0.10.1)
 - **v0.10.1 APK was corrupt and has been replaced.** The published asset and the
   local `app/build/outputs/apk/release/app-release.apk` were byte-identical
