@@ -1,5 +1,35 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.10.1 (2026-08-31) — Release Group C (Full Upstream Parity)
+- GitHub release **v0.10.1** marked **Latest**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.10.1 (versionCode 68).
+- **Phase 6: Skills Hub & Linter**
+  - Search, inspect, and install community skills from GitHub taps with commit SHA pinning (`skills_hub`).
+  - Automatic `SkillLinter` schema validation and dangerous pattern detection before install.
+  - Provenance tracking columns (`sourceUrl`, `pinnedCommit`, `installedAt`, `lintStatus`) added via Room Migration 20 -> 21.
+- **Phase 7: Usage & Cost Insights**
+  - Token consumption tracking, estimated USD billing calculations across providers (OpenAI, Anthropic, Gemini, DeepSeek, Groq, local $0.00), and tool invocation analytics (`usage_insights`).
+- **Phase 8: Credential Pool & 429 Rotation**
+  - Multi-key rotation strategies (`FILL_FIRST`, `ROUND_ROBIN`, `LEAST_USED`) with automatic exponential backoff cooldown on HTTP 429 rate limits and dead-key marking on 401/403.
+- **100% Full Capability Parity Achieved** across all 9 upstream feature groups between python Hermes Agent and Android Hermes.
+
+---
+
+## RELEASED: v0.10.0 (2026-08-31) — Release Group B
+- GitHub release **v0.10.0**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.10.0 (versionCode 67).
+- **Phase 3: File System & Workspace Tools** (`read_file`, `write_file`, `patch`, `search_files`) with PathSecurity and rollback snapshots.
+- **Phase 4: Model Context Protocol (MCP) Client** (STDIO & SSE transports, deferred tool discovery, `tool_search`, `tool_describe`, `tool_call`).
+- **Phase 5: Kanban Decomposition Engine** (`kanban` tool, batch decomposition, Room migration 19 -> 20).
+
+---
+
+## RELEASED: v0.9.7 (2026-08-31) — Release Group A
+- GitHub release **v0.9.7**: https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.9.7 (versionCode 66).
+- **Phase 0: Multi-Engine Refactor** into shared `agent-core` library (`core:domain`, `core:persistence`, `core:llm`, `core:tools`, `core:memory`, `core:plugin`, `core:theme`, `core:util`).
+- **Phase 1: Smart Home Integration** via Home Assistant tool (`home_assistant`).
+- **Phase 2: Vision & Multimodal Engine** (`vision_analyze`, image attachment capture & DB migration 18 -> 19).
+
+---
+
 ## Toolchain modernisation + on-device inference — 2026-07-24
 - Large internal update across the app (127 new files, 134 updated), phased:
   - **Deleted** the completed `docs/SUPER_APP_ROADMAP.md`.
