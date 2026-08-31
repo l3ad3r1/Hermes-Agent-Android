@@ -71,11 +71,10 @@ fun ProvidersSettingsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Navigate back")
                     }
                 },
-                actions = {
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add provider")
-                    }
-                },
+                // No add action here. "Add Provider" sits beside the
+                // "Configured Providers" heading and is the single way in;
+                // duplicating it as a bare + up here only made the user wonder
+                // whether the two did different things.
             )
         },
     ) { innerPadding ->
@@ -130,11 +129,9 @@ fun ProvidersSettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        OutlinedButton(onClick = { showAddDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add Provider")
-                        }
+                        // No button here either: "Add Provider" sits directly
+                        // above this card, next to the heading, and is shown
+                        // whether or not any provider exists.
                     }
                 }
             } else {
