@@ -9,6 +9,7 @@ import com.hermes.agent.data.memory.UserModelService
 import com.hermes.agent.data.tool.ToolCallExecutor
 import com.hermes.agent.domain.agent.AgentRouter
 import com.hermes.agent.domain.agent.Orchestrator
+import com.hermes.agent.data.tools.DeferredToolScope
 import com.hermes.agent.data.tools.ToolSearchEngine
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.agent.ExecutionOrigin
@@ -81,6 +82,7 @@ class OrchestratorImpl @Inject constructor(
     private val agentRouter: AgentRouter,
     private val agentRegistry: AgentRegistry,
     private val toolRegistry: ToolRegistry,
+    private val deferredToolScope: DeferredToolScope,
     private val llmRouter: LlmRouter,
     private val agentLoopRunner: AgentLoopRunner,
     private val deterministicPhoneCommandRouter: DeterministicPhoneCommandRouter,
@@ -273,6 +275,11 @@ class OrchestratorImpl @Inject constructor(
                 contextWindowTokens = ASSUMED_CONTEXT_TOKENS,
             )
             val tools = disclosure.modelVisibleDescriptors
+            // Publish what the bridge may reach this step. This set is already
+            // grant-filtered (it came from agent.availableTools above), and the
+            // bridge tools read nothing else - without it tool_search/tool_call
+            // would serve the whole registry regardless of role.
+            deferredToolScope.publish(disclosure.deferredDescriptors.map { it.name }.toSet())
 
             // Pin a single text tool-call format so models that don't use
             // structured tool_calls (Gemma's ```tool_code```, Nemotron's
@@ -390,6 +397,11 @@ class OrchestratorImpl @Inject constructor(
             executionPlanRepository.markStepFinished(step.id, StepStatus.SUCCEEDED)
             emit(OrchestratorEvent.StepFinished(step.id, success = true))
         }
+
+        // Every step publishes its own scope before use, so this only guards the
+        // gap after the last one: a stale scope must not outlive the turn that
+        // earned it. Fails closed - an empty scope lets the bridge reach nothing.
+        deferredToolScope.clear()
 
         val finalText = aggregator.toString()
         emit(

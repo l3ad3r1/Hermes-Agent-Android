@@ -150,6 +150,7 @@ class OrchestratorPlanPersistenceTest {
             agentRouter = agentRouter,
             agentRegistry = agentRegistry,
             toolRegistry = mockk<ToolRegistry>(relaxed = true),
+            deferredToolScope = com.hermes.agent.data.tools.DeferredToolScope(),
             llmRouter = llmRouter,
             agentLoopRunner = loopRunner,
             deterministicPhoneCommandRouter = deterministicRouter,
