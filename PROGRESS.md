@@ -10,10 +10,15 @@
   `versionCode 68 / 0.10.1`, signer SHA-256 `99255c31…`. Uploaded with
   `--clobber` and re-downloaded to confirm the stored asset matches
   (`sha256 f3281e8d…`).
-- **v0.9.7 shipped a mis-stamped APK.** That tag points at a commit still reading
-  `versionCode=66 / versionName=0.9.6`; the bump landed one commit later in
-  v0.10.0. The tag was not rewritten — a correction note was added to the release
-  pointing at v0.10.1.
+- **v0.9.7 shipped a mis-stamped APK and the release has been deleted.** That tag
+  points at a commit still reading `versionCode=66 / versionName=0.9.6`; the bump
+  landed one commit later in v0.10.0, so the APK identified itself as 0.9.6 and the
+  updater would never offer it. It could not be fixed by replacing the asset: a
+  correct 0.9.7 build needs versionCode 67, which the published v0.10.0 APK already
+  uses, and a second binary under code 67 could reinstall over v0.10.0 as a silent
+  downgrade. The GitHub release was deleted (2 downloads, both verification);
+  **the tag `v0.9.7` -> `f0bf637` is retained** so the history is intact. Release
+  Group A's code ships inside v0.10.0 and v0.10.1.
 - **Release rule going forward:** never build a release with
   `-PSAGE_SKIP_NATIVE_BUILD=true` (it drops the llama.cpp libs), always verify the
   APK is a readable archive before upload, and re-download the asset afterwards.
