@@ -19,7 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
@@ -177,94 +177,57 @@ fun HomeScreen(
         SectionLabel("Agent Superpowers")
         Spacer(Modifier.height(10.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            QuickAction(
-                title = "New Chat",
-                subtitle = "Ask or delegate",
-                icon = Icons.AutoMirrored.Filled.Chat,
-                accent = tileAccent(themeStyle, scheme, 0, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = { viewModel.createNewConversation(onNewChat) },
+        // Two columns is right on a phone and wrong on a tablet: at 1100dp the
+        // tiles were ~530dp square and one row filled most of a landscape screen.
+        // Pick the column count from the width actually available so the eight
+        // tiles land as 4x2 on a tablet and stay 2x4 on a phone.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = when {
+                maxWidth < 500.dp -> 2
+                maxWidth < 840.dp -> 3
+                else -> 4
+            }
+            val tiles = listOf(
+                SuperpowerTile("New Chat", "Ask or delegate", Icons.AutoMirrored.Filled.Chat, 0) {
+                    viewModel.createNewConversation(onNewChat)
+                },
+                SuperpowerTile("Kanban Board", "Task queue", Icons.Filled.ViewKanban, 1, onOpenKanban),
+                SuperpowerTile("Starmap Memory", "Knowledge graph", Icons.Filled.Hub, 2, onOpenMemory),
+                SuperpowerTile("Skill Studio", "Custom tools", Icons.Filled.Psychology, 3, onOpenSkills),
+                SuperpowerTile("CRON Routines", "Scheduled triggers", Icons.Filled.Schedule, 4, onOpenSchedule),
+                SuperpowerTile("Messaging & Bot", "Telegram gateway", Icons.Filled.Forum, 0, onOpenConnections),
+                SuperpowerTile("A/B Benchmark", "Latency & tok/s", Icons.Filled.Bolt, 1, onOpenExperiment),
+                SuperpowerTile(
+                    "Knowledge Base", "Documents & RAG",
+                    Icons.AutoMirrored.Filled.LibraryBooks, 2, onOpenDocuments,
+                ),
             )
-            QuickAction(
-                title = "Kanban Board",
-                subtitle = "Task queue",
-                icon = Icons.Filled.ViewKanban,
-                accent = tileAccent(themeStyle, scheme, 1, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenKanban,
-            )
-        }
 
-        Spacer(Modifier.height(10.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            QuickAction(
-                title = "Starmap Memory",
-                subtitle = "Knowledge graph",
-                icon = Icons.Filled.Hub,
-                accent = tileAccent(themeStyle, scheme, 2, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenMemory,
-            )
-            QuickAction(
-                title = "Skill Studio",
-                subtitle = "Custom tools",
-                icon = Icons.Filled.Psychology,
-                accent = tileAccent(themeStyle, scheme, 3, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenSkills,
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            QuickAction(
-                title = "CRON Routines",
-                subtitle = "Scheduled triggers",
-                icon = Icons.Filled.Schedule,
-                accent = tileAccent(themeStyle, scheme, 4, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenSchedule,
-            )
-            QuickAction(
-                title = "Messaging & Bot",
-                subtitle = "Telegram gateway",
-                icon = Icons.Filled.Forum,
-                accent = tileAccent(themeStyle, scheme, 0, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenConnections,
-            )
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            QuickAction(
-                title = "A/B Benchmark",
-                subtitle = "Latency & tok/s",
-                icon = Icons.Filled.Bolt,
-                accent = tileAccent(themeStyle, scheme, 1, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenExperiment,
-            )
-            QuickAction(
-                title = "Knowledge Base",
-                subtitle = "Documents & RAG",
-                icon = Icons.AutoMirrored.Filled.LibraryBooks,
-                accent = tileAccent(themeStyle, scheme, 2, accentSeed),
-                themeStyle = themeStyle,
-                modifier = Modifier.weight(1f),
-                onClick = onOpenDocuments,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                tiles.chunked(columns).forEach { rowTiles ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        rowTiles.forEach { tile ->
+                            QuickAction(
+                                title = tile.title,
+                                subtitle = tile.subtitle,
+                                icon = tile.icon,
+                                accent = tileAccent(themeStyle, scheme, tile.accentIndex, accentSeed),
+                                themeStyle = themeStyle,
+                                modifier = Modifier.weight(1f),
+                                onClick = tile.onClick,
+                            )
+                        }
+                        // A short last row keeps its tiles the same width as the
+                        // rows above rather than stretching to fill.
+                        repeat(columns - rowTiles.size) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.height(20.dp))
@@ -305,28 +268,49 @@ private fun QuickAction(
     // title/subtitle above a large icon. Classic drops the fill and the accent
     // for a hairline outline and monochrome contents; the coloured styles keep
     // the accent glow and the tinted icon.
-    if (themeStyle == ThemeStyle.CLASSIC) {
-        OutlinedSpaceTile(
-            title = title,
-            subtitle = subtitle,
-            icon = icon,
-            modifier = modifier.aspectRatio(1f),
-            onClick = onClick,
-        )
-    } else {
-        SpaceTile(
-            title = title,
-            subtitle = subtitle,
-            icon = icon,
-            accent = accent,
-            modifier = modifier.aspectRatio(1f),
-            // Material You fills the card with the wallpaper accent outright;
-            // Cortex keeps the softer glow its fixed palette was tuned for.
-            solid = themeStyle == ThemeStyle.MATERIAL_YOU,
-            onClick = onClick,
-        )
+    // A tile was square at any width. Two columns land near 180dp on a phone, so
+    // that read well - but the same weight(1f) resolves to about 530dp on a
+    // 1100dp-wide tablet, and a 530dp-tall tile ate three quarters of a landscape
+    // screen. Stay square while that is a sensible size and stop growing after
+    // that: the tile still fills its column, it just no longer gets taller with it.
+    BoxWithConstraints(modifier) {
+        val side = minOf(maxWidth, MAX_TILE_SIDE)
+        val tileModifier = Modifier.fillMaxWidth().height(side)
+        if (themeStyle == ThemeStyle.CLASSIC) {
+            OutlinedSpaceTile(
+                title = title,
+                subtitle = subtitle,
+                icon = icon,
+                modifier = tileModifier,
+                onClick = onClick,
+            )
+        } else {
+            SpaceTile(
+                title = title,
+                subtitle = subtitle,
+                icon = icon,
+                accent = accent,
+                modifier = tileModifier,
+                // Material You fills the card with the wallpaper accent outright;
+                // Cortex keeps the softer glow its fixed palette was tuned for.
+                solid = themeStyle == ThemeStyle.MATERIAL_YOU,
+                onClick = onClick,
+            )
+        }
     }
 }
+
+/** One entry in the superpower grid, so the grid can be laid out by column count. */
+private data class SuperpowerTile(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val accentIndex: Int,
+    val onClick: () -> Unit,
+)
+
+/** Widest a superpower tile gets before it stops growing with its column. */
+private val MAX_TILE_SIDE = 150.dp
 /** Section heading without a trailing action link (cf. [SectionHeader]). */
 @Composable
 private fun SectionLabel(title: String) {
