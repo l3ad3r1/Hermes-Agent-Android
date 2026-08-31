@@ -682,6 +682,10 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setShowToolCalls(enabled)
     }
 
+    fun setAutoApproveHomeAssistantControl(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setAutoApproveHomeAssistantControl(enabled)
+    }
+
     fun setAutoApprovePhoneActions(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setAutoApprovePhoneActions(enabled)
     }

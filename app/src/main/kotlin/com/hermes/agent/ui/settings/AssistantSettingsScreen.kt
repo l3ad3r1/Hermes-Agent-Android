@@ -117,6 +117,15 @@ fun AssistantSettingsScreen(
                     )
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     ToggleRow(
+                        title = "Auto-approve Home Assistant control",
+                        subtitle = "Turn lights, switches, and climate on or off without asking each " +
+                            "time. Reading state never asks. Locks, alarm panels, covers, and vacuums " +
+                            "always ask, even with this on.",
+                        checked = settings.autoApproveHomeAssistantControl,
+                        onCheckedChange = viewModel::setAutoApproveHomeAssistantControl,
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    ToggleRow(
                         title = "Trusted background actions",
                         subtitle = "Allow scheduled/background calendar, alarm, communication, media, " +
                             "and device-control actions. Fingerprint or phone passcode is required to enable it.",
