@@ -48,6 +48,7 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- write_file: create or overwrite a file in the workspace with automatic rollback snapshots (path, content)\n" +
             "- patch: apply a unified diff, V4A patch, or SEARCH/REPLACE block to modify files with fuzzy tolerance (path, patch)\n" +
             "- search_files: search for files by name pattern or text content across the workspace (pattern, optional path, optional max_results)\n" +
+            "- file_checkpoint: list the rollback snapshots taken before file writes/patches and restore one to undo a bad edit (action='list'|'restore', optional path, checkpoint_id)\n" +
             "- tool_search: search for available external or deferred MCP tools by keyword or task description (query, optional limit)\n" +
             "- tool_describe: inspect full parameter schemas for a deferred tool (tool_name)\n" +
             "- tool_call: execute a deferred MCP tool by name with arguments (tool_name, optional arguments)\n" +

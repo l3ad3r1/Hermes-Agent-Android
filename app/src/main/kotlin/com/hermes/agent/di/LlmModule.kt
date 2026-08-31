@@ -13,6 +13,7 @@ import com.hermes.agent.data.llm.HybridLlmRouter
 import com.hermes.agent.data.llm.LlmRoutingPolicy
 import com.hermes.agent.data.llm.QualityAwareLlmRoutingPolicy
 import com.hermes.agent.data.llm.CloudProviderFactory
+import com.hermes.agent.data.llm.CredentialPoolManager
 import com.hermes.agent.data.llm.ProfileCloudProviderFactory
 import com.hermes.agent.domain.product.ProductIdentity
 import com.hermes.agent.data.remote.OpenAiApi
@@ -107,7 +108,16 @@ abstract class LlmModule {
             dispatchers: DispatcherProvider,
             json: Json,
             productIdentity: ProductIdentity,
+            credentialPool: CredentialPoolManager,
         ): CloudLlmProvider =
-            CloudLlmProvider(api, settings, dispatchers, json, CloudModelSource.AUX, productIdentity)
+            CloudLlmProvider(
+                api,
+                settings,
+                dispatchers,
+                json,
+                CloudModelSource.AUX,
+                productIdentity,
+                credentialPool,
+            )
     }
 }
