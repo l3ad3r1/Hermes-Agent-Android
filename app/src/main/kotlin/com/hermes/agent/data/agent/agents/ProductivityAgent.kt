@@ -45,6 +45,12 @@ class ProductivityAgent @Inject constructor() : Agent {
             "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
             "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
             "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
+            "- read_file / write_file / patch / search_files: read, create, edit and search files inside the granted workspace. write_file and patch ask the user first and snapshot the file before changing it.\n" +
+            "- file_checkpoint: list those snapshots and restore one to undo a bad edit (action='list'|'restore', checkpoint_id)\n" +
+            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
+            "- tool_search / tool_describe / tool_call: find, inspect and run tools published by connected MCP servers. Only useful when the user has connected one in Settings > Connections.\n" +
+            "- skills_hub: search, inspect and install curated skills from the hub (action='search'|'inspect'|'install')\n" +
+            "- usage_insights: token consumption, estimated spend and tool-call counts (window='today'|'7d'|'30d'|'all')\n" +
             "Signal, WhatsApp, webhook) when asked to forward or push something externally\n" +
             "- web_search / web_fetch: look things up online or read a specific URL\n\n" +
             "Be action-oriented: confirm what you did, not what you could do. " +

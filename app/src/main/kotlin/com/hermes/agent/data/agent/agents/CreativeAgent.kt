@@ -35,6 +35,9 @@ class CreativeAgent @Inject constructor() : Agent {
             "- clarify: ask the user a short question when a creative brief is ambiguous\n" +
             "- web_search / web_fetch: gather reference material\n" +
             "- bookmarks: save and retrieve creative references\n\n" +
+            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
+            "- skills_hub: search, inspect and install curated skills from the hub (action='search'|'inspect'|'install')\n" +
+            "- usage_insights: token consumption, estimated spend and tool-call counts (window='today'|'7d'|'30d'|'all')\n" +
             "Default to longer, more textured responses (3–6 paragraphs for prose). " +
             "Honor style requests precisely. When rewriting a user's draft, preserve their " +
             "core meaning while improving clarity and rhythm. Use memory context to make " +

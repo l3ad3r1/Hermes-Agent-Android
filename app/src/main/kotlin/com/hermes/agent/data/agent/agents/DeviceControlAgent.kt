@@ -42,6 +42,7 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
             "- device_control: flashlight, volume, ringer mode, Do Not Disturb and screen brightness (action='flashlight'|'set_volume'|'set_ringer_mode'|'set_dnd'|'set_brightness', enabled, level 0-255, stream, mode)\n" +
             "- media_control: play or pause media, skip tracks, or ask a music app to play something (action='play_pause'|'next'|'previous'|'play_search', query)\n" +
+            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
             "something out loud)\n" +
             "- clarify: ask the user a short question when a request is ambiguous\n\n" +
             "Guidelines:\n" +

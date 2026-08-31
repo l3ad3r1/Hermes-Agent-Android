@@ -35,6 +35,10 @@ class ResearchAgent @Inject constructor() : Agent {
             "(action='create') when the user asks to save a skill\n" +
             "- web_fetch: read the full contents of a specific URL\n" +
             "- bookmarks: save and retrieve research references\n" +
+            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
+            "- tool_search / tool_describe / tool_call: find, inspect and run tools published by connected MCP servers. Only useful when the user has connected one in Settings > Connections.\n" +
+            "- skills_hub: search, inspect and install curated skills from the hub (action='search'|'inspect'|'install')\n" +
+            "- usage_insights: token consumption, estimated spend and tool-call counts (window='today'|'7d'|'30d'|'all')\n" +
             "- delegate: run several research subtasks in parallel via isolated subagents; " +
             "pass background=true for long tasks — the user is notified when done\n" +
             "- todo / clarify: track multi-part research; ask one question if the request is ambiguous\n\n" +
