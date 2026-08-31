@@ -22,6 +22,7 @@ enum class AgentLoopFailureReason {
     REPEATED_NO_PROGRESS,
     ROUND_LIMIT_REACHED,
     TIMED_OUT,
+    USER_DECLINED,
 }
 
 sealed interface AgentLoopOutcome {
@@ -126,11 +127,52 @@ class AgentLoopRunner @Inject constructor(
                 } else {
                     null
                 }
+                // Asked once, in the same order as before: never prompt for a tool that
+                // is unauthorised or already denied by policy. A null answer means there
+                // was no gate to ask (a headless turn) - not the same as a person saying
+                // no, and it keeps its original behaviour in the branch below.
+                val confirmed: Boolean? =
+                    if (mustConfirm &&
+                        tools.any { it.name == call.name } &&
+                        decision !is ToolExecutionDecision.Deny
+                    ) {
+                        confirmationGate?.confirm(call, true)
+                    } else {
+                        null
+                    }
+
+                if (confirmed == false) {
+                    // Handing a refusal back as one more tool observation let the loop
+                    // continue, and the model narrated a success that never happened —
+                    // it answered "Here are all the entities currently configured in
+                    // your Home Assistant instance" for a call the user had just
+                    // refused. A refusal is the user's decision, not a data point to
+                    // reason around: end the step and say so in words the model cannot
+                    // overwrite. Work already completed is still reported, because the
+                    // orchestrator folds completedWork into the failure message.
+                    val declineResult = ToolResult.error("user declined to run '${call.name}'")
+                    onToolResult(call, declineResult)
+                    return AgentLoopOutcome.Failed(
+                        AgentLoopFailureReason.USER_DECLINED,
+                        "I did not run ${call.name} because you declined it. " +
+                            "Nothing was changed and no data was read.",
+                        toolsInvoked.toList(),
+                    )
+                }
+
                 val result = when {
                     tools.none { it.name == call.name } -> ToolResult.error("unauthorized tool: ${call.name}")
-                    decision is ToolExecutionDecision.Deny -> ToolResult.error(decision.reason)
-                    mustConfirm && confirmationGate?.confirm(call, true) != true ->
-                        ToolResult.error("user declined")
+                    decision is ToolExecutionDecision.Deny ->
+                        // Spelled out so a small model cannot read a bare reason string
+                        // as a result it may summarise. Same failure mode as K41.
+                        ToolResult.error(
+                            "REFUSED: ${decision.reason}. This tool did not run and " +
+                                "returned no data. Tell the user it was refused; do not " +
+                                "describe results you did not receive."
+                        )
+                    // Headless: there was no gate to ask, so a confirmation-required
+                    // tool still cannot run. Unchanged from before this fix.
+                    mustConfirm && confirmed != true -> ToolResult.error("user declined")
                     // A small model that cannot read a tool result often just
                     // reissues the same call. Executing it again created a
                     // second identical task rather than answering the user.

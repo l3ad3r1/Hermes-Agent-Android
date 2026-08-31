@@ -160,6 +160,53 @@ class AgentLoopRunnerTest {
     }
 
     @Test
+    fun `a declined tool ends the step instead of letting the model narrate`() = runTest {
+        // K41: the refusal used to be fed back as one more tool observation, the loop
+        // carried on, and the model answered "Here are all the entities currently
+        // configured in your Home Assistant instance" for a call the user had refused.
+        val call = ToolCall("c", "home_assistant", emptyMap())
+        val fixture = fixture {
+            LlmToolResponse("", listOf(call), 1, "fake", "tool_calls")
+        }
+        fixture.registry.register(stubTool("home_assistant", requiresConfirmation = true))
+        val gate = ToolCallExecutor.ConfirmationGate { _, _ -> false }
+
+        val result = fixture.runWithTools(confirmationGate = gate)
+
+        assertTrue("a decline must end the step", result is AgentLoopOutcome.Failed)
+        val failed = result as AgentLoopOutcome.Failed
+        assertEquals(AgentLoopFailureReason.USER_DECLINED, failed.reason)
+        assertTrue(
+            "the user must be told what was declined: ${'$'}{failed.userMessage}",
+            failed.userMessage.contains("home_assistant"),
+        )
+        assertTrue(
+            "the user must be told nothing ran: ${'$'}{failed.userMessage}",
+            failed.userMessage.contains("declined"),
+        )
+        // Nothing may execute after a refusal.
+        coVerify(exactly = 0) { fixture.executor.execute(any(), any()) }
+    }
+
+    @Test
+    fun `a declined tool still reports the refusal through onToolResult`() = runTest {
+        val call = ToolCall("c", "write", emptyMap())
+        val fixture = fixture { LlmToolResponse("", listOf(call), 1, "fake", "tool_calls") }
+        fixture.registry.register(stubTool("write", requiresConfirmation = true))
+        val seen = mutableListOf<Pair<String, ToolResult>>()
+
+        fixture.runWithTools(
+            confirmationGate = ToolCallExecutor.ConfirmationGate { _, _ -> false },
+            onToolResult = { c, r -> seen += c.name to r },
+        )
+
+        // The ledger still records the refusal, so it stays auditable.
+        assertEquals(1, seen.size)
+        assertEquals("write", seen[0].first)
+        assertFalse(seen[0].second.success)
+    }
+
+    @Test
     fun `round limit reports a distinct failure`() = runTest {
         val fixture = fixture { round ->
             LlmToolResponse(
