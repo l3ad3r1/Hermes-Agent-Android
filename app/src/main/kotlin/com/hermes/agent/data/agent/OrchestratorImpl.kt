@@ -9,6 +9,7 @@ import com.hermes.agent.data.memory.UserModelService
 import com.hermes.agent.data.tool.ToolCallExecutor
 import com.hermes.agent.domain.agent.AgentRouter
 import com.hermes.agent.domain.agent.Orchestrator
+import com.hermes.agent.data.tools.ToolSearchEngine
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.RoutingResult
@@ -45,6 +46,20 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Context size assumed when deciding whether MCP/plugin tool schemas should
+ * hide behind the tool-search bridge.
+ *
+ * The tools array is built before the router picks a provider, so the real
+ * context of the model that will serve the turn is not known here. This is a
+ * deliberate fixed assumption: high enough that a handful of MCP tools stay
+ * inline (deferring them costs an extra round trip), low enough that a large
+ * catalogue is hidden before it crowds out the conversation. Revisit if the
+ * routing decision ever moves ahead of tool assembly.
+ */
+private const val ASSUMED_CONTEXT_TOKENS = 32_768
+
 
 /**
  * Default [Orchestrator] implementation.
@@ -247,7 +262,17 @@ class OrchestratorImpl @Inject constructor(
             emit(OrchestratorEvent.StepStarted(step.id, step.agentRole))
 
             val agent = agentRegistry.get(step.agentRole)
-            val tools = agent.availableTools(toolRegistry)
+            // Progressive disclosure: MCP and plugin tools hide behind the three
+            // bridge tools once their schemas would eat into the context. Without
+            // this call the bridge tools were advertised on every turn (with
+            // nothing to find) and a large MCP catalogue was sent in full. The
+            // context size assumed here is fixed because routing has not happened
+            // yet at this point - see ASSUMED_CONTEXT_TOKENS.
+            val disclosure = ToolSearchEngine.evaluate(
+                agent.availableTools(toolRegistry),
+                contextWindowTokens = ASSUMED_CONTEXT_TOKENS,
+            )
+            val tools = disclosure.modelVisibleDescriptors
 
             // Pin a single text tool-call format so models that don't use
             // structured tool_calls (Gemma's ```tool_code```, Nemotron's

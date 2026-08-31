@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -123,6 +124,13 @@ fun SettingsScreen(
                         title = "Memory",
                         subtitle = "View and manage agent memories",
                         onClick = { onNavigate("memory") },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    NavRow(
+                        icon = Icons.Outlined.Insights,
+                        title = "Usage & cost",
+                        subtitle = "Tokens, estimated spend, and which tools get used",
+                        onClick = { onNavigate("usage_insights") },
                     )
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     NavRow(

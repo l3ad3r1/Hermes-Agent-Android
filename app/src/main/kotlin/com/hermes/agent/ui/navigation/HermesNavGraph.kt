@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.core.settings.HermesSettings
+import com.hermes.agent.ui.usage.UsageInsightsScreen
 import com.hermes.agent.ui.theme.alt.ThemeStyle
 import com.hermes.agent.ui.theme.alt.tileAccent
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -251,6 +252,7 @@ fun HermesNavGraph(
             composable("settings_connections") { ConnectionsSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_advanced") { AdvancedSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_modules") { ModulesSettingsScreen(onBack = { navController.popBackStack() }) }
+            composable("usage_insights") { UsageInsightsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_proactive") { ProactiveSettingsScreen(onBack = { navController.popBackStack() }) }
             composable("settings_about") { AboutSettingsScreen(onBack = { navController.popBackStack() }) }
             
