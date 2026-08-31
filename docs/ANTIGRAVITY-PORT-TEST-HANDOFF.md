@@ -51,8 +51,13 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 2. **"Renders" is not "works". Press the buttons.**
 3. **If you cannot test something, mark it `Not testable` or `Blocked` and say
    why.** A recorded gap is a useful result. A false Pass is worse than nothing.
-4. **Never enter API keys, tokens or credentials.** Ask the owner for the Home
-   Assistant token and any provider keys, and mark those rows `Blocked` meanwhile.
+4. **Credentials: use the sources below, and never write one down.** The owner
+   has pointed at where the Home Assistant and provider details live (see
+   *Credentials and fixtures*). A key must go into the app's own settings screen
+   and nowhere else — never into the workbook, a note, a screenshot, a log line
+   or a commit. **The workbook is committed to a public repository.** If a row
+   needs proof a key is set, cite the feature working or the `enc:v1:` blob, not
+   the value.
 5. **Do not weaken or skip a check to make it pass.** Record failures with evidence.
 6. New bugs go on the `Known Issues` sheet **from K28 onward** — K01–K27 are taken.
 
@@ -89,6 +94,42 @@ Two deliberate behaviours that read like bugs if you do not know them:
 - **Tool search assumes a fixed 32768-token context** (`ASSUMED_CONTEXT_TOKENS`).
   The tools array is built before the router picks a provider, so the real
   context is not knowable there. T216 records the behaviour, not a complaint.
+
+## Credentials and fixtures
+
+The owner has pointed at two sources. Read them; do not copy secrets out of them.
+
+### Home Assistant (§25)
+
+Everything about the owner's instance is in
+`E:\claude-projects\home-assistant\Home-Assistant-Wiki.md`.
+
+- **Host:** `http://192.168.8.183:8123` (the Pi's `wlan0`, DHCP-reserved and
+  stable) or `http://homeassistant.local:8123`. The Pi is on the OpenWrt
+  "Interloper" LAN, so the phone must be on that network for §25 to run at all.
+- **Blocker you cannot work around:** the wiki records that a *user long-lived
+  access token has never been created* — the supervisor token only works for
+  callers on the Pi itself, which Hermes is not. **Ask the owner to create one**
+  (Home Assistant → Profile → Security → Long-Lived Access Tokens) and mark
+  T184–T190 `Blocked` until they do. Do not create it yourself.
+- **Do not report these as Hermes bugs:** the wiki documents that all Thiruvalla
+  Tuya devices sit `unavailable` (a site-specific fault), and that the `upnp` /
+  "Archer C6U" integration is permanently broken because it is LAN-only for a
+  different site. Entities that are already dead in Home Assistant will look like
+  tool failures if you do not check the wiki first.
+
+### LLM providers (§32 and any cloud-routing row)
+
+`C:\Users\renja\Downloads\Free LLM Provider Directory.csv` — 25 providers with
+base URLs and live API keys (columns: Provider, Name, Base URL, API, Smoke Test,
+Notes).
+
+- **Credential-pool rows (T226–T228) need two keys for one provider.** Three
+  providers have two distinct keys each in that file: **Cohere**, **DeepSeek**
+  and **Hugging Face**. Use one of those three for the rotation test; every other
+  provider has a single key and cannot demonstrate rotation.
+- Enter keys through Settings → Providers only. Never paste one into the
+  workbook or a commit.
 
 ## Environment
 
