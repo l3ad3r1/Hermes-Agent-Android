@@ -6,13 +6,13 @@ Paste everything below this line into Antigravity as the task prompt.
 
 ## Your job
 
-Run a device test pass over the **57 new rows** added to the test regimen for the
+Run a device test pass over the **60 new rows** added to the test regimen for the
 2026-08-31 upstream capability port, and record every row with real evidence.
 
 **The checklist is the source of truth and the deliverable:**
 `E:\claude-projects\Hermes Agent Android App\Hermes-Test-Regimen.xlsx`
 
-Your scope is **T184–T240 only** — sections 25 through 35. Everything before T184
+Your scope is **T184–T243 only** — sections 25 through 35. Everything before T184
 is the completed 2026-08-30 pass: 178 Pass, 4 Blocked, 1 Fail. **Leave those rows
 exactly as they are.** Do not re-run them, do not clear them, do not "tidy" them.
 
@@ -41,7 +41,7 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 | 33 | Jeeves parity | T229–T234 | all of the above |
 | 34 | Release integrity | T235–T236 | — |
 
-31 of the 57 are P0.
+32 of the 60 are P0.
 
 ## Rules
 
@@ -56,33 +56,39 @@ Edit the workbook with `openpyxl` (installed; invoke Python as `python`, not
 5. **Do not weaken or skip a check to make it pass.** Record failures with evidence.
 6. New bugs go on the `Known Issues` sheet **from K28 onward** — K01–K27 are taken.
 
-## Known gaps — expect to record them, not fix them
+## Known gaps
 
-Only two gaps remain open. Rows exist to document them; do not work around them,
-and do not report them as new.
+**None of the port's own gaps are open any more.** Seven were found by auditing
+whether each capability was actually reachable at runtime, and all seven are
+fixed. The rows that used to document them now verify the fix, so expect them to
+pass rather than to record a problem:
 
-- **K21 — `usage_insights` has no screen.** The capability is tool-only, reachable
-  by asking in chat. T225 records it — do not hunt for a screen that does not exist.
-- **K24 — progressive disclosure is never computed.** `ToolSearchEngine.evaluate()`
-  is called only from its own unit tests, so the three bridge tools sit in the
-  tools array even with zero MCP servers and the full catalogue is always sent.
-  Rows T214–T217 record what actually happens, not what the design intends.
-
-**Five gaps were found and closed since the regimen was written**, so the rows
-that used to document them now verify the fix instead. Expect these to pass:
-
-| | Was | Now |
+| | Was | Fixed by |
 |---|---|---|
-| K20 | Nothing could register an MCP server | Settings → Connections → MCP servers (T207, T208) |
-| K22 | Ported tools prompted only to Conversational | Every role describes what its grant reaches (T234, T240) |
-| K25 | Credential pool bypassed on the chat path | Passed through `CloudProviderFactory` and the aux provider (T226–T228) |
-| K26 | Checkpoints written but never restorable | `file_checkpoint` tool, list + restore (T202, T237, T238) |
+| K20 | Nothing could register an MCP server, so `mcp_servers` was always empty | Settings → Connections → MCP servers (T207, T208) |
+| K21 | `usage_insights` was tool-only — you spent tokens to see token spend | Settings → Features → Usage & cost (T225, T241, T242) |
+| K22 | Ported tools described only to Conversational despite wider grants | Every role describes what its grant reaches (T234, T240) |
+| K24 | `ToolSearchEngine.evaluate()` never called, so disclosure never ran | Wired into `OrchestratorImpl` (T214–T217, T243) |
+| K25 | Credential pool bypassed on the chat path | Passed through `CloudProviderFactory` (T226–T228) |
+| K26 | Checkpoints written but never restorable | `file_checkpoint` tool (T202, T237, T238) |
 | K27 | Six granted tools named in no prompt | All prompted; `alarm`'s grant dropped in Hermes (T239) |
 
-One deliberate negative case: **in Hermes an alarm request must reach no tool.**
-The feature was removed in July and the grant has now been dropped, so the model
-should say it cannot. Jeeves keeps its alarm tool and still sets alarms. T239
-covers both halves.
+Two issues stay open and neither is ours to fix — do not spend the pass on them:
+
+- **K04 — `RepeatedExecutionGuard` cannot see repeats.** Open by design: its
+  fingerprint includes tool output, and a changing result is progress for a
+  polling read. Not a defect.
+- **K18 — Shizuku 13.5.4 crashes on Android 16.** Upstream
+  (RikkaApps/Shizuku#1125), and the client API is already pinned at the latest
+  release. T150/T151 expect `Blocked`.
+
+Two deliberate behaviours that read like bugs if you do not know them:
+
+- **In Hermes an alarm request must reach no tool.** The feature was removed and
+  the grant dropped. Jeeves still sets alarms. T239 covers both halves.
+- **Tool search assumes a fixed 32768-token context** (`ASSUMED_CONTEXT_TOKENS`).
+  The tools array is built before the router picks a provider, so the real
+  context is not knowable there. T216 records the behaviour, not a complaint.
 
 ## Environment
 
@@ -90,18 +96,17 @@ covers both halves.
 |---|---|
 | Device | Samsung Galaxy S24 Ultra, `SM-S928B`, serial `RZCY51R2A8D`, Android 16 |
 | Test packages | `com.hermes.agent.debug` **and** `com.jeeves.app.debug` — never the release packages |
-| Hermes repo | `E:\claude-projects\Hermes Agent Android App` (v0.10.2, versionCode 69) |
-| Jeeves repo | `E:\claude-projects\jeeves` (v0.16.7, versionCode 93) |
-| Shared engine | `E:\claude-projects\agent-core` @ `afd5cf7` — must sit beside each app repo |
+| Hermes repo | `E:\claude-projects\Hermes Agent Android App` (v0.10.2 + unreleased K21/K24 work on `main`) |
+| Jeeves repo | `E:\claude-projects\jeeves` (v0.16.7 + unreleased K21/K24 work on `master`) |
+| Shared engine | `E:\claude-projects\agent-core` @ `ef78478` — must sit beside each app repo |
 | JAVA_HOME | `C:\Program Files\Android\Android Studio\jbr` |
 | ANDROID_HOME | `C:\Users\renja\AppData\Local\Android\Sdk` |
 
-All three repositories are clean and pushed, and both apps are released: Hermes
-[v0.10.2](https://github.com/l3ad3r1/Hermes-Agent-Android/releases/tag/v0.10.2) and
-Jeeves [v0.16.7](https://github.com/l3ad3r1/Jeeves/releases/tag/v0.16.7). Build the
-debug packages from those commits rather than installing the release APKs. Record
-`git rev-parse HEAD` for each repo in T184's Notes so the results can be tied to a
-build later.
+**Build the debug packages from HEAD of each repo — do not install the release
+APKs.** The published v0.10.2 / v0.16.7 do not contain the K21 and K24 fixes
+(the usage screen and progressive disclosure); those are committed but unreleased.
+All three repositories are clean and pushed. Record `git rev-parse HEAD` for each
+in T184's Notes so the results can be tied to a build later.
 
 ```bash
 ./gradlew :app:assembleDebug -PSAGE_SKIP_NATIVE_BUILD=true && adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -162,7 +167,7 @@ their personal apps or notification shade; relaunch rather than tapping blind.
 
 ## Definition of done
 
-- Every row T184–T236 has a status other than `Not run`, or a stated reason.
+- Every row T184–T243 has a status other than `Not run`, or a stated reason.
 - Every `Pass` carries evidence someone else could re-check.
 - The 11 new rows on `Tools (44)` are filled in.
 - New bugs are on `Known Issues` from **K28** onward, with repro and evidence.
