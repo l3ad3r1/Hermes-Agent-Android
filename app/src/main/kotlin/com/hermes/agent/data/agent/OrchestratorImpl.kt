@@ -288,9 +288,34 @@ class OrchestratorImpl @Inject constructor(
                 "\n\n## Context from previous agents\n$aggregator"
             } else ""
 
+            // Hiding a tool's schema is not the same as hiding the tool. With the
+            // catalogue behind the bridge and nothing naming what is back there,
+            // the model cannot know an MCP tool exists: asked to "use deepwiki" it
+            // ran web_search and scraped deepwiki.com instead of calling
+            // mcp__deepwiki__ask_question. Names and one line each cost a few
+            // hundred tokens against the several thousand deferring saves.
+            val deferredBlock = if (disclosure.isProgressiveDisclosureActive) {
+                buildString {
+                    append("\n\n## Tools available through tool_search\n")
+                    append(
+                        "These are ready to use; only their argument schemas are withheld " +
+                            "to save room. When one of them fits the request, prefer it over a " +
+                            "generic web search: call tool_describe for its arguments, then " +
+                            "tool_call to run it.\n"
+                    )
+                    disclosure.deferredDescriptors.forEach { descriptor ->
+                        append("- ")
+                        append(descriptor.name)
+                        append(": ")
+                        append(descriptor.description.substringBefore('\n').take(110))
+                        append('\n')
+                    }
+                }
+            } else ""
+
             val toolInstruction = if (tools.isNotEmpty()) ToolCallPrompt.INSTRUCTION else ""
             val llmMessages = buildList {
-                add(LlmMessage(role = "system", content = agent.systemPrompt + memoryBlock + skillBlock + previousContext + toolInstruction))
+                add(LlmMessage(role = "system", content = agent.systemPrompt + memoryBlock + skillBlock + previousContext + toolInstruction + deferredBlock))
                 addAll(recentMessages)
                 if (recentMessages.none { it.role == "user" && it.content == userMessage }) {
                     add(LlmMessage(role = "user", content = userMessage))
