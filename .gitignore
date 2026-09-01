@@ -37,15 +37,16 @@ graphify-out/
 # Local working detritus (DB snapshots, patch scripts, screenshots).
 scratch/
 
-# Completed agent task/report artifacts belong in canonical docs, not repo roots.
-/ANTIGRAVITY-*.md
-/test-run/
-
 # CI checks the shared engine out here (settings.gradle.kts resolves it);
 # locally it lives at ../agent-core. Never commit a nested copy.
 /agent-core/
 
-# On-device test captures (DB dumps, screenshots, logcat) from agent test runs.
-# Same rule as /test-run/: artifacts belong in canonical docs, not the repo, and
-# a DB dump can carry real conversation data.
-/test_artifacts/
+# Local-only working material: the test regimen workbook, the screenshots/DB
+# dumps/logcat a test pass creates, and agent handoff/handover .md files.
+# None of this belongs in the repo — the workbook is a live working doc (not
+# a record of anything merged), captures can carry real conversation data,
+# and handoff docs are point-in-time notes for one agent to hand off to
+# another, not project documentation. Superseded /ANTIGRAVITY-*.md,
+# /test-run/ and /test_artifacts/, which either never matched the actual
+# on-disk names or only matched at repo root.
+/local/
