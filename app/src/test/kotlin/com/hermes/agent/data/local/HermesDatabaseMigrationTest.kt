@@ -313,5 +313,53 @@ class HermesDatabaseMigrationTest {
         assertTrue("installedAt" in columns)
         assertTrue("lintStatus" in columns)
     }
+
+    @Test
+    fun `migration 21 to 22 creates presence_logs schema`() {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(
+            ApplicationProvider.getApplicationContext(),
+        ).name(null).callback(object : SupportSQLiteOpenHelper.Callback(21) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+            override fun onUpgrade(
+                db: androidx.sqlite.db.SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }).build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        val database = checkNotNull(helper).writableDatabase
+
+        HermesDatabase.MIGRATION_21_22.migrate(database)
+
+        val tables = mutableSetOf<String>()
+        database.query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'presence_logs'",
+        ).use { cursor ->
+            while (cursor.moveToNext()) tables += cursor.getString(0)
+        }
+        assertEquals(setOf("presence_logs"), tables)
+
+        val expectedColumns = setOf(
+            "id", "timestamp", "latitude", "longitude", "locationName",
+            "batteryLevel", "isCharging", "networkType", "activity",
+            "screenOn", "contextSummary"
+        )
+        val actualColumns = mutableSetOf<String>()
+        database.query("PRAGMA table_info('presence_logs')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) actualColumns += cursor.getString(nameIndex)
+        }
+        assertEquals(expectedColumns, actualColumns)
+
+        val indices = mutableSetOf<String>()
+        database.query("PRAGMA index_list('presence_logs')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(nameIndex)
+                if (!name.startsWith("sqlite_autoindex_")) indices += name
+            }
+        }
+        assertTrue("index_presence_logs_timestamp" in indices)
+    }
 }
 

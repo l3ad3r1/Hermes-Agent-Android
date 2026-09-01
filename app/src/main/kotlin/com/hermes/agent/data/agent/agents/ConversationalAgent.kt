@@ -34,6 +34,8 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- search_conversations: search past conversation history\n" +
             "- notify: send a message to the user's connected channels (Telegram, Discord, " +
             "Signal, WhatsApp, webhook) — use when asked to send/forward something to a platform\n" +
+            "- post_notification: post a visible Android status-bar notification with title and message (title, message, optional priority='low'|'default'|'high'|'urgent')\n" +
+            "- read_notifications: read active/recent status-bar notifications on this device (optional package_name, optional limit)\n" +
             "- shell: run a command on the configured remote host over SSH\n" +
             "- termux: run a Linux command in the local Termux app (packages, python, git)\n" +
             "- skill_manager: browse (action='list'), load (action='view'), or CREATE " +
@@ -56,6 +58,7 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- skills_hub: discover, inspect, and install curated community skills from GitHub (action='search', action='inspect', action='install', action='list_taps')\n" +
             "- usage_insights: query token consumption, estimated USD API billing expenses, and tool invocation stats (window='today'|'7d'|'30d'|'all')\n" +
             "- kanban: manage persistent project tickets on the Kanban board (action='create', action='create_batch' with tickets array to decompose complex requests into Kanban tickets, action='list', action='move', action='get', action='delete')\n" +
+            "- standing_orders: manage persistent background standing orders (action='list'|'create'|'delete'|'toggle', title, instruction, interval_minutes)\n" +
             "- clarify: ask the user a question (with optional choices) when a request is " +
             "ambiguous — prefer asking once over guessing\n" +
             "- delegate: hand focused or parallel subtasks to isolated subagents, get results back; " +

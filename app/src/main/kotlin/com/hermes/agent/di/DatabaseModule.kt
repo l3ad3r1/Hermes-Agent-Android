@@ -69,6 +69,7 @@ object DatabaseModule {
                 HermesDatabase.MIGRATION_18_19,
                 HermesDatabase.MIGRATION_19_20,
                 HermesDatabase.MIGRATION_20_21,
+                HermesDatabase.MIGRATION_21_22,
             )
             // conversation_fts is not a Room entity, so a fresh install creates
             // its schema from the entity list and runs no migrations at all —
@@ -110,4 +111,5 @@ object DatabaseModule {
     @Provides fun provideMoodEntryDao(db: HermesDatabase): MoodEntryDao = db.moodEntryDao()
     @Provides fun provideScriptPluginDao(db: HermesDatabase): ScriptPluginDao = db.scriptPluginDao()
     @Provides fun provideMcpDao(db: HermesDatabase): com.hermes.agent.data.local.dao.McpDao = db.mcpDao()
+    @Provides fun providePresenceLogDao(db: HermesDatabase): com.hermes.agent.data.local.dao.PresenceLogDao = db.presenceLogDao()
 }

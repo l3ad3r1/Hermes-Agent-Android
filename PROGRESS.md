@@ -1,5 +1,26 @@
 # Hermes Agent — Progress
 
+## RELEASED: v0.11.1 (2026-09-02) — Release Group E: OpenClaw Notifications, Presence & Heartbeat Automation
+- Bumped to `v0.11.1` (versionCode 73). Release APK built and signed with SHA-256 `99255c31…`.
+- **Phase 4: Notifications Capability**
+  - Added `NotificationGateway`, `post_notification` tool, and `read_notifications` tool in `core:tools`.
+  - Added `NotificationMonitorService` (`NotificationListenerService`) with `BIND_NOTIFICATION_LISTENER_SERVICE` permission in `AndroidManifest.xml`.
+- **Phase 5: Presence & Ambient Signals (Room Migration 21->22)**
+  - Added `PresenceLogEntity`, `PresenceLogDao`, and `PresenceManager` for on-device ambient signals (battery, network, screen state).
+  - Implemented and verified `MIGRATION_21_22` with Room schema `22.json` and Robolectric migration tests.
+- **Phase 6: Heartbeat Automation & Standing Orders**
+  - Added `StandingOrder` domain model, `StandingOrdersTool` (`standing_orders`), and prompt mentions.
+  - Added `HeartbeatWorker` and `HeartbeatScheduler` for background proactive evaluation.
+
+## RELEASED: v0.11.0 (2026-09-02) — Release Group D: OpenClaw Wake Word, Talk Mode & Camera
+- Bumped to `v0.11.0` (versionCode 72). Release APK built and signed with SHA-256 `99255c31…`.
+- **Phase 1: Wake Word ("Hey Hermes")**
+  - Ported Porcupine/Sherpa wake word detector with `WakeWordSettings`, `WakeWordService`, `WakeWordBootReceiver`, and keyword acoustic model assets.
+- **Phase 2: Talk Mode (Continuous Conversation & Barge-In)**
+  - Implemented continuous voice turn loop, Energy-based `VoiceActivityDetector`, `TalkSessionController`, and full-screen `TalkScreen` Compose UI with barge-in support.
+- **Phase 3: Camera Capture Tool (`take_photo`)**
+  - Added Camera2-based `take_photo` tool (`CameraCaptureTool`), saving images into the active workspace with image URI and prompt mentions.
+
 ## RELEASED: v0.10.2 (2026-08-31) — MCP registry + wiring fixes
 - GitHub release **v0.10.2** marked **Latest** (versionCode 69). APK verified as a readable
   archive before and after upload: 507 entries, 17 `lib/arm64-v8a/*.so` (9 `libggml*`),

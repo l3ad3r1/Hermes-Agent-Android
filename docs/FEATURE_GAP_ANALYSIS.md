@@ -87,15 +87,30 @@ All capabilities were implemented directly in the shared multiplatform engine `a
 
 | Release Group | Phases | Hermes Version | Jeeves Version | Release Status |
 | :--- | :--- | :---: | :---: | :---: |
-| **Group A** | Phases 0, 1, 2 | `v0.9.7` | `v0.16.4` | **RELEASED** |
-| **Group B** | Phases 3, 4, 5 | `v0.10.0` | `v0.16.5` | **RELEASED** |
-| **Group C** | Phases 6, 7, 8 | `v0.10.1` | `v0.16.6` | **RELEASED** |
+| **Group A** | Phases 0, 1, 2 (Upstream Parity) | `v0.9.7` | `v0.16.4` | **RELEASED** |
+| **Group B** | Phases 3, 4, 5 (Upstream Parity) | `v0.10.0` | `v0.16.5` | **RELEASED** |
+| **Group C** | Phases 6, 7, 8 (Upstream Parity) | `v0.10.1` | `v0.16.6` | **RELEASED** |
+| **Group D** | OpenClaw Wake Word, Talk Mode, Camera | `v0.11.0` | `v0.17.0` | **RELEASED** |
+| **Group E** | OpenClaw Notifications, Presence, Heartbeat | `v0.11.1` | `v0.17.1` | **RELEASED** |
+
+---
+
+## OpenClaw Capability Port Matrix (Block A)
+
+| OpenClaw Capability | OpenClaw Reference | Android Architecture / Class | Tool / Service Identifier | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **Phase 1: Wake Word** | `docs/nodes/audio.md` | `WakeWordService`, `WakeWordSettings`, acoustic models | `WakeWordService` / "Hey Hermes" / "Hey Jeeves" | **100% PARITY** |
+| **Phase 2: Talk Mode** | `docs/nodes/audio.md` | `TalkSessionController`, `VoiceActivityDetector`, `TalkScreen` | Continuous voice turn loop with barge-in | **100% PARITY** |
+| **Phase 3: Camera Capture** | `docs/nodes/camera.md` | `CameraCaptureTool`, Camera2 pipeline | `take_photo` | **100% PARITY** |
+| **Phase 4: Notifications** | `docs/nodes/notifications.md` | `NotificationGateway`, `PostNotificationTool`, `ReadNotificationsTool`, `NotificationMonitorService` | `post_notification`, `read_notifications` | **100% PARITY** |
+| **Phase 5: Presence & Ambient Signals** | `docs/nodes/location.md`, `system.md` | `PresenceManager`, `PresenceLogEntity`, `PresenceLogDao`, Room Migration 21 $\to$ 22 | `presence_logs` table / ambient context injection | **100% PARITY** |
+| **Phase 6: Heartbeat Automation** | `docs/automation/heartbeat.md` | `StandingOrder`, `StandingOrdersTool`, `HeartbeatWorker`, `HeartbeatScheduler` | `standing_orders`, `HeartbeatWorker` | **100% PARITY** |
 
 ---
 
 ## Conclusion
 
-With the completion and release of Group C (v0.10.1 Hermes / v0.16.6 Jeeves), there are **zero outstanding capability gaps** between upstream python Hermes Agent and the Android applications.
+With the completion and release of Group D (`v0.11.0` Hermes / `v0.17.0` Jeeves) and Group E (`v0.11.1` Hermes / `v0.17.1` Jeeves), there are **zero outstanding capability gaps** between upstream python Hermes Agent, OpenClaw mobile node specifications, and the on-device Android applications.
 
 
 ---
