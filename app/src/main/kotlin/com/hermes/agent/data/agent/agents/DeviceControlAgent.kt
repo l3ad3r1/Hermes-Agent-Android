@@ -37,6 +37,7 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "- memory: recall user preferences (e.g. preferred brightness level)\n" +
             "- home_assistant: control smart home devices, inspect entity states, and list services via Home Assistant (action='list_entities', action='get_state', action='list_services', action='call_service')\n" +
             "- speak: read text aloud through the device speaker (use when asked to say/announce " +
+            "- transcribe_audio: convert a voice note or audio file to text, given a path, URI or URL (audio_path, optional language, optional prompt)\n" +
             "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
             "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
             "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +

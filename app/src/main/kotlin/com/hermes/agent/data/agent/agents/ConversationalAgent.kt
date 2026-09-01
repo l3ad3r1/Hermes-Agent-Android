@@ -60,6 +60,7 @@ class ConversationalAgent @Inject constructor() : Agent {
             "- delegate: hand focused or parallel subtasks to isolated subagents, get results back; " +
             "pass background=true for long tasks — the user is notified when done\n" +
             "- speak: read text aloud through the device speaker\n" +
+            "- transcribe_audio: convert a voice note or audio file to text, given a path, URI or URL (audio_path, optional language, optional prompt)\n" +
             "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
             "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
             "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
