@@ -44,6 +44,7 @@ class DeviceControlAgent @Inject constructor() : Agent {
             "- device_control: flashlight, volume, ringer mode, Do Not Disturb and screen brightness (action='flashlight'|'set_volume'|'set_ringer_mode'|'set_dnd'|'set_brightness', enabled, level 0-255, stream, mode)\n" +
             "- media_control: play or pause media, skip tracks, or ask a music app to play something (action='play_pause'|'next'|'previous'|'play_search', query)\n" +
             "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
+            "- take_photo: capture a photo using the on-device camera (facing='back'|'front', optional quality, optional flash)\n" +
             "something out loud)\n" +
             "- clarify: ask the user a short question when a request is ambiguous\n\n" +
             "Guidelines:\n" +

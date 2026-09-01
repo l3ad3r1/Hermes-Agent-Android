@@ -751,6 +751,33 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setHomeAssistantToken(token)
     }
 
+    // --- Wake Word ("Hey Hermes") ---
+
+    fun setWakeWordEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setWakeWordEnabled(enabled)
+        if (enabled) {
+            com.hermes.agent.service.WakeWordService.startService(appContext)
+        } else {
+            com.hermes.agent.service.WakeWordService.stopService(appContext)
+        }
+    }
+
+    fun setWakeWordTriggers(triggers: List<String>) = viewModelScope.launch {
+        settingsRepository.setWakeWordTriggers(triggers)
+    }
+
+    fun setWakeWordRoutingRules(rules: Map<String, String>) = viewModelScope.launch {
+        settingsRepository.setWakeWordRoutingRules(rules)
+    }
+
+    fun setWakeWordSensitivity(sensitivity: Float) = viewModelScope.launch {
+        settingsRepository.setWakeWordSensitivity(sensitivity)
+    }
+
+    fun setWakeWordRestartOnBoot(restartOnBoot: Boolean) = viewModelScope.launch {
+        settingsRepository.setWakeWordRestartOnBoot(restartOnBoot)
+    }
+
     fun testHomeAssistantConnection(onResult: (Boolean, String) -> Unit) = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
         val current = settingsRepository.current()
         val url = current.homeAssistantUrl.trim().removeSuffix("/")

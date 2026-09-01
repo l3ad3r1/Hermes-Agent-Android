@@ -104,6 +104,43 @@ fun AssistantSettingsScreen(
                 }
             }
 
+            SectionHeader(text = "Voice & Wake Word")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ToggleRow(
+                        title = "Wake word listening",
+                        subtitle = "Listen for \"${settings.wakeWordTriggers.firstOrNull() ?: "Hey Hermes"}\" in the foreground service (off by default, battery floor protected)",
+                        checked = settings.wakeWordEnabled,
+                        onCheckedChange = viewModel::setWakeWordEnabled,
+                    )
+                    if (settings.wakeWordEnabled) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        var triggerText by remember(settings.wakeWordTriggers) {
+                            mutableStateOf(settings.wakeWordTriggers.joinToString(", "))
+                        }
+                        OutlinedTextField(
+                            value = triggerText,
+                            onValueChange = {
+                                triggerText = it
+                                val list = it.split(",").map { s -> s.trim() }.filter { s -> s.isNotEmpty() }
+                                if (list.isNotEmpty()) viewModel.setWakeWordTriggers(list)
+                            },
+                            label = { Text("Trigger phrases (comma-separated)") },
+                            supportingText = { Text("Max 32 triggers, ≤64 characters each") },
+                            colors = hermesFieldColors(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        ToggleRow(
+                            title = "Restart on device boot",
+                            subtitle = "Automatically restart wake word listening after device restart",
+                            checked = settings.wakeWordRestartOnBoot,
+                            onCheckedChange = viewModel::setWakeWordRestartOnBoot,
+                        )
+                    }
+                }
+            }
+
             SectionHeader(text = "Actions & approvals")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {

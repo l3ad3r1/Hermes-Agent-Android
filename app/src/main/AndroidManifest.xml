@@ -27,6 +27,7 @@
     <!-- Always-on agent: foreground service (24/7) + restart on boot. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -316,6 +317,20 @@
                  an approved host. -->
             <intent-filter>
                 <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Wake Word Foreground Service & Boot Receiver -->
+        <service
+            android:name=".service.WakeWordService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+
+        <receiver
+            android:name=".service.WakeWordBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>
