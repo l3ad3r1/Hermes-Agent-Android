@@ -11,10 +11,10 @@ not exist before. Full row-by-row detail is in
 
 | Outcome | Count | |
 |---|---|---|
-| Pass | 19 | includes wake word (K43 fix verified live), Talk-mode listen loop, KWS suspend/resume, battery floor, heartbeat + presence scheduling, migration 21→22→23 on a real device, release APK integrity, and the unit-covered screening/policy rows |
+| Pass | 20 | wake word (K43 fix verified live), Talk-mode listen loop capturing speech + K44 fix, KWS suspend/resume, battery floor, heartbeat + presence scheduling, migration 21→22→23 on a real device, release APK integrity, the unit-covered screening/policy rows |
 | Not testable / not run | 18 | need a configured LLM (no cloud key; the on-device model needs a 770 MB download through a SAF picker adb can't drive) or reliable adb text entry (corrupted on this device — K42) |
 | Blocked | 6 | need a human voice, a Bluetooth headset, or physical movement / a mock-location provider |
-| Fail | 1 | T255 — see K44 below |
+| Fail | 0 | T255 (K44) fixed and re-verified this session |
 | N/A | 1 | T247 — this device has an on-device recogniser |
 
 ## Bugs found on device
@@ -45,15 +45,19 @@ notification + Disable action, and logcat shows a real on-device recogniser
 (`SodaSpeechRecognizer: Offline recognizer - start listening`,
 `applicationDomain: AMBIENT_ONESHOT`, `RecognitionService#onMicrophoneOpened`).
 
-### K44 — Talk mode claims Bluetooth routing with no headset (minor, OPEN)
+### K44 — Talk mode claimed Bluetooth routing with no headset (minor, FIXED)
 
 `TalkSessionController.setupAudioRouting()` gates on
 `AudioManager.isBluetoothScoAvailableOffCall`, which is `true` on any device that
-*supports* SCO. With no headset connected, Talk still shows "Routing audio through
-Bluetooth headset" and calls `startBluetoothSco()` needlessly. Audio still works
-(falls through to speakerphone). Fix: check for an actually-connected BT audio device
-(`getDevices(GET_DEVICES_OUTPUTS)` for `TYPE_BLUETOOTH_SCO`/`A2DP`, or the HEADSET
-profile connection state) before enabling SCO.
+*supports* SCO. With no headset connected, Talk still showed "Routing audio through
+Bluetooth headset" and called `startBluetoothSco()` needlessly. Audio still worked
+(fell through to speakerphone).
+
+**Fix** (commit `a074141` Hermes / `a363609` Jeeves): `hasConnectedBluetoothAudioDevice()`
+checks `getDevices(GET_DEVICES_OUTPUTS)` for a connected `TYPE_BLUETOOTH_SCO` / `A2DP` /
+`BLE_HEADSET` device before taking the SCO path. Verified on device: with no headset, no
+"SCO routing enabled" log and no banner; Talk still captured speech ("You: hi how is")
+and submitted a turn. `OpenClawWiringTest` asserts the gate.
 
 ## What was verified live (the v0.11.3 wiring)
 
@@ -81,7 +85,7 @@ profile connection state) before enabling SCO.
    on-device model onto the device out-of-band.
 2. The voice rows (say "Hey Hermes"; a spoken Talk conversation with barge-in) need a
    person, or an audio-injection rig.
-3. K44 should be fixed (small).
+3. ~~K44~~ fixed this session.
 4. Jeeves parity rows (T280–T285) were not separately driven on device; the code is
    shared via `agent-core` + `HermesApp`, and `OpenClawWiringTest` passes for Jeeves.
 

@@ -47,15 +47,15 @@ pass (`docs/ANTIGRAVITY-OPENCLAW-PORT-HANDOFF.md`) remains the release gate.
 
 Ran T244-T288 on a TCL 9469X (Android 15). Full detail: `docs/BLOCK-B-DEVICE-PASS-2026-09-02.md`.
 
-- **19 Pass**, 18 not-testable (no LLM / no reliable adb text entry on this device),
-  6 blocked (need a voice / BT / movement), 1 Fail (K44), 1 N/A.
+- **20 Pass**, 18 not-testable (no LLM / no reliable adb text entry on this device),
+  6 blocked (voice / BT / movement), 1 N/A. K43 + K44 fixed this session.
 - **K43 (P0, FIXED):** enabling the wake word crash-looped the app on Android 14+ -
   `WakeWordService` started a `FOREGROUND_SERVICE_TYPE_MICROPHONE` service without the
   `RECORD_AUDIO` runtime permission. Fixed: the service gates the mic FGS type on the
   permission and runs a plain 'grant microphone' FGS otherwise; the settings toggle and
   the Talk screen request the permission first. Re-verified live. Present since v0.11.0,
   never caught because the feature was never run on a device.
-- **K44 (minor, OPEN):** Talk mode reports Bluetooth routing with no headset connected.
+- **K44 (minor, FIXED):** Talk mode reported Bluetooth routing with no headset - now gated on a connected BT output device (commit a074141 / a363609), re-verified on device.
 - **Verified live:** wake-word on-device recogniser + FGS + battery-floor + KWS
   suspend/resume; Talk-mode listen loop; heartbeat + presence WorkManager scheduling;
   migration 21->22->23 on a real device with real data; release APK integrity; all five
