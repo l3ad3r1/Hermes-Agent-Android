@@ -96,6 +96,19 @@ class OpenClawWiringTest {
     }
 
     @Test
+    fun `talk only routes to bluetooth when a headset is actually connected`() {
+        val controller = source("ui/voice/TalkSessionController.kt")
+        assertTrue(
+            "SCO must be gated on a connected BT audio device, not just isBluetoothScoAvailableOffCall",
+            controller.contains("hasConnectedBluetoothAudioDevice(am) && am.isBluetoothScoAvailableOffCall"),
+        )
+        assertTrue(
+            "connectivity check must inspect the output-device list",
+            controller.contains("getDevices(AudioManager.GET_DEVICES_OUTPUTS)"),
+        )
+    }
+
+    @Test
     fun `barge-in is voice-activated, not just a button`() {
         val controller = source("ui/voice/TalkSessionController.kt")
         assertTrue(

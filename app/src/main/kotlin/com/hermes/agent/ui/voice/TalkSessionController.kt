@@ -2,6 +2,7 @@ package com.hermes.agent.ui.voice
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -332,24 +333,43 @@ class TalkSessionController @Inject constructor(
 
     private fun setupAudioRouting() {
         audioManager?.let { am ->
-            if (am.isBluetoothScoAvailableOffCall) {
+            // isBluetoothScoAvailableOffCall is true on any device that *supports*
+            // SCO, connected or not — routing on that alone lit the "Bluetooth
+            // headset" banner with nothing paired. Only take the SCO path when a
+            // BT audio output device is actually connected.
+            if (hasConnectedBluetoothAudioDevice(am) && am.isBluetoothScoAvailableOffCall) {
+                @Suppress("DEPRECATION")
                 am.startBluetoothSco()
+                @Suppress("DEPRECATION")
                 am.isBluetoothScoOn = true
                 _isBluetoothConnected.value = true
                 Timber.tag("TalkMode").i("Bluetooth SCO routing enabled")
             } else {
+                @Suppress("DEPRECATION")
                 am.isSpeakerphoneOn = true
                 _isBluetoothConnected.value = false
             }
         }
     }
 
+    private fun hasConnectedBluetoothAudioDevice(am: AudioManager): Boolean =
+        runCatching {
+            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { device ->
+                device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                        device.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+            }
+        }.getOrDefault(false)
+
     private fun releaseAudioRouting() {
         audioManager?.let { am ->
+            @Suppress("DEPRECATION")
             if (am.isBluetoothScoOn) {
                 am.isBluetoothScoOn = false
                 am.stopBluetoothSco()
             }
+            @Suppress("DEPRECATION")
             am.isSpeakerphoneOn = false
             _isBluetoothConnected.value = false
         }
