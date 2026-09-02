@@ -102,6 +102,8 @@ fun ConnectionsSettingsScreen(
                 settings = settings,
                 onUrl = viewModel::setHomeAssistantUrl,
                 onToken = viewModel::setHomeAssistantToken,
+                onDashboardPath = viewModel::setHomeAssistantDashboardPath,
+                onDashboardEnabled = viewModel::setHomeAssistantDashboardEnabled,
                 onTestConnection = viewModel::testHomeAssistantConnection,
             )
 
@@ -292,6 +294,8 @@ private fun HomeAssistantSection(
     settings: UserSettings,
     onUrl: (String) -> Unit,
     onToken: (String) -> Unit,
+    onDashboardPath: (String) -> Unit,
+    onDashboardEnabled: (Boolean) -> Unit,
     onTestConnection: ((Boolean, String) -> Unit) -> Unit,
 ) {
     var tokenVisible by remember { mutableStateOf(false) }
@@ -362,6 +366,27 @@ private fun HomeAssistantSection(
                     color = if (success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                 )
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            var dashboard by remember(settings.homeAssistantDashboardPath) {
+                mutableStateOf(settings.homeAssistantDashboardPath)
+            }
+            OutlinedTextField(
+                value = dashboard,
+                onValueChange = { dashboard = it; onDashboardPath(it) },
+                label = { Text("Dashboard path (optional)") },
+                placeholder = { Text("lovelace/0") },
+                supportingText = { Text("Relative to the base URL. Leave blank for the default dashboard.") },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ToggleRow(
+                title = "Show on Home screen",
+                subtitle = "Add a Home Assistant tile to the Home dashboard that opens this dashboard in-app.",
+                checked = settings.homeAssistantDashboardEnabled,
+                onCheckedChange = onDashboardEnabled,
+            )
         }
     }
 }

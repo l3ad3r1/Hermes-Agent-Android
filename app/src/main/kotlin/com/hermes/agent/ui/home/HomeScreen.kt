@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Psychology
@@ -73,10 +74,12 @@ fun HomeScreen(
     onOpenSchedule: () -> Unit = {},
     onOpenExperiment: () -> Unit = {},
     onOpenDocuments: () -> Unit = {},
+    onOpenHaDashboard: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val threads by viewModel.recentThreads.collectAsStateWithLifecycle()
     val model by viewModel.modelName.collectAsStateWithLifecycle()
+    val showHa by viewModel.showHaDashboard.collectAsStateWithLifecycle()
     val presence by viewModel.presence.collectAsStateWithLifecycle()
     val scheme = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -187,21 +190,19 @@ fun HomeScreen(
                 maxWidth < 840.dp -> 3
                 else -> 4
             }
-            val tiles = listOf(
-                SuperpowerTile("New Chat", "Ask or delegate", Icons.AutoMirrored.Filled.Chat, 0) {
+            val tiles = buildList {
+                add(SuperpowerTile("New Chat", "Ask or delegate", Icons.AutoMirrored.Filled.Chat, 0) {
                     viewModel.createNewConversation(onNewChat)
-                },
-                SuperpowerTile("Kanban Board", "Task queue", Icons.Filled.ViewKanban, 1, onOpenKanban),
-                SuperpowerTile("Starmap Memory", "Knowledge graph", Icons.Filled.Hub, 2, onOpenMemory),
-                SuperpowerTile("Skill Studio", "Custom tools", Icons.Filled.Psychology, 3, onOpenSkills),
-                SuperpowerTile("CRON Routines", "Scheduled triggers", Icons.Filled.Schedule, 4, onOpenSchedule),
-                SuperpowerTile("Messaging & Bot", "Telegram gateway", Icons.Filled.Forum, 0, onOpenConnections),
-                SuperpowerTile("A/B Benchmark", "Latency & tok/s", Icons.Filled.Bolt, 1, onOpenExperiment),
-                SuperpowerTile(
-                    "Knowledge Base", "Documents & RAG",
-                    Icons.AutoMirrored.Filled.LibraryBooks, 2, onOpenDocuments,
-                ),
-            )
+                })
+                add(SuperpowerTile("Kanban Board", "Task queue", Icons.Filled.ViewKanban, 1, onOpenKanban))
+                add(SuperpowerTile("Starmap Memory", "Knowledge graph", Icons.Filled.Hub, 2, onOpenMemory))
+                add(SuperpowerTile("Skill Studio", "Custom tools", Icons.Filled.Psychology, 3, onOpenSkills))
+                add(SuperpowerTile("CRON Routines", "Scheduled triggers", Icons.Filled.Schedule, 4, onOpenSchedule))
+                add(SuperpowerTile("Messaging & Bot", "Telegram gateway", Icons.Filled.Forum, 0, onOpenConnections))
+                add(SuperpowerTile("A/B Benchmark", "Latency & tok/s", Icons.Filled.Bolt, 1, onOpenExperiment))
+                add(SuperpowerTile("Knowledge Base", "Documents & RAG", Icons.AutoMirrored.Filled.LibraryBooks, 2, onOpenDocuments))
+                if (showHa) add(SuperpowerTile("Home Assistant", "Smart-home dashboard", Icons.Filled.Dashboard, 3, onOpenHaDashboard))
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 tiles.chunked(columns).forEach { rowTiles ->

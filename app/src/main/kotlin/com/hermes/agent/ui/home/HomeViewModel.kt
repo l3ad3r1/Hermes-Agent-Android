@@ -46,6 +46,12 @@ class HomeViewModel @Inject constructor(
             .map { it.take(3) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Show the Home Assistant dashboard tile — opt-in and only once a URL is set. */
+    val showHaDashboard: StateFlow<Boolean> =
+        settings.observe()
+            .map { it.homeAssistantDashboardEnabled && it.homeAssistantUrl.isNotBlank() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     /**
      * The model a turn would actually run on, for the home screen's
      * "Active model" card.

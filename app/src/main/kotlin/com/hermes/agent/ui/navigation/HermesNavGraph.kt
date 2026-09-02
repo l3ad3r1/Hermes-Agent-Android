@@ -188,7 +188,11 @@ fun HermesNavGraph(
                     onOpenSchedule = { navController.navigate(TopLevelDestination.SCHEDULE.route) },
                     onOpenExperiment = { navController.navigate(TopLevelDestination.EXPERIMENT.route) },
                     onOpenDocuments = { navController.navigate(TopLevelDestination.DOCUMENTS.route) },
+                    onOpenHaDashboard = { navController.navigate("ha_dashboard") },
                 )
+            }
+            composable("ha_dashboard") {
+                com.hermes.agent.ui.dashboard.HaDashboardScreen(onBack = { navController.popBackStack() })
             }
             composable(TopLevelDestination.CONVERSATIONS.route) {
                 SessionBrowserScreen(
