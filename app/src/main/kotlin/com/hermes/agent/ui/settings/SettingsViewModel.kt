@@ -490,6 +490,7 @@ class SettingsViewModel @Inject constructor(
         customName: String? = null,
         customBaseUrl: String? = null,
         apiKey: String = "",
+        reasoningEffort: String = "",
     ) = viewModelScope.launch {
         val current = settingsRepository.current().cloudProviderProfiles
         val profile = if (definitionId == "custom" || definitionId.startsWith("custom_")) {
@@ -507,12 +508,14 @@ class SettingsViewModel @Inject constructor(
                 cost = 0.05,
                 latency = 0.65,
                 toolReliability = 0.85,
+                reasoningEffort = reasoningEffort,
             )
         } else {
             val definition = CloudProviderRegistry.definition(definitionId) ?: return@launch
             CloudProviderRegistry.profile(definition, apiKey.trim()).copy(
                 baseUrl = customBaseUrl?.trim()?.ifBlank { definition.defaultBaseUrl } ?: definition.defaultBaseUrl,
                 enabled = apiKey.isNotBlank(),
+                reasoningEffort = reasoningEffort,
             )
         }
         settingsRepository.setCloudProviderProfiles(current.filterNot { it.id == profile.id } + profile)
@@ -769,6 +772,17 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setHeartbeatIntervalMinutes(minutes)
         val settings = settingsRepository.current()
         heartbeatScheduler.updateSchedule(settings.heartbeatEnabled, settings.heartbeatIntervalMinutes)
+    }
+
+    fun setReasoningEffort(effort: String) = viewModelScope.launch {
+        settingsRepository.setReasoningEffort(effort)
+    }
+
+    fun setProviderReasoningEffort(providerId: String, effort: String) = viewModelScope.launch {
+        val profiles = settingsRepository.current().cloudProviderProfiles
+        settingsRepository.setCloudProviderProfiles(
+            profiles.map { if (it.id == providerId) it.copy(reasoningEffort = effort) else it },
+        )
     }
 
     fun setStandingInstructions(text: String) = viewModelScope.launch {

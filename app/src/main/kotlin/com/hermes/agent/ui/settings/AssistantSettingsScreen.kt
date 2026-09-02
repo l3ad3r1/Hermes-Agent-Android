@@ -175,6 +175,32 @@ fun AssistantSettingsScreen(
             }
 
 
+
+            SectionHeader(text = "Reasoning effort")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "How hard o-series and extended-thinking models think before answering. " +
+                            "Higher is slower and costs more; ignored by models that don't support it.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("minimal", "low", "medium", "high").forEach { level ->
+                            FilterChip(
+                                selected = settings.reasoningEffort == level,
+                                onClick = { viewModel.setReasoningEffort(level) },
+                                label = { Text(level.replaceFirstChar { it.uppercase() }) },
+                            )
+                        }
+                    }
+                    Text(
+                        "Set per provider in Settings > Providers to override this.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+            }
+
             SectionHeader(text = "Standing instructions")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -59,11 +59,14 @@ fun ChatInputBar(
     prefillText: String = "",
     voiceChatActive: Boolean = false,
     onSendWithAttachment: ((String, String?, String?) -> Unit)? = null,
+    reasoningEffort: String = "medium",
+    onReasoningEffortChange: ((String) -> Unit)? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var text by remember(prefillText) { mutableStateOf(prefillText) }
     var attachedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var quickActionsOpen by remember { mutableStateOf(false) }
+    var effortMenuOpen by remember { mutableStateOf(false) }
     val listeningDescription = stringResource(R.string.a11y_listening)
     val endVoiceChatDescription = stringResource(R.string.a11y_end_voice_chat)
 
@@ -158,6 +161,12 @@ fun ChatInputBar(
                             imagePickerLauncher.launch("image/*")
                         },
                     )
+                    if (onReasoningEffortChange != null) {
+                        DropdownMenuItem(
+                            text = { Text("Reasoning effort: ${reasoningEffort.replaceFirstChar { it.uppercase() }}") },
+                            onClick = { quickActionsOpen = false; effortMenuOpen = true },
+                        )
+                    }
                     listOf(
                         "Plan my day" to "Help me plan my day",
                         "Create a note" to "Create a note for me",
@@ -168,6 +177,20 @@ fun ChatInputBar(
                             onClick = {
                                 text = prompt
                                 quickActionsOpen = false
+                            },
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = effortMenuOpen,
+                    onDismissRequest = { effortMenuOpen = false },
+                ) {
+                    listOf("minimal", "low", "medium", "high").forEach { level ->
+                        DropdownMenuItem(
+                            text = { Text(level.replaceFirstChar { it.uppercase() } + if (level == reasoningEffort) "  ✓" else "") },
+                            onClick = {
+                                onReasoningEffortChange?.invoke(level)
+                                effortMenuOpen = false
                             },
                         )
                     }

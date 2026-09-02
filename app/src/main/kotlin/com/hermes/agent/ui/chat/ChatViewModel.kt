@@ -126,7 +126,7 @@ class ChatViewModel @Inject constructor(
             // resets), so it's merged in from its own store here.
             state.copy(todos = todos.map { TodoItem(it.id, it.content, it.status) })
         }.combine(settingsRepository.observe()) { state, settings ->
-            state.copy(showToolCalls = settings.showToolCalls)
+            state.copy(showToolCalls = settings.showToolCalls, reasoningEffort = settings.reasoningEffort)
         }.combine(_voiceChatActive) { state, active ->
             // Chained rather than folded into the combine above: the typed
             // overloads stop at five flows, and a sixth silently drops to the
@@ -139,6 +139,10 @@ class ChatViewModel @Inject constructor(
         )
 
     val state: StateFlow<ChatUiState> get() = uiState
+
+    fun setReasoningEffort(effort: String) = viewModelScope.launch {
+        settingsRepository.setReasoningEffort(effort)
+    }
 
     /**
      * Edit a turn in place.

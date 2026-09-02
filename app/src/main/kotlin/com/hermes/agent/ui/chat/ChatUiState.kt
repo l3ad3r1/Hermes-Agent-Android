@@ -14,6 +14,7 @@ import com.hermes.agent.domain.model.Message
  * replaced by the persisted [Message] emitted by the repository.
  */
 data class ChatUiState(
+    val reasoningEffort: String = "medium",
     val messages: List<Message> = emptyList(),
     val streamingText: String? = null,
     val streamingIsOnDevice: Boolean = true,
