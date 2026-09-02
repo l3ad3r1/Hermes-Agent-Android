@@ -19,21 +19,10 @@ class WakeWordServiceTest {
     }
 
     @Test
-    fun wakeWordMatchingAndRouting_resolvesTargetAgent() {
-        val triggers = listOf("Hey Hermes", "Take Note")
+    fun `routing resolves the target agent for a matched trigger`() {
         val rules = mapOf("take note" to "productivity")
-
-        val matched = WakeWordConfig.matchTrigger("hey hermes what time is it", triggers)
-        assertEquals("Hey Hermes", matched)
-
-        val matched2 = WakeWordConfig.matchTrigger("please take note of this", triggers)
-        assertEquals("Take Note", matched2)
-
-        val targetAgent1 = WakeWordConfig.resolveTargetAgent(matched!!, rules, "conversational")
-        assertEquals("conversational", targetAgent1)
-
-        val targetAgent2 = WakeWordConfig.resolveTargetAgent(matched2!!, rules, "conversational")
-        assertEquals("productivity", targetAgent2)
+        assertEquals("conversational", WakeWordConfig.resolveTargetAgent("Hey Hermes", rules, "conversational"))
+        assertEquals("productivity", WakeWordConfig.resolveTargetAgent("Take Note", rules, "conversational"))
     }
 
     @Test
@@ -48,21 +37,39 @@ class WakeWordServiceTest {
     }
 
     @Test
-    fun `evaluate matches a trigger phrase inside a transcript hypothesis and routes it`() {
+    fun `evaluate fires only when the utterance begins with a trigger and is short`() {
         val triggers = listOf("Hey Hermes", "Take Note")
         val rules = mapOf("take note" to "productivity")
 
-        // The recogniser returns several ranked hypotheses; the second one carries the trigger.
-        val hypotheses = listOf("hen hermès", "hey hermes what's the weather", "hey her mess")
-        val match = WakeWordService.evaluate(hypotheses, triggers, rules)
-        assertEquals("Hey Hermes" to "conversational", match)
-
-        val routed = WakeWordService.evaluate(listOf("please take note of this"), triggers, rules)
-        assertEquals("Take Note" to "productivity", routed)
+        // Bare phrase, and phrase + a few words, both wake.
+        assertEquals(
+            "Hey Hermes" to "conversational",
+            WakeWordService.evaluate(listOf("hen hermès", "hey hermes what's the weather"), triggers, rules),
+        )
+        assertEquals(
+            "Take Note" to "productivity",
+            WakeWordService.evaluate(listOf("take note"), triggers, rules),
+        )
     }
 
     @Test
-    fun `evaluate returns null when no hypothesis contains a trigger`() {
+    fun `evaluate ignores the trigger buried in ordinary speech`() {
+        val triggers = listOf("Hey Hermes", "Take Note")
+        // Not at the start.
+        assertNull(WakeWordService.evaluate(listOf("so I told hey hermes about the meeting"), triggers, emptyMap()))
+        assertNull(WakeWordService.evaluate(listOf("please take note of this for later"), triggers, emptyMap()))
+        // At the start but far too long to be a wake phrase.
+        assertNull(
+            WakeWordService.evaluate(
+                listOf("hey hermes remind me to call the plumber first thing tomorrow morning"),
+                triggers,
+                emptyMap(),
+            ),
+        )
+    }
+
+    @Test
+    fun `evaluate returns null on no match or empty input`() {
         val triggers = listOf("Hey Hermes")
         assertNull(WakeWordService.evaluate(listOf("start listening now", "what time is it"), triggers, emptyMap()))
         assertNull(WakeWordService.evaluate(emptyList(), triggers, emptyMap()))

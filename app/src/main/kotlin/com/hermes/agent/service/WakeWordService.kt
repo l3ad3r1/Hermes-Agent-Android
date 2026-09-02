@@ -75,6 +75,22 @@ class WakeWordService : Service() {
     private var recognitionUnavailable = false
     private var inCooldownUntil = 0L
 
+    /**
+     * Set the instant a wake word is accepted and held until the voice turn it
+     * opened releases the microphone (or the watchdog gives up). While set,
+     * [handleHypotheses] ignores everything — this is the single-fire guard that
+     * stops one spoken "Hey Hermes" from firing two or three times as the same
+     * utterance arrives first as a partial and then as a final result.
+     */
+    @Volatile private var wakeSuppressed = false
+    private val wakeWatchdog = Runnable {
+        if (wakeSuppressed && !_isMicBusy.value) {
+            Timber.tag("WakeWord").w("No voice turn opened after a wake match — resuming listening")
+            wakeSuppressed = false
+            ensureRecognitionRunning()
+        }
+    }
+
     @Volatile private var currentTriggers: List<String> = listOf(WakeWordConfig.DEFAULT_TRIGGER)
     @Volatile private var currentRoutingRules: Map<String, String> = emptyMap()
 
@@ -87,11 +103,21 @@ class WakeWordService : Service() {
         const val EXTRA_MATCHED_TRIGGER = "extra_matched_trigger"
         const val EXTRA_TARGET_AGENT = "extra_target_agent"
 
-        /** Milliseconds to wait after a successful match before listening again. */
-        private const val MATCH_COOLDOWN_MS = 2_000L
+        /** Quiet gap before the recogniser is restarted after any turn ends. */
+        private const val RESTART_GUARD_MS = 1_200L
 
         /** Backoff before restarting the recogniser after a transient error. */
         private const val ERROR_BACKOFF_MS = 900L
+
+        /** Small breather after a no-match result so silence does not spin the recogniser. */
+        private const val NO_MATCH_BACKOFF_MS = 350L
+
+        /**
+         * If a wake match opens no voice turn within this window (Talk was denied a
+         * permission, the user backed out, the activity never came up), stop
+         * suppressing and listen again.
+         */
+        private const val WAKE_WATCHDOG_MS = 12_000L
 
         private val _isListening = MutableStateFlow(false)
         val isListening = _isListening.asStateFlow()
@@ -129,7 +155,9 @@ class WakeWordService : Service() {
         /**
          * Pure matcher used by the recogniser callback and by unit tests.
          * Returns `matchedTrigger to targetAgent`, or null when no hypothesis
-         * contains a configured trigger phrase.
+         * begins with a configured trigger phrase (see
+         * [WakeWordConfig.matchWakeTrigger] — start-anchored and length-limited,
+         * so ordinary speech that merely contains the words is ignored).
          */
         fun evaluate(
             hypotheses: List<String>,
@@ -137,7 +165,7 @@ class WakeWordService : Service() {
             routingRules: Map<String, String>,
         ): Pair<String, String>? {
             for (hypothesis in hypotheses) {
-                val matched = WakeWordConfig.matchTrigger(hypothesis, triggers) ?: continue
+                val matched = WakeWordConfig.matchWakeTrigger(hypothesis, triggers) ?: continue
                 return matched to WakeWordConfig.resolveTargetAgent(matched, routingRules)
             }
             return null
@@ -238,8 +266,20 @@ class WakeWordService : Service() {
             micBusyJob = scope.launch {
                 _isMicBusy.collectLatest { busy ->
                     if (busy) {
-                        mainHandler.post { cancelRecognition() }
+                        // A voice turn took the mic — the wake match did its job.
+                        mainHandler.post {
+                            mainHandler.removeCallbacks(wakeWatchdog)
+                            cancelRecognition()
+                        }
                     } else if (_isListening.value && !stopping) {
+                        // The turn ended. Clear the guard and wait out a short quiet
+                        // gap before listening again, so the tail of the assistant's
+                        // reply or the user's own words don't immediately re-trigger.
+                        mainHandler.post {
+                            mainHandler.removeCallbacks(wakeWatchdog)
+                            wakeSuppressed = false
+                            inCooldownUntil = System.currentTimeMillis() + RESTART_GUARD_MS
+                        }
                         ensureRecognitionRunning()
                     }
                 }
@@ -251,8 +291,10 @@ class WakeWordService : Service() {
 
     private fun teardown() {
         stopping = true
+        wakeSuppressed = false
         settingsJob?.cancel(); settingsJob = null
         micBusyJob?.cancel(); micBusyJob = null
+        mainHandler.removeCallbacks(wakeWatchdog)
         mainHandler.post { destroyRecognizer() }
         _isListening.value = false
     }
@@ -260,7 +302,7 @@ class WakeWordService : Service() {
     private fun ensureRecognitionRunning() {
         mainHandler.post {
             if (stopping || recognitionRunning || recognitionUnavailable) return@post
-            if (_isMicBusy.value) return@post
+            if (_isMicBusy.value || wakeSuppressed) return@post
             if (System.currentTimeMillis() < inCooldownUntil) {
                 mainHandler.postDelayed({ ensureRecognitionRunning() }, inCooldownUntil - System.currentTimeMillis())
                 return@post
@@ -373,20 +415,34 @@ class WakeWordService : Service() {
                         stopSelf()
                     }
                 }
-                else -> scheduleRestart(if (error == SpeechRecognizer.ERROR_NO_MATCH) 0L else ERROR_BACKOFF_MS)
+                else -> scheduleRestart(
+                    if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                        NO_MATCH_BACKOFF_MS
+                    } else {
+                        ERROR_BACKOFF_MS
+                    },
+                )
             }
         }
     }
 
-    /** @return true when a trigger matched (recognition should pause for cooldown). */
+    /** @return true when this call consumed the utterance (a trigger fired). */
     private fun handleHypotheses(hypotheses: ArrayList<String>?): Boolean {
+        // Single-fire guard: once a wake word is accepted, ignore every result —
+        // partial or final — until the voice turn releases the mic. Without this
+        // one "Hey Hermes" fires on the partial, then again on the final result.
+        if (wakeSuppressed) return true
         if (hypotheses.isNullOrEmpty()) return false
         val match = evaluate(hypotheses, currentTriggers, currentRoutingRules) ?: return false
+
         Timber.tag("WakeWord").i("Wake word matched: '%s' -> target agent: %s", match.first, match.second)
-        inCooldownUntil = System.currentTimeMillis() + MATCH_COOLDOWN_MS
+        wakeSuppressed = true
         cancelRecognition()
+        // Resume is driven by the mic-busy signal (Talk grabbed the mic) or the
+        // watchdog — deliberately no scheduleRestart() here.
+        mainHandler.removeCallbacks(wakeWatchdog)
+        mainHandler.postDelayed(wakeWatchdog, WAKE_WATCHDOG_MS)
         onWakeWordMatched(match.first, match.second)
-        scheduleRestart(MATCH_COOLDOWN_MS)
         return true
     }
 

@@ -48,6 +48,23 @@ class OpenClawWiringTest {
     }
 
     @Test
+    fun `wake word has a single-fire guard so one utterance cannot trigger repeatedly`() {
+        val service = source("service/WakeWordService.kt")
+        assertTrue(
+            "handleHypotheses must early-return while a wake match is being handled",
+            service.contains("if (wakeSuppressed) return true"),
+        )
+        assertTrue(
+            "the guard must not be released until the voice turn frees the mic (or the watchdog)",
+            service.contains("wakeWatchdog") && service.contains("wakeSuppressed = false"),
+        )
+        assertTrue(
+            "match detection must be start-anchored, not a substring contains()",
+            service.contains("WakeWordConfig.matchWakeTrigger("),
+        )
+    }
+
+    @Test
     fun `wake word service does not start a mic FGS without the runtime permission`() {
         val service = source("service/WakeWordService.kt")
         assertTrue(
