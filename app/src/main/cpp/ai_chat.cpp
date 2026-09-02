@@ -32,6 +32,10 @@ constexpr int   N_THREADS_HEADROOM      = 2;
 constexpr int   DEFAULT_CONTEXT_SIZE    = 8192;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 512;
+// Upper bound on the system-prompt prefill. Chosen so the decode stays inside
+// ART's ~10s GC-suspend window on a phone-class CPU (~3 batches). See the note
+// in processSystemPrompt.
+constexpr int   MAX_SYSTEM_PREFILL_TOKENS = 1536;
 constexpr float DEFAULT_SAMPLER_TEMP    = 0.3f;
 
 static llama_model                      * g_model;
@@ -389,8 +393,8 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
     env->ReleaseStringUTFChars(jsystem_prompt, system_prompt);
 
     // Tokenize system prompt
-    const auto system_tokens = common_tokenize(g_context, formatted_system_prompt,
-                                               false, true);
+    auto system_tokens = common_tokenize(g_context, formatted_system_prompt,
+                                         false, true);
     for (auto id: system_tokens) {
         LOGv("token: `%s`\t -> `%d`", common_token_to_piece(g_context, id).c_str(), id);
     }
@@ -401,6 +405,18 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
         LOGe("%s: System prompt too long for context! %d tokens, max: %d",
              __func__, (int) system_tokens.size(), max_batch_size);
         return 1;
+    }
+
+    // Hard prefill cap. Decoding runs in one uninterruptible native pass, and
+    // on a phone-class CPU a few thousand tokens takes long enough that ART's
+    // GC SuspendAll watchdog aborts the process mid-turn. The Kotlin side already
+    // trims the prompt; this is the last line of defence for any path that
+    // slips a large one through. Keep the head — it carries the persona and the
+    // "how to answer" close.
+    if ((int) system_tokens.size() > MAX_SYSTEM_PREFILL_TOKENS) {
+        LOGw("%s: Capping system prefill from %d to %d tokens",
+             __func__, (int) system_tokens.size(), MAX_SYSTEM_PREFILL_TOKENS);
+        system_tokens.resize(MAX_SYSTEM_PREFILL_TOKENS);
     }
 
     // Decode system tokens in batches
