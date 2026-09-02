@@ -43,6 +43,26 @@ plus an entry point to Talk mode.
 Unit suites green in all three repos. **Still not device-verified** — the Block B
 pass (`docs/ANTIGRAVITY-OPENCLAW-PORT-HANDOFF.md`) remains the release gate.
 
+## Block B device pass (2026-09-02, partial) — K43 found & fixed
+
+Ran T244-T288 on a TCL 9469X (Android 15). Full detail: `docs/BLOCK-B-DEVICE-PASS-2026-09-02.md`.
+
+- **19 Pass**, 18 not-testable (no LLM / no reliable adb text entry on this device),
+  6 blocked (need a voice / BT / movement), 1 Fail (K44), 1 N/A.
+- **K43 (P0, FIXED):** enabling the wake word crash-looped the app on Android 14+ -
+  `WakeWordService` started a `FOREGROUND_SERVICE_TYPE_MICROPHONE` service without the
+  `RECORD_AUDIO` runtime permission. Fixed: the service gates the mic FGS type on the
+  permission and runs a plain 'grant microphone' FGS otherwise; the settings toggle and
+  the Talk screen request the permission first. Re-verified live. Present since v0.11.0,
+  never caught because the feature was never run on a device.
+- **K44 (minor, OPEN):** Talk mode reports Bluetooth routing with no headset connected.
+- **Verified live:** wake-word on-device recogniser + FGS + battery-floor + KWS
+  suspend/resume; Talk-mode listen loop; heartbeat + presence WorkManager scheduling;
+  migration 21->22->23 on a real device with real data; release APK integrity; all five
+  new settings sections.
+- **Still gates a release:** the turn-dependent rows need a configured model on a test
+  device; the voice rows need a person.
+
 ## RESOLVED — BLOCKER (2026-09-02) — functional audit: 3 of 6 OpenClaw phases are not wired
 
 A second audit, run after the v0.11.2 security remediation, found that **passing unit
