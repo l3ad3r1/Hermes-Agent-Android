@@ -1,19 +1,19 @@
 # Upstream Feature Parity Analysis: Hermes Agent (Python) → Android App & Jeeves
 
-**Updated:** 2026-08-31  
-**Source:** NousResearch/hermes-agent (upstream python engine)  
+**Updated:** 2026-09-02  
+**Source:** NousResearch/hermes-agent (upstream python engine) & openclaw/openclaw (mobile node specs)  
 **Targets:** 
 - `l3ad3r1/agent-core` (shared Kotlin engine)
-- `l3ad3r1/Hermes-Agent-Android` (v0.10.1 / versionCode 68)
-- `l3ad3r1/jeeves` (v0.16.6 / versionCode 92)
+- `l3ad3r1/Hermes-Agent-Android` (v0.11.2 / versionCode 74 — built, unreleased)
+- `l3ad3r1/Jeeves` (v0.17.2 / versionCode 98 — built, unreleased)
 
 ---
 
 ## Executive Summary
 
-**Status: 100% Full Capability Parity Achieved** across all 9 upstream feature groups (Phases 0 through 8).
+**Status:** Upstream (NousResearch/hermes-agent) parity complete across all 9 feature groups (Phases 0–8). The OpenClaw mobile-node port (Block A, 6 phases) is **incomplete and unreleased**: security remediated in `v0.11.2` / `v0.17.2`, but a functional audit found 2 of 6 phases working, 1 partial and 3 not wired. See the Block A matrix and the Conclusion.
 
-All capabilities were implemented directly in the shared multiplatform engine `agent-core`, granted in each app's `AgentToolAccess.kt`, documented in agent prompts (`ConversationalAgent.kt`), backed by Room migrations with automated SQLite schema tests, and shipped in signed release APKs and GitHub releases for both **Hermes Agent** and **Jeeves**.
+The **upstream** capabilities (Phases 0–8) were implemented in the shared engine `agent-core`, granted in each app's `AgentToolAccess.kt`, named in the agent prompts, backed by tested Room migrations, and shipped as signed releases for both apps. The **OpenClaw** capabilities (Block A) are not in that state — see the Block A matrix.
 
 ---
 
@@ -92,20 +92,25 @@ All capabilities were implemented directly in the shared multiplatform engine `a
 | **Group C** | Phases 6, 7, 8 (Upstream Parity) | `v0.10.1` | `v0.16.6` | **RELEASED** |
 | **Group D** | OpenClaw Wake Word, Talk Mode, Camera | `v0.11.0` | `v0.17.0` | Built, **not released** — superseded |
 | **Group E** | OpenClaw Notifications, Presence, Heartbeat | `v0.11.1` | `v0.17.1` | Built, **not released** — superseded |
-| **Remediation** | Security fixes B1–B4, S1–S6 (see `docs/ANTIGRAVITY-OPENCLAW-REMEDIATION.md`) | `v0.11.2` | `v0.17.2` | First shipped OpenClaw build; **unit-verified, Block B device pass pending** |
+| **Remediation** | Security fixes B1–B4, S1–S6 (see `docs/ANTIGRAVITY-OPENCLAW-REMEDIATION.md`) | `v0.11.2` | `v0.17.2` | Security remediation only. Built, **not released** — the functional audit below blocks it |
 
 ---
 
 ## OpenClaw Capability Port Matrix (Block A)
 
+> **Read the Status column carefully.** A 2026-09-02 code audit found that several
+> Block A phases are wired only partially: the class exists, its unit tests pass, and
+> the security gating is real, but the runtime path that would make the feature work
+> is missing. Those rows say **NOT WIRED**. Do not treat this table as a parity claim.
+
 | OpenClaw Capability | OpenClaw Reference | Android Architecture / Class | Tool / Service Identifier | Status |
 | :--- | :--- | :--- | :--- | :---: |
-| **Phase 1: Wake Word** | `docs/nodes/voicewake.md` | `WakeWordService` (platform `SpeechRecognizer` keyword spotting, on-device / offline-preferred), `WakeWordConfig` | `WakeWordService` / "Hey Hermes" / "Hey Jeeves" | Implemented (v0.11.2). No bundled acoustic model; relies on the device speech recogniser. Device-verify in Block B. |
-| **Phase 2: Talk Mode** | `docs/nodes/talk.md` | `TalkSessionController`, `VoiceActivityDetector`, `TalkScreen` | Continuous voice turn loop with barge-in | Implemented. Barge-in / BT routing device-verify in Block B. |
-| **Phase 3: Camera Capture** | `docs/nodes/camera.md` | `CameraCaptureTool` (Camera2), `requiresConfirmation`, `NEVER_AUTONOMOUS` | `take_photo` (cap `camera`) | Implemented (v0.11.2). Every call user-confirmed; blocked from background origin. |
-| **Phase 4: Notifications** | `docs/nodes/notifications.md` | `NotificationGateway`, `NotificationContentScreen`, `PostNotificationTool`, `ReadNotificationsTool`, `NotificationMonitorService` | `post_notification`, `read_notifications` (caps `notifications_post` / `notifications_read`) | Implemented (v0.11.2). Injection screening + truncation + own-package exclusion between gateway and model. |
-| **Phase 5: Presence & Ambient Signals** | `docs/nodes/presence.md` | `PresenceManager`, `PresenceLogEntity` + `PresenceLogDao` (in `core:persistence`), `PresenceTool`, Room Migration 21 $\to$ 22 $\to$ 23 | `presence` (`get`) — `{ place, motion, power, idle_minutes }` | Partial. Battery / network / screen / idle only; no geofenced places, no Activity Recognition, no coordinates stored. Compact tool, no coordinate or timestamp leakage. |
-| **Phase 6: Heartbeat Automation** | `docs/automation/index.md` | `StandingOrder`, `StandingOrdersTool` (`requiresConfirmation`), `HeartbeatWorker`, `HeartbeatScheduler` | `standing_orders` (cap `standing_orders`, CONVERSATIONAL only), `HeartbeatWorker` | Implemented (v0.11.2). Fail-silent, battery-saver aware. |
+| **Phase 1: Wake Word** | `docs/nodes/voicewake.md` | `WakeWordService` (platform `SpeechRecognizer` keyword spotting, on-device / offline-preferred), `WakeWordConfig` | `WakeWordService` / "Hey Hermes" / "Hey Jeeves" | **PARTIAL.** Detection is real as of v0.11.2 (was an audio-energy threshold). **NOT WIRED:** `ACTION_WAKE_WORD_TRIGGERED` has no consumer — `MainActivity` does not handle the intent, so a match starts no voice turn. |
+| **Phase 2: Talk Mode** | `docs/nodes/talk.md` | `TalkSessionController`, `VoiceActivityDetector`, `TalkScreen` | Continuous voice turn loop with barge-in | **NOT WIRED.** `TalkScreen` is registered at route `"talk"` but nothing navigates to it. `startListeningTurn()` starts no recogniser and `onUserSpoke()` has no callers, so the loop never leaves LISTENING. Barge-in is a UI button, not voice-activated; `VoiceActivityDetector` is dead code (used only by its own test). |
+| **Phase 3: Camera Capture** | `docs/nodes/camera.md` | `CameraCaptureTool` (Camera2), `requiresConfirmation`, `NEVER_AUTONOMOUS` | `take_photo` (cap `camera`) | **WORKING.** Real Camera2 `openCamera` / `createCaptureSession` / `ImageReader` capture. Every call user-confirmed; blocked from background origin. |
+| **Phase 4: Notifications** | `docs/nodes/notifications.md` | `NotificationGateway`, `NotificationContentScreen`, `PostNotificationTool`, `ReadNotificationsTool`, `NotificationMonitorService` | `post_notification`, `read_notifications` (caps `notifications_post` / `notifications_read`) | **WORKING.** `NotificationMonitorService` really populates the gateway; injection screening + truncation + own-package exclusion sit between gateway and model. **Gap:** the Phase 4 design's second, in-app "let the agent read my notifications" opt-in does not exist — the OS listener permission is the only gate. |
+| **Phase 5: Presence & Ambient Signals** | `docs/nodes/presence.md` | `PresenceManager`, `PresenceLogEntity` + `PresenceLogDao` (in `core:persistence`), `PresenceTool`, Room Migration 21 $\to$ 22 $\to$ 23 | `presence` (`get`) — `{ place, motion, power, idle_minutes }` | **NOT WIRED.** No coordinates are stored (v23) and the tool leaks none — but nothing ever writes `locationName` or `activity` (no geofences, no Activity Recognition), and the only caller of `PresenceManager.captureSnapshot()` is `HeartbeatWorker`, which never runs. In practice the tool returns constants: `place="unknown"`, `motion="UNKNOWN"`, `idle_minutes=0`. No settings UI. |
+| **Phase 6: Heartbeat Automation** | `docs/automation/index.md` | `StandingOrder`, `StandingOrdersTool` (`requiresConfirmation`), `HeartbeatWorker`, `HeartbeatScheduler` | `standing_orders` (cap `standing_orders`, CONVERSATIONAL only), `HeartbeatWorker` | **NOT WIRED.** `HeartbeatScheduler` has no callers, so `HeartbeatWorker` is never enqueued. Standing orders are persisted and editable by the tool but are **never injected into any agent system prompt** — the only reader is the worker that never runs. No settings UI for either. |
 
 **Not ported (parked):** node / gateway-relay mode (the phone is the agent, not a peripheral), Wear OS companion, Task Flow, plugin tool-call hooks, a declarative policy engine, ClawHub publish, the media-understanding pre-reply pipeline (`transcribe_audio` covers the practical need), iOS realtime WebRTC talk.
 
@@ -113,15 +118,26 @@ All capabilities were implemented directly in the shared multiplatform engine `a
 
 ## Conclusion
 
-Upstream (NousResearch/hermes-agent) parity is complete (Groups A–C, released). The OpenClaw
-mobile-node port (Groups D–E) was built as `v0.11.0` / `v0.11.1` but **not released** — an audit
-found unmet security constraints (unscreened notification text, ungated camera / notification-post /
-standing-orders tools, plaintext coordinate columns, over-broad grants, and a wake word that was an
-audio-energy threshold rather than keyword spotting). Those are fixed in **`v0.11.2` / `v0.17.2`**
-(`docs/ANTIGRAVITY-OPENCLAW-REMEDIATION.md`), which is the first shipped OpenClaw build. It is
-unit-verified in all three repos; the Block B device pass
-(`docs/ANTIGRAVITY-OPENCLAW-PORT-HANDOFF.md`) is still outstanding, and Presence remains partial
-(see the matrix above).
+Upstream (NousResearch/hermes-agent) parity is complete (Groups A–C, released).
+
+The OpenClaw mobile-node port (Groups D–E) is **not complete and has not been released.** Two
+audits were run:
+
+1. **Security audit (2026-09-02).** Found unscreened notification text reaching the model, ungated
+   camera / notification-post / standing-orders tools, plaintext coordinate columns, over-broad
+   capability grants, and a "wake word" that was an audio-energy threshold. All fixed in
+   `v0.11.2` / `v0.17.2` — see `docs/ANTIGRAVITY-OPENCLAW-REMEDIATION.md`. **The security posture
+   is now sound.**
+2. **Functional audit (2026-09-02, same day).** Found that passing unit tests were masking missing
+   runtime wiring. Of the six Block A phases, **two are working** (Camera, Notifications), **one is
+   partial** (Wake Word — detection real, trigger consumed by nothing), and **three are not wired
+   at all** (Talk Mode, Presence, Heartbeat + Standing Orders). See the Status column above for
+   the specific missing link in each.
+
+The pattern to watch for: each unwired phase has a complete class, a passing unit test, and no
+caller. A green suite proved the logic, never the integration. The Block B device pass
+(`docs/ANTIGRAVITY-OPENCLAW-PORT-HANDOFF.md`) would have caught all of it — it is still outstanding
+and remains the gate before any OpenClaw release.
 
 
 ---
@@ -148,4 +164,4 @@ unit-verified in all three repos; the Block B device pass
 - [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
 - [l3ad3r1/agent-core](https://github.com/l3ad3r1/agent-core)
 - [l3ad3r1/Hermes-Agent-Android](https://github.com/l3ad3r1/Hermes-Agent-Android)
-- [l3ad3r1/Jeeves](https://github.com/l3ad3r1/Jeeves)
+- [l3ad3r1/Jeeves](https://github.com/l3ad3r1/Jeeves)
