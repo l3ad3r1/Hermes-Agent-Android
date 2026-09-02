@@ -21,12 +21,6 @@ object PendingChatIntent {
 
         /** Arm voice listening as soon as the chat screen opens. */
         object ArmVoiceListen : Action()
-
-        /**
-         * Open hands-free Talk mode. Published when the wake word fires, so a
-         * spoken trigger lands in a voice conversation rather than a text chat.
-         */
-        data class StartTalk(val targetAgent: String) : Action()
     }
 
     private val _pending = MutableStateFlow<Action?>(null)

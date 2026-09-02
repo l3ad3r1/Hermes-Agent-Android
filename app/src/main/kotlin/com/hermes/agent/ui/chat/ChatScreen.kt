@@ -109,9 +109,6 @@ fun ChatScreen(
         when (val action = PendingChatIntent.pending.value) {
             is PendingChatIntent.Action.SendText -> viewModel.sendMessage(action.text)
             is PendingChatIntent.Action.ArmVoiceListen -> viewModel.toggleVoiceInput()
-            // StartTalk is routed to the Talk screen by the nav graph and consumed
-            // there; if one ever reaches the chat screen there is nothing to do.
-            is PendingChatIntent.Action.StartTalk -> Unit
             null -> {}
         }
         PendingChatIntent.consume()
