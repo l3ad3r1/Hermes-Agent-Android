@@ -355,17 +355,21 @@ fun ChatInputBar(
 
                     Spacer(Modifier.size(4.dp))
 
-                    // Stop is red; everything else stays monochrome. See
-                    // HermesPalette.Stop for why this one control breaks the palette.
+                    // The button keeps one shape — a keyboard-return glyph —
+                    // whether or not there is text; only its colour shifts
+                    // (accent when it will send, muted when an empty tap starts
+                    // voice chat). Stop is red; see HermesPalette.Stop.
+                    val hasText = text.isNotBlank()
                     val actionColor = when {
                         isSending -> HermesPalette.Stop
                         voiceChatActive -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.primary
+                        hasText -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.surfaceVariant
                     }
                     Surface(
                         onClick = when {
                             isSending -> onCancel
-                            text.isNotBlank() -> ::submit
+                            hasText -> ::submit
                             else -> onVoiceChatToggle
                         },
                         modifier = Modifier.size(44.dp),
@@ -374,7 +378,8 @@ fun ChatInputBar(
                         contentColor = when {
                             isSending -> HermesPalette.OnStop
                             voiceChatActive -> MaterialTheme.colorScheme.onError
-                            else -> MaterialTheme.colorScheme.onPrimary
+                            hasText -> MaterialTheme.colorScheme.onPrimary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -389,14 +394,14 @@ fun ChatInputBar(
                                 )
                             } else {
                                 Icon(
-                                    imageVector = when {
-                                        isSending -> Icons.Outlined.Stop
-                                        text.isNotBlank() -> Icons.AutoMirrored.Outlined.KeyboardReturn
-                                        else -> Icons.Outlined.GraphicEq
+                                    imageVector = if (isSending) {
+                                        Icons.Outlined.Stop
+                                    } else {
+                                        Icons.AutoMirrored.Outlined.KeyboardReturn
                                     },
                                     contentDescription = when {
                                         isSending -> stringResource(R.string.a11y_stop_generating)
-                                        text.isNotBlank() -> stringResource(R.string.a11y_send_button)
+                                        hasText -> stringResource(R.string.a11y_send_button)
                                         else -> stringResource(R.string.a11y_start_voice_chat)
                                     },
                                     modifier = Modifier.size(23.dp),
