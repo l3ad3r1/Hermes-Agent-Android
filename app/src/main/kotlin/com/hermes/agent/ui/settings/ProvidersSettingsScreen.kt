@@ -125,7 +125,7 @@ fun ProvidersSettingsScreen(
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(
-                            text = "Add a provider (such as OpenRouter, Nous, Gemini, Groq, NVIDIA, DeepSeek, Mistral) or a custom local/remote OpenAI-compatible endpoint.",
+                            text = "Add a provider (such as OpenAI, OpenRouter, Nous, Gemini, Groq, DeepSeek) or a custom local/remote OpenAI-compatible endpoint.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
