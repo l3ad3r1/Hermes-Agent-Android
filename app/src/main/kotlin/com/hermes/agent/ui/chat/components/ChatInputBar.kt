@@ -54,25 +54,18 @@ import com.hermes.agent.core.theme.HermesPalette
 /** Reasoning-effort levels, ordered least → most, as the slider steps through them. */
 private val EFFORT_LEVELS = listOf("minimal", "low", "medium", "high")
 
-private fun String.titlecase(): String = replaceFirstChar { it.uppercase() }
-
 /**
- * Trims a raw model id down to something that fits the composer's action row:
- * `claude-sonnet-5` → `Sonnet 5`, `gpt-4.1-mini` → `GPT-4.1-mini`, blank → `Auto`.
+ * Trims a raw model id down for the composer's action row: `claude-sonnet-5` →
+ * `Sonnet 5`, `gpt-4.1-mini` → `GPT 4.1 Mini`, blank → `Auto`.
+ *
+ * ponytail: cosmetic label — short tokens read as acronyms, the rest title-case;
+ * good enough without a per-vendor lookup table.
  */
-internal fun shortModelName(raw: String): String {
-    val id = raw.trim()
-    if (id.isEmpty()) return "Auto"
-    val core = id.substringAfterLast('/').removePrefix("claude-").removePrefix("anthropic-")
-    return core.split('-').joinToString(" ") { part ->
-        when {
-            part.isEmpty() -> part
-            part.first().isDigit() -> part
-            part.length <= 3 -> part.uppercase()
-            else -> part.titlecase()
-        }
-    }.trim()
-}
+internal fun shortModelName(raw: String): String =
+    raw.trim().substringAfterLast('/').removePrefix("claude-").removePrefix("anthropic-")
+        .split('-', ' ').filter { it.isNotBlank() }
+        .joinToString(" ") { if (it.length <= 3) it.uppercase() else it.replaceFirstChar(Char::uppercase) }
+        .ifBlank { "Auto" }
 
 /**
  * Rounded composer: a full-width text field on top, and a single action row
@@ -303,7 +296,7 @@ fun ChatInputBar(
                                 )
                                 Spacer(Modifier.size(4.dp))
                                 Text(
-                                    text = reasoningEffort.titlecase(),
+                                    text = reasoningEffort.replaceFirstChar { it.uppercase() },
                                     style = MaterialTheme.typography.labelLarge,
                                 )
                             }
@@ -314,14 +307,10 @@ fun ChatInputBar(
                                 val current = EFFORT_LEVELS.indexOf(reasoningEffort)
                                     .let { if (it < 0) EFFORT_LEVELS.indexOf("medium") else it }
                                 Column(modifier = Modifier.width(248.dp).padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                    // Doubles as the label; updates live while dragging.
                                     Text(
-                                        text = "Reasoning effort",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(
-                                        text = EFFORT_LEVELS[current].titlecase(),
-                                        style = MaterialTheme.typography.titleMedium,
+                                        text = "Reasoning effort: ${EFFORT_LEVELS[current].replaceFirstChar { it.uppercase() }}",
+                                        style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Slider(
