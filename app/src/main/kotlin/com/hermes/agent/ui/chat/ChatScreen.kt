@@ -25,8 +25,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Public
@@ -157,11 +159,14 @@ fun ChatScreen(
         Scaffold(
             topBar = {
                 ReferenceChatTopBar(
+                    title = uiState.title,
                     onOpenChats = onBack,
                     onNewChat = onNewChat,
                     onOpenPlan = if (uiState.currentPlan != null) {
                         { planDrawerOpen = true }
                     } else null,
+                    terminalActive = chatTab == 1,
+                    onToggleTerminal = { chatTab = if (chatTab == 1) 0 else 1 },
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -208,7 +213,6 @@ fun ChatScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
             ) {
-                ChatModeTabs(selected = chatTab, onSelect = { chatTab = it })
                 if (chatTab == 0 && uiState.todos.isNotEmpty()) {
                     TodoPanel(todos = uiState.todos)
                 }
@@ -289,55 +293,69 @@ fun ChatScreen(
 
 @Composable
 private fun ReferenceChatTopBar(
+    title: String,
     onOpenChats: () -> Unit,
     onNewChat: () -> Unit,
     onOpenPlan: (() -> Unit)?,
+    terminalActive: Boolean,
+    onToggleTerminal: () -> Unit,
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(76.dp)
+            .height(64.dp)
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            onClick = onOpenChats,
-            modifier = Modifier.align(Alignment.CenterStart).size(52.dp),
-            shape = RoundedCornerShape(26.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Menu, contentDescription = "Open chats")
-            }
-        }
-        Row(
+        // Left — the conversation title (auto-named from the opening message).
+        // Tapping it opens the execution plan when there is one, otherwise the
+        // chat list.
+        Text(
+            text = title.ifBlank { "New conversation" },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
+                .weight(1f)
+                .clip(RoundedCornerShape(12.dp))
                 .clickable(onClick = onOpenPlan ?: onOpenChats)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Chat",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Icon(
-                imageVector = Icons.Outlined.KeyboardArrowDown,
-                contentDescription = if (onOpenPlan != null) "View execution plan" else "Open chats",
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        Surface(
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+        )
+        // Right — terminal toggle, then start-new-chat.
+        TopBarActionIcon(
+            icon = Icons.Outlined.Terminal,
+            description = "Terminal",
+            active = terminalActive,
+            onClick = onToggleTerminal,
+        )
+        Spacer(Modifier.size(8.dp))
+        TopBarActionIcon(
+            icon = Icons.Outlined.Add,
+            description = "Start new chat",
+            active = false,
             onClick = onNewChat,
-            modifier = Modifier.align(Alignment.CenterEnd).size(52.dp),
-            shape = RoundedCornerShape(26.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "New chat")
-            }
+        )
+    }
+}
+
+@Composable
+private fun TopBarActionIcon(
+    icon: ImageVector,
+    description: String,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(44.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = description, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -584,44 +602,7 @@ private fun rememberDrawerState(open: Boolean): androidx.compose.material3.Drawe
     return state
 }
 
-// ── Tools / Terminal / Subagents segmented control + panels ───────────
-
-private val chatModeLabels = listOf("Chat", "Terminal")
-
-@Composable
-private fun ChatModeTabs(selected: Int, onSelect: (Int) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(scheme.surfaceVariant)
-            .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        chatModeLabels.forEachIndexed { i, label ->
-            val active = i == selected
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (active) scheme.primary else Color.Transparent)
-                    .clickable { onSelect(i) }
-                    .padding(vertical = 7.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    label,
-                    fontFamily = GeistMono,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (active) scheme.onPrimary else scheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
+// ── Terminal panel ───────────────────────────────────────────────────
 
 @Composable
 private fun TerminalPanel() {

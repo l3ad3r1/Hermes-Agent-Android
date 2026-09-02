@@ -18,8 +18,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardReturn
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Stop
@@ -391,7 +391,7 @@ fun ChatInputBar(
                                 Icon(
                                     imageVector = when {
                                         isSending -> Icons.Outlined.Stop
-                                        text.isNotBlank() -> Icons.Outlined.ArrowUpward
+                                        text.isNotBlank() -> Icons.AutoMirrored.Outlined.KeyboardReturn
                                         else -> Icons.Outlined.GraphicEq
                                     },
                                     contentDescription = when {
