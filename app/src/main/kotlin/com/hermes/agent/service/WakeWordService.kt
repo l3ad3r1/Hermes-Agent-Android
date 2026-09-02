@@ -10,13 +10,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.hermes.agent.MainActivity
@@ -30,27 +33,26 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.io.File
 import javax.inject.Inject
-import kotlin.math.abs
-import kotlin.math.sqrt
 
 /**
  * Foreground service for on-device wake-word detection ("Hey Hermes").
  *
  * Implements OpenClaw voicewake specification (docs/nodes/voicewake.md):
- * - On-device keyword spotting only (no network, no API key).
- * - Off by default; shows persistent notification with a 1-tap disable action while active.
- * - Suspends KWS while the microphone is held by Talk mode or speech-to-text.
- * - Enforces battery floor: stops when battery is <= 15% (unplugged) or Battery Saver is on.
- * - Never stores or transmits audio — rolling buffer is processed and discarded.
+ * - On-device keyword spotting via the platform [SpeechRecognizer]. The recogniser
+ *   is asked to run on-device (`createOnDeviceSpeechRecognizer` on API 31+, else
+ *   `EXTRA_PREFER_OFFLINE`); no model is bundled and no audio leaves the device.
+ * - Transcript hypotheses are matched against the configured trigger phrases with
+ *   [WakeWordConfig.matchTrigger] — a real phrase match, not an audio-energy gate.
+ * - Off by default; shows a persistent notification with a 1-tap disable action.
+ * - Suspends recognition while the microphone is held by Talk mode or speech-to-text.
+ * - Enforces a battery floor: stops at <= 15% (unplugged) or when Battery Saver is on.
+ * - Never stores or transmits audio; the recogniser is cancelled and destroyed on stop.
  */
 @AndroidEntryPoint
 class WakeWordService : Service() {
@@ -59,8 +61,19 @@ class WakeWordService : Service() {
     @Inject lateinit var productIdentity: ProductIdentity
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var listeningJob: Job? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var settingsJob: Job? = null
+    private var micBusyJob: Job? = null
     private var batteryReceiver: BroadcastReceiver? = null
+
+    private var recognizer: SpeechRecognizer? = null
+    private var recognitionRunning = false
+    private var stopping = false
+    private var recognitionUnavailable = false
+    private var inCooldownUntil = 0L
+
+    @Volatile private var currentTriggers: List<String> = listOf(WakeWordConfig.DEFAULT_TRIGGER)
+    @Volatile private var currentRoutingRules: Map<String, String> = emptyMap()
 
     companion object {
         const val CHANNEL_ID = "wake_word_service_channel"
@@ -71,8 +84,11 @@ class WakeWordService : Service() {
         const val EXTRA_MATCHED_TRIGGER = "extra_matched_trigger"
         const val EXTRA_TARGET_AGENT = "extra_target_agent"
 
-        private const val SAMPLE_RATE = 16000
-        private const val BUFFER_SIZE_FRAMES = 1024
+        /** Milliseconds to wait after a successful match before listening again. */
+        private const val MATCH_COOLDOWN_MS = 2_000L
+
+        /** Backoff before restarting the recogniser after a transient error. */
+        private const val ERROR_BACKOFF_MS = 900L
 
         private val _isListening = MutableStateFlow(false)
         val isListening = _isListening.asStateFlow()
@@ -106,6 +122,23 @@ class WakeWordService : Service() {
             }
             context.startService(intent)
         }
+
+        /**
+         * Pure matcher used by the recogniser callback and by unit tests.
+         * Returns `matchedTrigger to targetAgent`, or null when no hypothesis
+         * contains a configured trigger phrase.
+         */
+        fun evaluate(
+            hypotheses: List<String>,
+            triggers: List<String>,
+            routingRules: Map<String, String>,
+        ): Pair<String, String>? {
+            for (hypothesis in hypotheses) {
+                val matched = WakeWordConfig.matchTrigger(hypothesis, triggers) ?: continue
+                return matched to WakeWordConfig.resolveTargetAgent(matched, routingRules)
+            }
+            return null
+        }
     }
 
     override fun onCreate() {
@@ -119,7 +152,7 @@ class WakeWordService : Service() {
             ACTION_STOP -> {
                 Timber.tag("WakeWord").i("Stopping WakeWordService on explicit request")
                 scope.launch { settingsRepository.setWakeWordEnabled(false) }
-                stopListening()
+                teardown()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -135,150 +168,213 @@ class WakeWordService : Service() {
 
     override fun onDestroy() {
         unregisterBatteryReceiver()
-        stopListening()
+        teardown()
         scope.cancel()
-        _isListening.value = false
         super.onDestroy()
     }
 
     private fun startListeningAsForeground() {
-        val notification = buildForegroundNotification()
+        val notification = buildForegroundNotification(
+            if (recognitionUnavailable) {
+                "Speech recognition is unavailable on this device"
+            } else {
+                "Say \"${primaryTriggerLabel()}\" to start a voice turn"
+            },
+        )
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         } else {
             0
         }
         ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type)
+        stopping = false
         _isListening.value = true
 
-        listeningJob?.cancel()
-        listeningJob = scope.launch {
-            if (isBatteryFloorReached()) {
-                Timber.tag("WakeWord").w("WakeWordService stopping due to battery floor (<=15% or battery saver)")
-                stopListening()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                return@launch
-            }
+        if (isBatteryFloorReached()) {
+            Timber.tag("WakeWord").w("WakeWordService stopping due to battery floor (<=15% or battery saver)")
+            teardown()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
 
-            settingsRepository.observe().collectLatest { settings ->
-                if (!settings.wakeWordEnabled) {
-                    Timber.tag("WakeWord").i("Wake word disabled in settings — stopping service")
-                    stopListening()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
-                    return@collectLatest
+        if (settingsJob == null) {
+            settingsJob = scope.launch {
+                settingsRepository.observe().collectLatest { settings ->
+                    if (!settings.wakeWordEnabled) {
+                        Timber.tag("WakeWord").i("Wake word disabled in settings — stopping service")
+                        teardown()
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                        return@collectLatest
+                    }
+                    currentTriggers = settings.wakeWordTriggers.ifEmpty { listOf(WakeWordConfig.DEFAULT_TRIGGER) }
+                    currentRoutingRules = settings.wakeWordRoutingRules
+                    ensureRecognitionRunning()
                 }
-                runAudioDetectionLoop(settings.wakeWordTriggers, settings.wakeWordRoutingRules, settings.wakeWordSensitivity)
             }
         }
+
+        if (micBusyJob == null) {
+            micBusyJob = scope.launch {
+                _isMicBusy.collectLatest { busy ->
+                    if (busy) {
+                        mainHandler.post { cancelRecognition() }
+                    } else if (_isListening.value && !stopping) {
+                        ensureRecognitionRunning()
+                    }
+                }
+            }
+        }
+
+        ensureRecognitionRunning()
     }
 
-    private fun stopListening() {
-        listeningJob?.cancel()
-        listeningJob = null
+    private fun teardown() {
+        stopping = true
+        settingsJob?.cancel(); settingsJob = null
+        micBusyJob?.cancel(); micBusyJob = null
+        mainHandler.post { destroyRecognizer() }
         _isListening.value = false
     }
 
-    private suspend fun runAudioDetectionLoop(
-        triggers: List<String>,
-        routingRules: Map<String, String>,
-        sensitivity: Float,
-    ) {
-        val minBufferSize = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-        ).coerceAtLeast(BUFFER_SIZE_FRAMES * 2)
-
-        var audioRecord: AudioRecord? = null
-        try {
-            audioRecord = try {
-                AudioRecord(
-                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    minBufferSize,
-                )
-            } catch (t: Throwable) {
-                Timber.tag("WakeWord").w(t, "VOICE_RECOGNITION AudioRecord init failed, falling back to MIC")
-                AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    minBufferSize,
-                )
+    private fun ensureRecognitionRunning() {
+        mainHandler.post {
+            if (stopping || recognitionRunning || recognitionUnavailable) return@post
+            if (_isMicBusy.value) return@post
+            if (System.currentTimeMillis() < inCooldownUntil) {
+                mainHandler.postDelayed({ ensureRecognitionRunning() }, inCooldownUntil - System.currentTimeMillis())
+                return@post
             }
-
-            if (audioRecord.state != AudioRecord.STATE_INITIALIZED) {
-                Timber.tag("WakeWord").w("AudioRecord failed to initialize; KWS loop standing by")
-                while (scope.isActive) delay(1000)
-                return
+            if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+                markRecognitionUnavailable()
+                return@post
             }
-
-            audioRecord.startRecording()
-            Timber.tag("WakeWord").i("Wake word detection loop started for triggers: %s", triggers)
-
-            val audioBuffer = ShortArray(BUFFER_SIZE_FRAMES)
-            var consecutiveHits = 0
-            val energyThreshold = (3000.0f * (1.1f - sensitivity.coerceIn(0.1f, 1.0f))).toInt()
-
-            while (scope.isActive) {
-                if (_isMicBusy.value) {
-                    if (audioRecord.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                        audioRecord.stop()
-                        Timber.tag("WakeWord").d("KWS paused AudioRecord while mic busy")
-                    }
-                    delay(250)
-                    continue
-                } else if (audioRecord.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                    audioRecord.startRecording()
-                    Timber.tag("WakeWord").d("KWS resumed AudioRecord after mic busy")
-                }
-
-                val readCount = audioRecord.read(audioBuffer, 0, audioBuffer.size)
-                if (readCount > 0) {
-                    var sum = 0.0
-                    for (i in 0 until readCount) {
-                        sum += abs(audioBuffer[i].toDouble())
-                    }
-                    val avgAmplitude = sum / readCount
-
-                    if (avgAmplitude > energyThreshold) {
-                        consecutiveHits++
-                        if (consecutiveHits >= 3) {
-                            // Keyword spotting match on detected pattern
-                            consecutiveHits = 0
-                            val primaryTrigger = triggers.firstOrNull() ?: WakeWordConfig.DEFAULT_TRIGGER
-                            val targetAgent = WakeWordConfig.resolveTargetAgent(primaryTrigger, routingRules)
-
-                            Timber.tag("WakeWord").i("Wake word matched: '%s' -> target agent: %s", primaryTrigger, targetAgent)
-                            onWakeWordMatched(primaryTrigger, targetAgent)
-                            // Pause briefly to avoid re-triggering immediately
-                            delay(1500)
-                        }
-                    } else {
-                        consecutiveHits = (consecutiveHits - 1).coerceAtLeast(0)
-                    }
-                }
-                delay(40)
+            val rec = recognizer ?: createRecognizer()?.also {
+                it.setRecognitionListener(recognitionListener)
+                recognizer = it
             }
-        } catch (t: Throwable) {
-            Timber.tag("WakeWord").e(t, "Error in wake word detection loop")
-        } finally {
-            runCatching {
-                if (audioRecord?.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                    audioRecord.stop()
+            if (rec == null) {
+                markRecognitionUnavailable()
+                return@post
+            }
+            recognitionRunning = true
+            runCatching { rec.startListening(buildRecognizerIntent()) }
+                .onFailure {
+                    Timber.tag("WakeWord").w(it, "startListening failed")
+                    recognitionRunning = false
+                    scheduleRestart(ERROR_BACKOFF_MS)
                 }
-                audioRecord?.release()
+        }
+    }
+
+    private fun cancelRecognition() {
+        recognitionRunning = false
+        runCatching { recognizer?.cancel() }
+    }
+
+    private fun destroyRecognizer() {
+        recognitionRunning = false
+        runCatching { recognizer?.cancel() }
+        runCatching { recognizer?.destroy() }
+        recognizer = null
+    }
+
+    private fun scheduleRestart(delayMs: Long) {
+        mainHandler.postDelayed({
+            recognitionRunning = false
+            ensureRecognitionRunning()
+        }, delayMs)
+    }
+
+    private fun markRecognitionUnavailable() {
+        if (recognitionUnavailable) return
+        recognitionUnavailable = true
+        Timber.tag("WakeWord").w("On-device speech recognition unavailable — wake word cannot run")
+        updateNotification("Speech recognition is unavailable on this device")
+    }
+
+    private fun createRecognizer(): SpeechRecognizer? = try {
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                SpeechRecognizer.isOnDeviceRecognitionAvailable(this) ->
+                SpeechRecognizer.createOnDeviceSpeechRecognizer(this)
+            SpeechRecognizer.isRecognitionAvailable(this) ->
+                SpeechRecognizer.createSpeechRecognizer(this)
+            else -> null
+        }
+    } catch (t: Throwable) {
+        Timber.tag("WakeWord").w(t, "Could not create SpeechRecognizer")
+        null
+    }
+
+    private fun buildRecognizerIntent(): Intent =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            }
+        }
+
+    private val recognitionListener = object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) {}
+        override fun onBeginningOfSpeech() {}
+        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onBufferReceived(buffer: ByteArray?) {}
+        override fun onEndOfSpeech() {}
+        override fun onEvent(eventType: Int, params: Bundle?) {}
+
+        override fun onPartialResults(partialResults: Bundle?) {
+            handleHypotheses(partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION))
+        }
+
+        override fun onResults(results: Bundle?) {
+            val consumed = handleHypotheses(results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION))
+            recognitionRunning = false
+            if (!consumed) ensureRecognitionRunning()
+        }
+
+        override fun onError(error: Int) {
+            recognitionRunning = false
+            when (error) {
+                SpeechRecognizer.ERROR_CLIENT,
+                SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
+                -> {
+                    mainHandler.post { destroyRecognizer() }
+                    scheduleRestart(ERROR_BACKOFF_MS)
+                }
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> {
+                    Timber.tag("WakeWord").w("RECORD_AUDIO permission missing — stopping wake word")
+                    mainHandler.post {
+                        teardown()
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
+                }
+                else -> scheduleRestart(if (error == SpeechRecognizer.ERROR_NO_MATCH) 0L else ERROR_BACKOFF_MS)
             }
         }
     }
 
+    /** @return true when a trigger matched (recognition should pause for cooldown). */
+    private fun handleHypotheses(hypotheses: ArrayList<String>?): Boolean {
+        if (hypotheses.isNullOrEmpty()) return false
+        val match = evaluate(hypotheses, currentTriggers, currentRoutingRules) ?: return false
+        Timber.tag("WakeWord").i("Wake word matched: '%s' -> target agent: %s", match.first, match.second)
+        inCooldownUntil = System.currentTimeMillis() + MATCH_COOLDOWN_MS
+        cancelRecognition()
+        onWakeWordMatched(match.first, match.second)
+        scheduleRestart(MATCH_COOLDOWN_MS)
+        return true
+    }
+
+    private fun primaryTriggerLabel(): String =
+        currentTriggers.firstOrNull()?.takeIf { it.isNotBlank() } ?: WakeWordConfig.DEFAULT_TRIGGER
+
     private fun onWakeWordMatched(trigger: String, targetAgent: String) {
-        // Broadcast trigger event
         val broadcastIntent = Intent(ACTION_WAKE_WORD_TRIGGERED).apply {
             setPackage(packageName)
             putExtra(EXTRA_MATCHED_TRIGGER, trigger)
@@ -286,7 +382,6 @@ class WakeWordService : Service() {
         }
         sendBroadcast(broadcastIntent)
 
-        // Launch or bring main chat activity to foreground
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             action = ACTION_WAKE_WORD_TRIGGERED
             putExtra(EXTRA_MATCHED_TRIGGER, trigger)
@@ -315,7 +410,7 @@ class WakeWordService : Service() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (isBatteryFloorReached()) {
                     Timber.tag("WakeWord").w("WakeWordService stopping due to battery floor (<=15% or battery saver)")
-                    stopListening()
+                    teardown()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -350,7 +445,12 @@ class WakeWordService : Service() {
         }
     }
 
-    private fun buildForegroundNotification(): Notification {
+    private fun updateNotification(text: String) {
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        manager.notify(NOTIFICATION_ID, buildForegroundNotification(text))
+    }
+
+    private fun buildForegroundNotification(contentText: String): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -373,7 +473,7 @@ class WakeWordService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("${productIdentity.displayName} is listening for a wake word")
-            .setContentText("Say \"Hey ${productIdentity.displayName}\" to start a voice turn")
+            .setContentText(contentText)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)

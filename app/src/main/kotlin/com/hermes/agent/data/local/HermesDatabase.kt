@@ -82,7 +82,7 @@ import com.hermes.agent.data.local.entity.ScriptPluginEntity
         McpToolEntity::class,
         PresenceLogEntity::class,
     ],
-    version = 22,
+    version = 23,
     exportSchema = true,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -755,6 +755,36 @@ abstract class HermesDatabase : RoomDatabase() {
                     """.trimIndent(),
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_presence_logs_timestamp ON presence_logs(timestamp)")
+            }
+        }
+
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Drop plaintext coordinates latitude & longitude to enforce privacy invariants
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `presence_logs_new` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `timestamp` INTEGER NOT NULL,
+                        `locationName` TEXT,
+                        `batteryLevel` INTEGER NOT NULL,
+                        `isCharging` INTEGER NOT NULL,
+                        `networkType` TEXT NOT NULL DEFAULT 'UNKNOWN',
+                        `activity` TEXT NOT NULL DEFAULT 'UNKNOWN',
+                        `screenOn` INTEGER NOT NULL DEFAULT 0,
+                        `contextSummary` TEXT NOT NULL DEFAULT ''
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `presence_logs_new` (`id`, `timestamp`, `locationName`, `batteryLevel`, `isCharging`, `networkType`, `activity`, `screenOn`, `contextSummary`)
+                    SELECT `id`, `timestamp`, `locationName`, `batteryLevel`, `isCharging`, `networkType`, `activity`, `screenOn`, `contextSummary` FROM `presence_logs`
+                    """.trimIndent(),
+                )
+                db.execSQL("DROP TABLE `presence_logs`")
+                db.execSQL("ALTER TABLE `presence_logs_new` RENAME TO `presence_logs`")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_presence_logs_timestamp` ON `presence_logs` (`timestamp`)")
             }
         }
 

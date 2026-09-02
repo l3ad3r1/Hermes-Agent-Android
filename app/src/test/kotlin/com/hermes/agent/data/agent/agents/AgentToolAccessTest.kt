@@ -292,4 +292,79 @@ class AgentToolAccessTest {
         val postUnloadTools = toolRegistry.toolsFor(AgentRole.CONVERSATIONAL).map { it.name }
         assertFalse(postUnloadTools.contains("custom_weather_lookup"))
     }
+
+    @Test
+    fun `openclaw tool grants are strictly scoped`() {
+        val registry = ToolRegistryImpl()
+        registry.register(StubTool(desc("take_photo", "device", setOf("camera", "deferrable"))))
+        registry.register(StubTool(desc("standing_orders", "automation", setOf("standing_orders", "deferrable"))))
+        registry.register(StubTool(desc("read_notifications", "system", setOf("notifications_read", "deferrable"))))
+        registry.register(StubTool(desc("post_notification", "system", setOf("notifications_post", "deferrable"))))
+        registry.register(StubTool(desc("presence", "device", setOf("presence", "deferrable"))))
+
+        val conv = registry.toolsFor(AgentRole.CONVERSATIONAL).map { it.name }.toSet()
+        val prod = registry.toolsFor(AgentRole.PRODUCTIVITY).map { it.name }.toSet()
+        val research = registry.toolsFor(AgentRole.RESEARCH).map { it.name }.toSet()
+        val dev = registry.toolsFor(AgentRole.DEVICE_CONTROL).map { it.name }.toSet()
+        val creative = registry.toolsFor(AgentRole.CREATIVE).map { it.name }.toSet()
+
+        // take_photo: CONVERSATIONAL & DEVICE_CONTROL only
+        assertTrue("take_photo in CONVERSATIONAL", conv.contains("take_photo"))
+        assertTrue("take_photo in DEVICE_CONTROL", dev.contains("take_photo"))
+        assertFalse("take_photo NOT in PRODUCTIVITY", prod.contains("take_photo"))
+        assertFalse("take_photo NOT in RESEARCH", research.contains("take_photo"))
+        assertFalse("take_photo NOT in CREATIVE", creative.contains("take_photo"))
+
+        // standing_orders: CONVERSATIONAL only
+        assertTrue("standing_orders in CONVERSATIONAL", conv.contains("standing_orders"))
+        assertFalse("standing_orders NOT in PRODUCTIVITY", prod.contains("standing_orders"))
+        assertFalse("standing_orders NOT in RESEARCH", research.contains("standing_orders"))
+        assertFalse("standing_orders NOT in DEVICE_CONTROL", dev.contains("standing_orders"))
+        assertFalse("standing_orders NOT in CREATIVE", creative.contains("standing_orders"))
+
+        // read_notifications: CONVERSATIONAL & PRODUCTIVITY only
+        assertTrue("read_notifications in CONVERSATIONAL", conv.contains("read_notifications"))
+        assertTrue("read_notifications in PRODUCTIVITY", prod.contains("read_notifications"))
+        assertFalse("read_notifications NOT in RESEARCH", research.contains("read_notifications"))
+        assertFalse("read_notifications NOT in DEVICE_CONTROL", dev.contains("read_notifications"))
+        assertFalse("read_notifications NOT in CREATIVE", creative.contains("read_notifications"))
+
+        // post_notification: CONVERSATIONAL & PRODUCTIVITY only
+        assertTrue("post_notification in CONVERSATIONAL", conv.contains("post_notification"))
+        assertTrue("post_notification in PRODUCTIVITY", prod.contains("post_notification"))
+        assertFalse("post_notification NOT in RESEARCH", research.contains("post_notification"))
+        assertFalse("post_notification NOT in DEVICE_CONTROL", dev.contains("post_notification"))
+        assertFalse("post_notification NOT in CREATIVE", creative.contains("post_notification"))
+
+        // presence: CONVERSATIONAL & PRODUCTIVITY only
+        assertTrue("presence in CONVERSATIONAL", conv.contains("presence"))
+        assertTrue("presence in PRODUCTIVITY", prod.contains("presence"))
+        assertFalse("presence NOT in RESEARCH", research.contains("presence"))
+        assertFalse("presence NOT in DEVICE_CONTROL", dev.contains("presence"))
+        assertFalse("presence NOT in CREATIVE", creative.contains("presence"))
+    }
+
+    @Test
+    fun `each new tool name appears in prompt of every role granted it`() {
+        val convPrompt = ConversationalAgent().systemPrompt
+        val prodPrompt = ProductivityAgent().systemPrompt
+        val devPrompt = DeviceControlAgent().systemPrompt
+
+        // Conversational
+        assertTrue("take_photo in conv prompt", convPrompt.contains("take_photo"))
+        assertTrue("read_notifications in conv prompt", convPrompt.contains("read_notifications"))
+        assertTrue("post_notification in conv prompt", convPrompt.contains("post_notification"))
+        assertTrue("standing_orders in conv prompt", convPrompt.contains("standing_orders"))
+        assertTrue("presence in conv prompt", convPrompt.contains("presence"))
+
+        // Productivity
+        assertTrue("read_notifications in prod prompt", prodPrompt.contains("read_notifications"))
+        assertTrue("post_notification in prod prompt", prodPrompt.contains("post_notification"))
+        assertTrue("presence in prod prompt", prodPrompt.contains("presence"))
+        assertFalse("standing_orders not in prod prompt", prodPrompt.contains("standing_orders"))
+
+        // Device Control
+        assertTrue("take_photo in dev prompt", devPrompt.contains("take_photo"))
+    }
 }
+

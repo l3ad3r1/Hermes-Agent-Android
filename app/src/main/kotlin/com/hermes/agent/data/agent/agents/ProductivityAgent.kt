@@ -38,7 +38,9 @@ class ProductivityAgent @Inject constructor() : Agent {
             "- kanban: manage persistent project tickets on the Kanban board. Use action='create' or " +
             "action='create_batch' (with tickets array) to break complex projects into structured tickets (TODO/IN_PROGRESS/DONE) " +
             "that the user can see on their board and the background agent can execute\n" +
-            "- standing_orders: manage persistent background standing orders (action='list'|'create'|'delete'|'toggle', title, instruction, interval_minutes)\n" +
+            "- read_notifications: read active status-bar notifications on this device (optional package_name, optional limit)\n" +
+            "- post_notification: post a system notification to the device status bar (title, message, optional priority='low'|'default'|'high'|'urgent')\n" +
+            "- presence: inspect current ambient presence context including place label, motion, power, and idle duration\n" +
             "- clarify: ask the user a short question (with optional choices) when a request is ambiguous\n" +
             "- delegate: hand focused or parallel subtasks to isolated subagents and get results back; " +
             "pass background=true for long tasks — the user is notified when done\n" +

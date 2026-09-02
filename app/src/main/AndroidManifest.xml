@@ -14,6 +14,10 @@
         </intent>
         <package android:name="com.termux" />
         <package android:name="moe.shizuku.privileged.api" />
+        <!-- Lets SpeechRecognizer resolve an on-device recognition service (Android 11+). -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />

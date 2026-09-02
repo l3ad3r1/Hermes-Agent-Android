@@ -361,5 +361,68 @@ class HermesDatabaseMigrationTest {
         }
         assertTrue("index_presence_logs_timestamp" in indices)
     }
+
+    @Test
+    fun `migration 22 to 23 drops plaintext coordinates and preserves data`() {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(
+            ApplicationProvider.getApplicationContext(),
+        ).name(null).callback(object : SupportSQLiteOpenHelper.Callback(22) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                HermesDatabase.MIGRATION_21_22.migrate(db)
+            }
+            override fun onUpgrade(
+                db: androidx.sqlite.db.SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }).build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        val database = checkNotNull(helper).writableDatabase
+
+        // Insert row with legacy coordinates in v22
+        database.execSQL(
+            """
+            INSERT INTO presence_logs (id, timestamp, latitude, longitude, locationName, batteryLevel, isCharging, networkType, activity, screenOn, contextSummary)
+            VALUES ('test_id_1', 123456789, 37.7749, -122.4194, 'San Francisco', 80, 1, 'WIFI', 'STILL', 1, 'Summary')
+            """.trimIndent()
+        )
+
+        // Migrate 22 -> 23
+        HermesDatabase.MIGRATION_22_23.migrate(database)
+
+        val actualColumns = mutableSetOf<String>()
+        database.query("PRAGMA table_info('presence_logs')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) actualColumns += cursor.getString(nameIndex)
+        }
+
+        val expectedColumns = setOf(
+            "id", "timestamp", "locationName", "batteryLevel",
+            "isCharging", "networkType", "activity", "screenOn", "contextSummary"
+        )
+        assertEquals(expectedColumns, actualColumns)
+        assertTrue("latitude must be dropped in v23", "latitude" !in actualColumns)
+        assertTrue("longitude must be dropped in v23", "longitude" !in actualColumns)
+
+        // Verify preserved data
+        database.query("SELECT id, locationName, batteryLevel, isCharging FROM presence_logs WHERE id = 'test_id_1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("test_id_1", cursor.getString(0))
+            assertEquals("San Francisco", cursor.getString(1))
+            assertEquals(80, cursor.getInt(2))
+            assertEquals(1, cursor.getInt(3))
+        }
+
+        // Verify index
+        val indices = mutableSetOf<String>()
+        database.query("PRAGMA index_list('presence_logs')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(nameIndex)
+                if (!name.startsWith("sqlite_autoindex_")) indices += name
+            }
+        }
+        assertTrue("index_presence_logs_timestamp" in indices)
+    }
 }
 

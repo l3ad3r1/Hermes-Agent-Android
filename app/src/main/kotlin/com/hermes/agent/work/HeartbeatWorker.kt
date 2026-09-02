@@ -1,6 +1,10 @@
 package com.hermes.agent.work
 
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
+import android.os.PowerManager
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -22,10 +26,12 @@ import timber.log.Timber
 /**
  * Background Heartbeat Worker for proactive automation and Standing Orders.
  * Ported from OpenClaw heartbeat and proactive node specification.
+ *
+ * Enforces fail-silent, battery floor, and power-save invariants.
  */
 @HiltWorker
 class HeartbeatWorker @AssistedInject constructor(
-    @Assisted context: Context,
+    @Assisted private val context: Context,
     @Assisted params: WorkerParameters,
     private val settingsRepository: SettingsRepository,
     private val presenceManager: PresenceManager,
@@ -45,14 +51,37 @@ class HeartbeatWorker @AssistedInject constructor(
                 return Result.success()
             }
 
-            val presence = presenceManager.captureSnapshot()
+            if (isPowerSaveModeActive() || isBatteryFloorReached()) {
+                Timber.tag(TAG).d("Heartbeat skipped due to battery / power-save mode.")
+                return Result.success()
+            }
+
+            val presence = runCatching {
+                presenceManager.captureSnapshot()
+            }.getOrNull()
+
+            if (presence == null || presence.contextSummary.isBlank()) {
+                Timber.tag(TAG).d("Empty or failed presence snapshot; exiting heartbeat run silently.")
+                return Result.success()
+            }
+
             Timber.tag(TAG).d("Heartbeat running. Presence: %s", presence.contextSummary)
 
             val orders = parseOrders(settings.standingOrdersJson)
+            if (orders.isEmpty()) {
+                Timber.tag(TAG).d("No standing orders configured; exiting heartbeat run silently.")
+                return Result.success()
+            }
+
             val now = System.currentTimeMillis()
             val dueOrders = orders.filter { order ->
                 val lastExec = order.lastExecutedAt
                 order.enabled && (lastExec == null || (now - lastExec) >= order.intervalMinutes * 60 * 1000L)
+            }
+
+            if (dueOrders.isEmpty()) {
+                Timber.tag(TAG).d("No standing orders due at this time.")
+                return Result.success()
             }
 
             var updatedOrders = orders
@@ -120,8 +149,8 @@ class HeartbeatWorker @AssistedInject constructor(
 
             Result.success()
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Heartbeat worker failed")
-            Result.retry()
+            Timber.tag(TAG).e(e, "Heartbeat worker failed silently")
+            Result.success() // Fail-silent
         }
     }
 
@@ -130,6 +159,30 @@ class HeartbeatWorker @AssistedInject constructor(
         return runCatching {
             json.decodeFromString(ListSerializer(StandingOrder.serializer()), raw)
         }.getOrDefault(emptyList())
+    }
+
+    private fun isPowerSaveModeActive(): Boolean {
+        return try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            pm?.isPowerSaveMode ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun isBatteryFloorReached(): Boolean {
+        return try {
+            val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+
+            val batteryPct = if (level >= 0 && scale > 0) (level * 100) / scale else 100
+            !isCharging && batteryPct <= 15
+        } catch (e: Exception) {
+            false
+        }
     }
 
     companion object {

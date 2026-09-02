@@ -1,6 +1,43 @@
 # Hermes Agent — Progress
 
-## RELEASED: v0.11.1 (2026-09-02) — Release Group E: OpenClaw Notifications, Presence & Heartbeat Automation
+## v0.11.2 (2026-09-02) — OpenClaw port remediation (first shipped build of the OpenClaw work)
+
+v0.11.0 and v0.11.1 were committed and built but **never released to GitHub** — an
+audit found unmet security constraints. v0.11.2 is the first OpenClaw build that ships.
+See `docs/ANTIGRAVITY-OPENCLAW-REMEDIATION.md`.
+
+- **B1 — notification injection defence.** `NotificationContentScreen` (in `core:tools`)
+  sits between `NotificationGateway` and `read_notifications`: drops (not redacts)
+  notifications matching injection patterns (role tags, tool-call syntax, "ignore
+  previous instructions", code fences), truncates title ≤120 / text ≤500, excludes
+  own-package, logs the package only. `read_notifications` reports a hidden-count note.
+- **B2 — confirmation gates.** `requiresConfirmation = true` on `take_photo`,
+  `post_notification`, `standing_orders`. `take_photo` / `camera_capture` added to
+  `NEVER_AUTONOMOUS` in `ToolExecutionPolicy` (background origin → Deny).
+- **B3 — presence privacy, Room 22 → 23.** `latitude` / `longitude` columns removed
+  from `presence_logs`; `PresenceLogEntity` + `PresenceLogDao` moved into
+  `core:persistence`. `MIGRATION_22_23` (create-copy-drop-rename) + schema `23.json`
+  + migration test asserting the coordinate columns are gone and rows are preserved,
+  in both apps.
+- **B4 — capability isolation.** New capabilities `camera` (CONVERSATIONAL +
+  DEVICE_CONTROL), `notifications_read` / `notifications_post` (CONVERSATIONAL +
+  PRODUCTIVITY), `presence` (CONVERSATIONAL + PRODUCTIVITY), `standing_orders`
+  (CONVERSATIONAL only); every other role's grant explicitly excludes them.
+  `AgentToolAccessTest` asserts the isolation and the prompt mentions.
+- **S1 — real wake word.** `WakeWordService` now does keyword spotting via the
+  platform `SpeechRecognizer` (on-device: `createOnDeviceSpeechRecognizer` on API 33+,
+  else `EXTRA_PREFER_OFFLINE`), matching transcript hypotheses against the configured
+  trigger phrases with `WakeWordConfig.matchTrigger` — replacing the audio-energy
+  threshold that fired on any loud sound. Manifest declares the `RecognitionService`
+  query. The 379-byte stub `.kws` "model" assets were removed. Recognition-unavailable
+  is surfaced in the foreground notification instead of spinning.
+- **S2/S3 — presence tool.** `PresenceTool` (`presence`, `get`) returns a compact
+  `{ place, motion, power, idle_minutes }` with no coordinate or precise timestamp.
+- Unit suites green in agent-core (`:core:tools`, `:core:domain`, `:core:persistence`,
+  `:core:settings`), Hermes app, and Jeeves app. Not device-verified — that is the
+  Block B pass (`docs/ANTIGRAVITY-OPENCLAW-PORT-HANDOFF.md`).
+
+## BUILT, NOT RELEASED: v0.11.1 (2026-09-02) — Release Group E: OpenClaw Notifications, Presence & Heartbeat Automation
 - Bumped to `v0.11.1` (versionCode 73). Release APK built and signed with SHA-256 `99255c31…`.
 - **Phase 4: Notifications Capability**
   - Added `NotificationGateway`, `post_notification` tool, and `read_notifications` tool in `core:tools`.
@@ -12,7 +49,7 @@
   - Added `StandingOrder` domain model, `StandingOrdersTool` (`standing_orders`), and prompt mentions.
   - Added `HeartbeatWorker` and `HeartbeatScheduler` for background proactive evaluation.
 
-## RELEASED: v0.11.0 (2026-09-02) — Release Group D: OpenClaw Wake Word, Talk Mode & Camera
+## BUILT, NOT RELEASED: v0.11.0 (2026-09-02) — Release Group D: OpenClaw Wake Word, Talk Mode & Camera
 - Bumped to `v0.11.0` (versionCode 72). Release APK built and signed with SHA-256 `99255c31…`.
 - **Phase 1: Wake Word ("Hey Hermes")**
   - Ported Porcupine/Sherpa wake word detector with `WakeWordSettings`, `WakeWordService`, `WakeWordBootReceiver`, and keyword acoustic model assets.
