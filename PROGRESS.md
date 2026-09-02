@@ -1,6 +1,49 @@
 # Hermes Agent — Progress
 
-## BLOCKER (2026-09-02) — functional audit: 3 of 6 OpenClaw phases are not wired
+## v0.11.3 (2026-09-02) — the OpenClaw phases are now actually wired
+
+The 2026-09-02 functional audit found three phases were dead code: a complete
+class, a green unit test, and **no caller**. All are wired now, and a new
+`OpenClawWiringTest` asserts every call site so this cannot recur silently —
+it caught one more instance of the same bug during this change (Jeeves computed
+the standing-instruction block and never concatenated it).
+
+**Wake word** — a match now publishes `PendingChatIntent.StartTalk`, `MainActivity`
+handles `ACTION_WAKE_WORD_TRIGGERED`, and the nav graph opens Talk mode. Before,
+the broadcast had no consumer at all.
+
+**Talk mode** — new `TalkSpeechRecognizer` (on-device `SpeechRecognizer`, API 33+
+`createOnDeviceSpeechRecognizer`, else `EXTRA_PREFER_OFFLINE`) drives the listen
+leg: a final transcript submits a turn, silence re-listens, a recogniser failure
+ends the session with a visible reason. Barge-in is voice-activated — an
+`AudioRecord` + `VoiceActivityDetector` monitor cuts TTS after ~100 ms of
+sustained speech, releases the mic *before* handing it back to the recogniser,
+and stamps `interrupted_at` for the next turn. Reachable from Settings → Voice.
+
+**Presence** — new `PresenceBeaconWorker` captures a snapshot every 15 minutes
+independently of the heartbeat (that coupling is why `presence` returned
+constants). `PresenceManager` resolves the user's own labelled places from a
+last-known `LocationManager` fix and derives motion from fix deltas — no Play
+Services dependency — then discards the coordinate. `PresencePlace` keeps
+centres in encrypted settings only; `presence_logs` and the tool see a label.
+Stale snapshots degrade to `unknown` instead of reporting an old place.
+
+**Heartbeat + standing orders** — `HermesApp.scheduleAmbientWorkers()` enqueues
+the heartbeat and the presence beacon on every cold start (nothing ever enqueued
+them before), and the settings toggles reschedule live. Standing instructions are
+a new, separate concept from the heartbeat's scheduled standing *orders*: free
+text prepended to every agent's system prompt by `OrchestratorImpl`, screened and
+capped at 4 KB so a pasted role tag or tool-call fragment cannot forge a turn.
+
+**Settings** — new Assistant sections for standing instructions, notification
+reading (the second opt-in `read_notifications` now requires), presence with
+"save my current location as a place", and heartbeat with an interval picker,
+plus an entry point to Talk mode.
+
+Unit suites green in all three repos. **Still not device-verified** — the Block B
+pass (`docs/ANTIGRAVITY-OPENCLAW-PORT-HANDOFF.md`) remains the release gate.
+
+## RESOLVED — BLOCKER (2026-09-02) — functional audit: 3 of 6 OpenClaw phases are not wired
 
 A second audit, run after the v0.11.2 security remediation, found that **passing unit
 tests were masking missing runtime wiring**. Each affected phase has a complete class,

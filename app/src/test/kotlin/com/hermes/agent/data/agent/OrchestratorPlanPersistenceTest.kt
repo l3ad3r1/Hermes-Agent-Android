@@ -171,6 +171,9 @@ class OrchestratorPlanPersistenceTest {
             ragPipeline = mockk<RagPipeline>(relaxed = true),
             executionPlanRepository = plans,
             activityLedger = mockk<ActivityLedger>(relaxed = true),
+            settingsRepository = mockk<com.hermes.agent.domain.settings.SettingsRepository>(relaxed = true) {
+                coEvery { current() } returns com.hermes.agent.domain.settings.UserSettings()
+            },
         )
         return Fixture(orchestrator, plans) { phases.toMap() }
     }

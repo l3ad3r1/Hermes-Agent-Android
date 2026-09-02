@@ -75,6 +75,9 @@ sealed class ExportUiState {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val heartbeatScheduler: com.hermes.agent.work.HeartbeatScheduler,
+    private val presenceBeaconScheduler: com.hermes.agent.work.PresenceBeaconScheduler,
+    private val presenceManager: com.hermes.agent.data.presence.PresenceManager,
     @ApplicationContext private val appContext: Context,
     private val settingsRepository: SettingsRepository,
     private val knox: KnoxSecurityManager,
@@ -92,6 +95,9 @@ class SettingsViewModel @Inject constructor(
     private val oauthManager: com.hermes.agent.data.oauth.OAuthManager,
     private val oauthCallbackReceiver: com.hermes.agent.data.oauth.OAuthCallbackReceiver,
 ) : ViewModel() {
+
+    private val _placeFeedback = MutableStateFlow<String?>(null)
+    val placeFeedback = _placeFeedback.asStateFlow()
 
     // ─── Privileged Shell (Shizuku) ──────────────────────────────────────────
     private val _privilegedStatus = MutableStateFlow(
@@ -750,6 +756,53 @@ class SettingsViewModel @Inject constructor(
     fun setHomeAssistantToken(token: String) = viewModelScope.launch {
         settingsRepository.setHomeAssistantToken(token)
     }
+
+
+    // --- Heartbeat, standing instructions, presence, notification reading (OpenClaw) ---
+
+    fun setHeartbeatEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setHeartbeatEnabled(enabled)
+        heartbeatScheduler.updateSchedule(enabled, settingsRepository.current().heartbeatIntervalMinutes)
+    }
+
+    fun setHeartbeatIntervalMinutes(minutes: Int) = viewModelScope.launch {
+        settingsRepository.setHeartbeatIntervalMinutes(minutes)
+        val settings = settingsRepository.current()
+        heartbeatScheduler.updateSchedule(settings.heartbeatEnabled, settings.heartbeatIntervalMinutes)
+    }
+
+    fun setStandingInstructions(text: String) = viewModelScope.launch {
+        settingsRepository.setStandingInstructions(text)
+    }
+
+    fun setPresenceEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setPresenceEnabled(enabled)
+        presenceBeaconScheduler.updateSchedule(enabled)
+    }
+
+    fun setNotificationsAgentReadEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setNotificationsAgentReadEnabled(enabled)
+    }
+
+    /** Save the current location as a labelled place. Coordinates never leave settings. */
+    fun addCurrentLocationAsPlace(label: String) = viewModelScope.launch {
+        val fix = presenceManager.currentFix()
+        if (fix == null) {
+            _placeFeedback.value = "No location available yet — check the location permission."
+            return@launch
+        }
+        val existing = presenceManager.places()
+        presenceManager.savePlaces(
+            existing + com.hermes.agent.domain.model.PresencePlace(label, fix.first, fix.second),
+        )
+        _placeFeedback.value = "Saved \"$label\"."
+    }
+
+    fun removePlace(label: String) = viewModelScope.launch {
+        presenceManager.savePlaces(presenceManager.places().filterNot { it.label == label })
+    }
+
+    fun clearPlaceFeedback() { _placeFeedback.value = null }
 
     // --- Wake Word ("Hey Hermes") ---
 

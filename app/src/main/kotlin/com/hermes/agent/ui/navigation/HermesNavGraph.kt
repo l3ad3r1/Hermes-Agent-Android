@@ -96,8 +96,17 @@ fun HermesNavGraph(
     // action (send the text, or arm voice listening) once it opens.
     androidx.compose.runtime.LaunchedEffect(startPendingChatIntent) {
         if (startPendingChatIntent) {
-            val newId = java.util.UUID.randomUUID().toString()
-            navController.navigate(TopLevelDestination.chatRoute(newId))
+            // A wake-word trigger wants hands-free Talk, not a text chat; every
+            // other pending action is consumed by ChatScreen once it opens.
+            if (com.hermes.agent.ui.chat.PendingChatIntent.pending.value
+                is com.hermes.agent.ui.chat.PendingChatIntent.Action.StartTalk
+            ) {
+                com.hermes.agent.ui.chat.PendingChatIntent.consume()
+                navController.navigate("talk")
+            } else {
+                val newId = java.util.UUID.randomUUID().toString()
+                navController.navigate(TopLevelDestination.chatRoute(newId))
+            }
             onPendingChatIntentConsumed()
         }
     }
@@ -245,6 +254,7 @@ fun HermesNavGraph(
                 AssistantSettingsScreen(
                     onBack = { navController.popBackStack() },
                     onOpenProviders = { navController.navigate("settings_providers") },
+                    onOpenTalk = { navController.navigate("talk") },
                 )
             }
             composable("settings_providers") { ProvidersSettingsScreen(onBack = { navController.popBackStack() }) }

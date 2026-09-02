@@ -30,6 +30,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,9 +56,11 @@ import com.hermes.agent.ui.theme.hermesFieldColors
 fun AssistantSettingsScreen(
     onBack: () -> Unit,
     onOpenProviders: () -> Unit,
+    onOpenTalk: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val placeFeedback by viewModel.placeFeedback.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -107,6 +111,15 @@ fun AssistantSettingsScreen(
             SectionHeader(text = "Voice & Wake Word")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextButton(onClick = onOpenTalk) {
+                        Text("Open hands-free Talk mode")
+                    }
+                    Text(
+                        "Continuous voice conversation: it listens, answers aloud, and stops " +
+                            "speaking the moment you talk over it.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     ToggleRow(
                         title = "Wake word listening",
                         subtitle = "Listen for \"${settings.wakeWordTriggers.firstOrNull() ?: "Hey Hermes"}\" in the foreground service (off by default, battery floor protected)",
@@ -137,6 +150,104 @@ fun AssistantSettingsScreen(
                             checked = settings.wakeWordRestartOnBoot,
                             onCheckedChange = viewModel::setWakeWordRestartOnBoot,
                         )
+                    }
+                }
+            }
+
+
+            SectionHeader(text = "Standing instructions")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    var standingText by remember(settings.standingInstructions) {
+                        mutableStateOf(settings.standingInstructions)
+                    }
+                    OutlinedTextField(
+                        value = standingText,
+                        onValueChange = {
+                            standingText = it
+                            viewModel.setStandingInstructions(it)
+                        },
+                        label = { Text("Always follow these") },
+                        supportingText = {
+                            Text("Added to every conversation, e.g. \"answer in metric\". Context only — it cannot grant tools. Max 4000 characters.")
+                        },
+                        minLines = 3,
+                        colors = hermesFieldColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
+            SectionHeader(text = "Notifications")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    ToggleRow(
+                        title = "Let the agent read my notifications",
+                        subtitle = "Needed on top of the system notification-access grant. " +
+                            "Text is screened and truncated before the model sees it, and any " +
+                            "notification that looks like an injection attempt is dropped.",
+                        checked = settings.notificationsAgentReadEnabled,
+                        onCheckedChange = viewModel::setNotificationsAgentReadEnabled,
+                    )
+                }
+            }
+
+            SectionHeader(text = "Presence")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ToggleRow(
+                        title = "Ambient presence",
+                        subtitle = "Lets the agent know roughly where you are (by your own place " +
+                            "labels), whether you're moving, and your power state. Coordinates are " +
+                            "never stored or sent — only the label. Checked every 15 minutes.",
+                        checked = settings.presenceEnabled,
+                        onCheckedChange = viewModel::setPresenceEnabled,
+                    )
+                    if (settings.presenceEnabled) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        var placeLabel by remember { mutableStateOf("") }
+                        OutlinedTextField(
+                            value = placeLabel,
+                            onValueChange = { placeLabel = it },
+                            label = { Text("Label this location (e.g. Home)") },
+                            colors = hermesFieldColors(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TextButton(
+                            enabled = placeLabel.isNotBlank(),
+                            onClick = {
+                                viewModel.addCurrentLocationAsPlace(placeLabel.trim())
+                                placeLabel = ""
+                            },
+                        ) { Text("Save my current location as this place") }
+                        placeFeedback?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
+                }
+            }
+
+            SectionHeader(text = "Heartbeat")
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ToggleRow(
+                        title = "Background heartbeat",
+                        subtitle = "Wakes the agent on a schedule to run your standing orders. " +
+                            "Skips a cycle under Battery Saver or below 15% battery, and stays " +
+                            "silent when there is nothing to report.",
+                        checked = settings.heartbeatEnabled,
+                        onCheckedChange = viewModel::setHeartbeatEnabled,
+                    )
+                    if (settings.heartbeatEnabled) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        Text("Check every ${settings.heartbeatIntervalMinutes} minutes", style = MaterialTheme.typography.bodyMedium)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(15, 30, 60, 180).forEach { minutes ->
+                                FilterChip(
+                                    selected = settings.heartbeatIntervalMinutes == minutes,
+                                    onClick = { viewModel.setHeartbeatIntervalMinutes(minutes) },
+                                    label = { Text(if (minutes < 60) "${minutes}m" else "${minutes / 60}h") },
+                                )
+                            }
+                        }
                     }
                 }
             }
