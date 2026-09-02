@@ -8,7 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.hermes.agent.data.llm.CloudModelCatalog
 import com.hermes.agent.data.llm.CloudProviderRegistry
 import com.hermes.agent.data.security.KeystoreManager
-import com.hermes.agent.data.security.KnoxSecurityManager
 import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.data.export.SessionExporter
@@ -80,7 +79,6 @@ class SettingsViewModel @Inject constructor(
     private val presenceManager: com.hermes.agent.data.presence.PresenceManager,
     @ApplicationContext private val appContext: Context,
     private val settingsRepository: SettingsRepository,
-    private val knox: KnoxSecurityManager,
     private val keystore: KeystoreManager,
     private val otaUpdateChecker: OtaUpdateChecker,
     private val otaInstaller: OtaInstaller,
@@ -380,9 +378,6 @@ class SettingsViewModel @Inject constructor(
 
     private val _exportState = MutableStateFlow<ExportUiState>(ExportUiState.Idle)
     val exportState: StateFlow<ExportUiState> = _exportState.asStateFlow()
-
-    val isKnoxAvailable: Boolean get() = knox.isKnoxAvailable
-
     // --- Cloud model discovery ---
 
     fun refreshCloudModels() = scheduleModelDiscovery(delayMillis = 0L)

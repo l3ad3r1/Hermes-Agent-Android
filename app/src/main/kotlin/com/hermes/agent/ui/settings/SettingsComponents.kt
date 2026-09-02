@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -74,6 +76,30 @@ fun InfoRow(title: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+/** One entry in a [SettingsGroup]. */
+data class NavItem(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val onClick: () -> Unit,
+)
+
+/** A titled card of [NavRow]s with dividers between them — replaces the
+ *  hand-repeated SectionHeader + Card + HorizontalDivider boilerplate. */
+@Composable
+fun SettingsGroup(title: String, items: List<NavItem>) {
+    if (items.isEmpty()) return
+    SectionHeader(title)
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            items.forEachIndexed { index, item ->
+                if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                NavRow(item.icon, item.title, item.subtitle, item.onClick)
+            }
+        }
     }
 }
 

@@ -6,7 +6,6 @@ import com.hermes.agent.data.export.SessionExporter
 import com.hermes.agent.data.llm.CloudModelCatalog
 import com.hermes.agent.data.llm.LocalLlmManager
 import com.hermes.agent.data.security.KeystoreManager
-import com.hermes.agent.data.security.KnoxSecurityManager
 import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.data.update.OtaInstaller
@@ -74,7 +73,6 @@ class SettingsViewModelCloudModelsTest {
         val viewModel = SettingsViewModel(
             appContext = mockk<Context>(relaxed = true),
             settingsRepository = settingsRepository,
-            knox = mockk<KnoxSecurityManager>(relaxed = true),
             keystore = mockk<KeystoreManager>(relaxed = true),
             otaUpdateChecker = mockk<OtaUpdateChecker>(relaxed = true),
             otaInstaller = mockk<OtaInstaller>(relaxed = true),
