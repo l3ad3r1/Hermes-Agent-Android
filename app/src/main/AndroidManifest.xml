@@ -327,20 +327,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Wake Word Foreground Service & Boot Receiver -->
-        <service
-            android:name=".service.WakeWordService"
-            android:foregroundServiceType="microphone"
-            android:exported="false" />
-
-        <receiver
-            android:name=".service.WakeWordBootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
         <!-- System Notification Listener Service -->
         <service
             android:name=".service.NotificationMonitorService"

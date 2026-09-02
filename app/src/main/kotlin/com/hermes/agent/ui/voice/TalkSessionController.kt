@@ -17,7 +17,6 @@ import com.hermes.agent.domain.agent.Orchestrator
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.VoiceTurnContext
 import com.hermes.agent.domain.settings.SettingsRepository
-import com.hermes.agent.service.WakeWordService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -109,7 +108,6 @@ class TalkSessionController @Inject constructor(
         if (_state.value != TalkState.IDLE) return
         activeConversationId = conversationId
         isTalkActive = true
-        WakeWordService.setMicBusy(true)
 
         setupAudioRouting()
         acquireWakeLock()
@@ -134,7 +132,6 @@ class TalkSessionController @Inject constructor(
 
         _state.value = TalkState.IDLE
         isTalkActive = false
-        WakeWordService.setMicBusy(false)
     }
 
     fun onUserSpoke(text: String) {

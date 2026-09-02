@@ -9,11 +9,10 @@ import java.io.File
  * tests cannot see.
  *
  * Every phase of the OpenClaw port shipped with a complete class and a green
- * unit test, and three of them still did nothing, because **nothing called
- * them**: the wake-word broadcast had no consumer, Talk mode started no
- * recogniser, the heartbeat worker was never enqueued, and standing
- * instructions were never injected into a prompt. A logic test on the class
- * passes in all of those states.
+ * unit test, and several still did nothing, because **nothing called them**:
+ * Talk mode started no recogniser, the heartbeat worker was never enqueued,
+ * and standing instructions were never injected into a prompt. A logic test on
+ * the class passes in all of those states.
  *
  * These assertions read the source tree for the call site. They are crude on
  * purpose: a caller that gets deleted must break a test, and that is the only
@@ -34,64 +33,15 @@ class OpenClawWiringTest {
     }
 
     @Test
-    fun `wake word trigger has a consumer`() {
-        assertContains(
-            "MainActivity.kt",
-            "WakeWordService.ACTION_WAKE_WORD_TRIGGERED",
-            "MainActivity must handle the wake-word intent, or a detected wake word starts nothing",
-        )
-        assertContains(
-            "MainActivity.kt",
-            "PendingChatIntent.Action.StartTalk",
-            "the wake word must open Talk mode, not a silent text chat",
-        )
-    }
-
-    @Test
-    fun `wake word has a single-fire guard so one utterance cannot trigger repeatedly`() {
-        val service = source("service/WakeWordService.kt")
-        assertTrue(
-            "handleHypotheses must early-return while a wake match is being handled",
-            service.contains("if (wakeSuppressed) return true"),
-        )
-        assertTrue(
-            "the guard must not be released until the voice turn frees the mic (or the watchdog)",
-            service.contains("wakeWatchdog") && service.contains("wakeSuppressed = false"),
-        )
-        assertTrue(
-            "match detection must be start-anchored, not a substring contains()",
-            service.contains("WakeWordConfig.matchWakeTrigger("),
-        )
-    }
-
-    @Test
-    fun `wake word service does not start a mic FGS without the runtime permission`() {
-        val service = source("service/WakeWordService.kt")
-        assertTrue(
-            "must check RECORD_AUDIO before startForeground - on API 34+ a microphone " +
-                "FGS throws SecurityException without it, which crash-loops the app",
-            service.contains("hasRecordAudioPermission()"),
-        )
-        assertTrue(
-            "the microphone FGS type must be gated on the permission",
-            service.contains("if (micPermission && Build.VERSION.SDK_INT"),
-        )
-    }
-
-    @Test
-    fun `talk and wake word request the microphone permission before use`() {
+    fun `talk mode requests the microphone permission before use`() {
         assertTrue(
             "TalkScreen must request RECORD_AUDIO before starting a session",
             source("ui/voice/TalkScreen.kt").contains("micLauncher.launch(android.Manifest.permission.RECORD_AUDIO)"),
         )
-        assertTrue(
-            "enabling wake word must request RECORD_AUDIO first",
-            source("ui/settings/AssistantSettingsScreen.kt").contains("micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)"),
-        )
     }
 
     @Test
-    fun `wake word routes to the talk screen`() {
+    fun `talk route is reachable from the nav graph`() {
         assertContains(
             "ui/navigation/HermesNavGraph.kt",
             "navigate(\"talk\")",

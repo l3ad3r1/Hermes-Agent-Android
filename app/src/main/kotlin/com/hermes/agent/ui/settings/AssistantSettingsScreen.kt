@@ -63,25 +63,6 @@ fun AssistantSettingsScreen(
     val placeFeedback by viewModel.placeFeedback.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    // Wake word and Talk mode both capture the mic. On API 34+ the wake-word
-    // foreground service crashes at startForeground without RECORD_AUDIO granted,
-    // so request it before enabling rather than letting the service fail.
-    val micPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted -> if (granted) viewModel.setWakeWordEnabled(true) }
-
-    fun toggleWakeWord(enable: Boolean) {
-        if (!enable) {
-            viewModel.setWakeWordEnabled(false)
-            return
-        }
-        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-            context, android.Manifest.permission.RECORD_AUDIO,
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (granted) viewModel.setWakeWordEnabled(true)
-        else micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -128,7 +109,7 @@ fun AssistantSettingsScreen(
                 }
             }
 
-            SectionHeader(text = "Voice & Wake Word")
+            SectionHeader(text = "Voice")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     TextButton(onClick = onOpenTalk) {
@@ -139,42 +120,8 @@ fun AssistantSettingsScreen(
                             "speaking the moment you talk over it.",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    ToggleRow(
-                        title = "Wake word listening",
-                        subtitle = "Listen for \"${settings.wakeWordTriggers.firstOrNull() ?: "Hey Hermes"}\" in the foreground service (off by default, battery floor protected)",
-                        checked = settings.wakeWordEnabled,
-                        onCheckedChange = { toggleWakeWord(it) },
-                    )
-                    if (settings.wakeWordEnabled) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        var triggerText by remember(settings.wakeWordTriggers) {
-                            mutableStateOf(settings.wakeWordTriggers.joinToString(", "))
-                        }
-                        OutlinedTextField(
-                            value = triggerText,
-                            onValueChange = {
-                                triggerText = it
-                                val list = it.split(",").map { s -> s.trim() }.filter { s -> s.isNotEmpty() }
-                                if (list.isNotEmpty()) viewModel.setWakeWordTriggers(list)
-                            },
-                            label = { Text("Trigger phrases (comma-separated)") },
-                            supportingText = { Text("Max 32 triggers, ≤64 characters each") },
-                            colors = hermesFieldColors(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        ToggleRow(
-                            title = "Restart on device boot",
-                            subtitle = "Automatically restart wake word listening after device restart",
-                            checked = settings.wakeWordRestartOnBoot,
-                            onCheckedChange = viewModel::setWakeWordRestartOnBoot,
-                        )
-                    }
                 }
             }
-
-
 
             SectionHeader(text = "Reasoning effort")
             Card(modifier = Modifier.fillMaxWidth()) {

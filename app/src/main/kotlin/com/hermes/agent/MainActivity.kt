@@ -182,15 +182,6 @@ class MainActivity : FragmentActivity() {
                     pendingChatIntentTrigger = true
                 }
             }
-            com.hermes.agent.service.WakeWordService.ACTION_WAKE_WORD_TRIGGERED -> {
-                // The wake word fired. Route to Talk mode so the user can just
-                // keep speaking; the matched trigger's routing rule picks the agent.
-                val target = intent.getStringExtra(
-                    com.hermes.agent.service.WakeWordService.EXTRA_TARGET_AGENT,
-                ) ?: "conversational"
-                PendingChatIntent.publish(PendingChatIntent.Action.StartTalk(target))
-                pendingChatIntentTrigger = true
-            }
             "com.hermes.agent.action.START_VOICE_LISTEN" -> {
                 PendingChatIntent.publish(PendingChatIntent.Action.ArmVoiceListen)
                 pendingChatIntentTrigger = true
