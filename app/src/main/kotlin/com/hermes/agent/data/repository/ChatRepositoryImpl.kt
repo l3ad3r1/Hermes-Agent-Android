@@ -15,11 +15,13 @@ import com.hermes.agent.domain.repository.ChatRepository
 import com.hermes.agent.domain.repository.ConversationRepository
 import com.hermes.agent.util.DispatcherProvider
 import com.hermes.agent.util.IdGenerator
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,6 +41,7 @@ class ChatRepositoryImpl @Inject constructor(
     private val memoryRepository: com.hermes.agent.domain.repository.MemoryRepository,
     private val router: LlmRouter,
     private val orchestrator: Orchestrator,
+    private val compressor: com.hermes.agent.data.llm.ConversationCompressor,
     private val dispatchers: DispatcherProvider,
 ) : ChatRepository {
 
@@ -55,6 +58,9 @@ class ChatRepositoryImpl @Inject constructor(
 
     companion object {
         const val CONTEXT_WINDOW_MESSAGES = 20
+
+        /** How far back to look for older turns to fold into the brief. */
+        const val COMPRESSION_SCAN_MESSAGES = 120
         const val SYSTEM_PROMPT =
             "You are Hermes, a privacy-first AI agent for Android. " +
                 "Be concise, helpful, and privacy-conscious. " +
@@ -185,14 +191,27 @@ class ChatRepositoryImpl @Inject constructor(
         conversationRepository.ensureConversation(conversationId)
         conversationRepository.addMessage(conversationId, userMessage)
 
-        // 2. Build the recent-window context for the orchestrator.
-        val recent = conversationRepository.getRecentMessages(
+        // 2. Build the window for the orchestrator: the newest
+        //    CONTEXT_WINDOW_MESSAGES turns verbatim, and — when the thread is
+        //    longer than that — a short brief of everything before them so the
+        //    older context isn't just silently dropped.
+        val scanned = conversationRepository.getRecentMessages(
             conversationId,
-            limit = CONTEXT_WINDOW_MESSAGES,
+            limit = COMPRESSION_SCAN_MESSAGES,
         )
+        val recent = scanned.takeLast(CONTEXT_WINDOW_MESSAGES)
+        val older = scanned.dropLast(CONTEXT_WINDOW_MESSAGES)
+        val brief = older.lastOrNull()?.let { anchor ->
+            compressor.brief(
+                conversationId,
+                older.map { LlmMessage(role = it.role.wireName, content = it.content) },
+                anchor.id,
+            )
+        }
         val llmMessages = buildList {
             // Orchestrator supplies its own system prompt per agent, so we
-            // only include conversation turns here.
+            // only include conversation turns (plus the earlier-context brief).
+            brief?.let { add(LlmMessage(role = "system", content = "## Earlier in this conversation\n$it")) }
             recent.forEach { m ->
                 add(
                     LlmMessage(
@@ -214,56 +233,59 @@ class ChatRepositoryImpl @Inject constructor(
         var replyCompleted = false
         var failureMessage: String? = null
 
-        orchestrator.run(conversationId, content, llmMessages, origin).collect { event ->
-            when (event) {
-                is OrchestratorEvent.ReplyToken -> accumulator.append(event.text)
-                is OrchestratorEvent.ReplyComplete -> {
-                    replyCompleted = true
-                    finalAgentRole = event.agentRole
-                    finalIsOnDevice = event.isOnDevice
-                    val assistantMessage = Message(
-                        id = IdGenerator.newId(),
-                        conversationId = conversationId,
-                        role = MessageRole.ASSISTANT,
-                        content = event.finalText,
-                        agentRole = event.agentRole,
-                        timestamp = System.currentTimeMillis(),
-                        tokens = (event.finalText.length / 4).coerceAtLeast(1),
-                        isOnDevice = event.isOnDevice,
-                    )
-                    conversationRepository.addMessage(conversationId, assistantMessage)
+        try {
+            orchestrator.run(conversationId, content, llmMessages, origin).collect { event ->
+                when (event) {
+                    is OrchestratorEvent.ReplyToken -> accumulator.append(event.text)
+                    is OrchestratorEvent.ReplyComplete -> {
+                        replyCompleted = true
+                        finalAgentRole = event.agentRole
+                        finalIsOnDevice = event.isOnDevice
+                        val assistantMessage = Message(
+                            id = IdGenerator.newId(),
+                            conversationId = conversationId,
+                            role = MessageRole.ASSISTANT,
+                            content = event.finalText,
+                            agentRole = event.agentRole,
+                            timestamp = System.currentTimeMillis(),
+                            tokens = (event.finalText.length / 4).coerceAtLeast(1),
+                            isOnDevice = event.isOnDevice,
+                        )
+                        conversationRepository.addMessage(conversationId, assistantMessage)
+                    }
+                    is OrchestratorEvent.Failed -> {
+                        Timber.tag("ChatRepo").w("orchestration failed: %s", event.message)
+                        failureMessage = event.message
+                    }
+                    else -> { /* forward as-is */ }
                 }
-                is OrchestratorEvent.Failed -> {
-                    Timber.tag("ChatRepo").w("orchestration failed: %s", event.message)
-                    failureMessage = event.message
-                }
-                else -> { /* forward as-is */ }
+                emit(event)
             }
-            emit(event)
-        }
-
-        // If the orchestrator stream ended without a ReplyComplete (e.g.
-        // because of a Failed mid-stream), persist whatever we have so the
-        // turn is never left with no assistant message at all.
-        //
-        // Partial text is preferred, but a failure with no text still has to be
-        // written down. A tool run that succeeded and then lost its provider
-        // used to leave the conversation showing only the user's message, so
-        // the work looked like it had never happened.
-        if (!replyCompleted) {
-            val content = accumulator.toString().ifBlank { failureMessage.orEmpty() }
-            if (content.isNotBlank()) {
-                val partialMessage = Message(
-                    id = IdGenerator.newId(),
-                    conversationId = conversationId,
-                    role = MessageRole.ASSISTANT,
-                    content = content,
-                    agentRole = AgentRole.DEFAULT,
-                    timestamp = System.currentTimeMillis(),
-                    tokens = (content.length / 4).coerceAtLeast(1),
-                    isOnDevice = finalIsOnDevice,
-                )
-                conversationRepository.addMessage(conversationId, partialMessage)
+        } finally {
+            // The turn is never left with no assistant message at all — whether
+            // it Failed mid-stream, or the collector was cancelled (K21: the
+            // user navigated away, the ViewModel was cleared). A cancelled
+            // coroutine can still finish this write under NonCancellable.
+            if (!replyCompleted) {
+                withContext(NonCancellable) {
+                    val text = accumulator.toString().ifBlank { failureMessage }
+                        ?: "⏸ This reply was interrupted before it finished. Send your message again to retry."
+                    if (text.isNotBlank()) {
+                        conversationRepository.addMessage(
+                            conversationId,
+                            Message(
+                                id = IdGenerator.newId(),
+                                conversationId = conversationId,
+                                role = MessageRole.ASSISTANT,
+                                content = text,
+                                agentRole = AgentRole.DEFAULT,
+                                timestamp = System.currentTimeMillis(),
+                                tokens = (text.length / 4).coerceAtLeast(1),
+                                isOnDevice = finalIsOnDevice,
+                            ),
+                        )
+                    }
+                }
             }
         }
     }

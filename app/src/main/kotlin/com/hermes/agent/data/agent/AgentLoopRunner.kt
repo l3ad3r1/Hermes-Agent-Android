@@ -213,6 +213,8 @@ class AgentLoopRunner @Inject constructor(
 
         /** Marks a call rebuilt from a reply that did not use the tool envelope. */
         const val RECOVERED_CALL_PREFIX = "recovered_call_"
-        const val MAX_LOOP_DURATION_MS = 5 * 60 * 1000L
+        // Covers a reasoning model's deepest thinking floor (10 min in
+        // ReasoningStaleTimeout) plus a couple of fast tool rounds.
+        const val MAX_LOOP_DURATION_MS = 12 * 60 * 1000L
     }
 }

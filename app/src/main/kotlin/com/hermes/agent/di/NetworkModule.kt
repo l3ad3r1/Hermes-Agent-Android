@@ -59,11 +59,13 @@ object NetworkModule {
             .addInterceptor(logging)
             .certificatePinner(pinningConfig.pinner)
             .connectTimeout(15, TimeUnit.SECONDS)
-            // Reasoning models (e.g. Nemotron-super-49b) emit long thinking
-            // traces and routinely take >60s for a non-streamed completion, so a
-            // 60s read timeout caused SocketTimeoutExceptions on the tool loop
-            // and the learning loop. 3 minutes covers slow reasoning models.
-            .readTimeout(180, TimeUnit.SECONDS)
+            // Reasoning models (o1/o3, DeepSeek R1, Nemotron reasoning, Claude
+            // thinking) emit a multi-minute thinking phase before the first
+            // token. 180s cut them off mid-think; 10 minutes is the deepest
+            // floor in ReasoningStaleTimeout. RoutedProviderChain still applies
+            // a tighter per-model withTimeout, and AgentLoopRunner caps the
+            // whole turn, so a genuinely hung socket is still bounded.
+            .readTimeout(600, TimeUnit.SECONDS)
             .writeTimeout(180, TimeUnit.SECONDS)
             .build()
     }
