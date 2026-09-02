@@ -324,8 +324,16 @@ class OrchestratorImpl @Inject constructor(
             )
 
             val toolInstruction = if (tools.isNotEmpty()) ToolCallPrompt.INSTRUCTION else ""
+            // Two system messages so provider prompt caching (OpenAI/Gemini/DeepSeek
+            // do it automatically on a stable prefix) can hit the big stable chunk —
+            // tool schema + persona + standing instructions + tool-call format — every
+            // turn. The per-turn recall (memory, skill match, prior-agent context)
+            // goes in a second system block that the cache skips.
+            val stableSystem = agent.systemPrompt + standingBlock + toolInstruction
+            val turnContext = memoryBlock + skillBlock + previousContext + deferredBlock
             val llmMessages = buildList {
-                add(LlmMessage(role = "system", content = agent.systemPrompt + standingBlock + memoryBlock + skillBlock + previousContext + toolInstruction + deferredBlock))
+                add(LlmMessage(role = "system", content = stableSystem))
+                if (turnContext.isNotBlank()) add(LlmMessage(role = "system", content = turnContext))
                 addAll(recentMessages)
                 if (recentMessages.none { it.role == "user" && it.content == userMessage }) {
                     add(LlmMessage(role = "user", content = userMessage))

@@ -128,8 +128,26 @@ class OpenClawWiringTest {
             orchestrator.contains("StandingInstructions.promptBlock("),
         )
         assertTrue(
-            "the block must be concatenated into the system message",
+            "the block must be concatenated into the stable system message",
             orchestrator.contains("agent.systemPrompt + standingBlock"),
+        )
+    }
+
+    @Test
+    fun `the system prompt is split into a cacheable stable half and a per-turn half`() {
+        val orchestrator = source("data/agent/OrchestratorImpl.kt")
+        assertTrue(
+            "stable content (persona + standing + tool-call format) must be one system message",
+            orchestrator.contains("val stableSystem = agent.systemPrompt"),
+        )
+        assertTrue(
+            "per-turn recall (memory / skill / prior-agent context) must be a separate system message",
+            orchestrator.contains("val turnContext = memoryBlock") &&
+                orchestrator.contains("if (turnContext.isNotBlank()) add(LlmMessage(role = \"system\""),
+        )
+        assertTrue(
+            "memory must NOT be in the stable half or the cache prefix breaks every turn",
+            !orchestrator.contains("stableSystem = agent.systemPrompt + standingBlock + memoryBlock"),
         )
     }
 
