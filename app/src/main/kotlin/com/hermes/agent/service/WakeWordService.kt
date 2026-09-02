@@ -1,5 +1,6 @@
 package com.hermes.agent.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,6 +10,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.BatteryManager
 import android.os.Build
@@ -22,6 +24,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.hermes.agent.MainActivity
 import com.hermes.agent.R
 import com.hermes.agent.data.settings.WakeWordConfig
@@ -173,15 +176,26 @@ class WakeWordService : Service() {
         super.onDestroy()
     }
 
+    private fun hasRecordAudioPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
     private fun startListeningAsForeground() {
+        val micPermission = hasRecordAudioPermission()
+
         val notification = buildForegroundNotification(
-            if (recognitionUnavailable) {
-                "Speech recognition is unavailable on this device"
-            } else {
-                "Say \"${primaryTriggerLabel()}\" to start a voice turn"
+            when {
+                !micPermission -> "Tap to grant microphone access, then re-enable the wake word"
+                recognitionUnavailable -> "Speech recognition is unavailable on this device"
+                else -> "Say \"${primaryTriggerLabel()}\" to start a voice turn"
             },
         )
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        // On API 34+ a FOREGROUND_SERVICE_TYPE_MICROPHONE service throws
+        // SecurityException at startForeground unless RECORD_AUDIO is already
+        // granted at runtime. Without the permission we run as a plain foreground
+        // service that only shows the "grant access" notification and never
+        // touches the mic — enabling the toggle must never crash-loop the app.
+        val type = if (micPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         } else {
             0
@@ -189,6 +203,11 @@ class WakeWordService : Service() {
         ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, type)
         stopping = false
         _isListening.value = true
+
+        if (!micPermission) {
+            Timber.tag("WakeWord").w("RECORD_AUDIO not granted — standing by without listening")
+            return
+        }
 
         if (isBatteryFloorReached()) {
             Timber.tag("WakeWord").w("WakeWordService stopping due to battery floor (<=15% or battery saver)")

@@ -61,6 +61,26 @@ fun AssistantSettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val placeFeedback by viewModel.placeFeedback.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Wake word and Talk mode both capture the mic. On API 34+ the wake-word
+    // foreground service crashes at startForeground without RECORD_AUDIO granted,
+    // so request it before enabling rather than letting the service fail.
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) viewModel.setWakeWordEnabled(true) }
+
+    fun toggleWakeWord(enable: Boolean) {
+        if (!enable) {
+            viewModel.setWakeWordEnabled(false)
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.RECORD_AUDIO,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) viewModel.setWakeWordEnabled(true)
+        else micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+    }
 
     Scaffold(
         topBar = {
@@ -124,7 +144,7 @@ fun AssistantSettingsScreen(
                         title = "Wake word listening",
                         subtitle = "Listen for \"${settings.wakeWordTriggers.firstOrNull() ?: "Hey Hermes"}\" in the foreground service (off by default, battery floor protected)",
                         checked = settings.wakeWordEnabled,
-                        onCheckedChange = viewModel::setWakeWordEnabled,
+                        onCheckedChange = { toggleWakeWord(it) },
                     )
                     if (settings.wakeWordEnabled) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

@@ -74,9 +74,19 @@ fun TalkScreen(
     val transcript by controller.transcript.collectAsStateWithLifecycle()
     val reply by controller.assistantReply.collectAsStateWithLifecycle()
     val isBt by controller.isBluetoothConnected.collectAsStateWithLifecycle()
+    val error by controller.error.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val micLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) controller.startSession(conversationId) }
 
     LaunchedEffect(Unit) {
-        controller.startSession(conversationId)
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.RECORD_AUDIO,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) controller.startSession(conversationId)
+        else micLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
     }
 
     DisposableEffect(Unit) {
@@ -156,6 +166,15 @@ fun TalkScreen(
                         text = "Routing audio through Bluetooth headset",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+
+                error?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }

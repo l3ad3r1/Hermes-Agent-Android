@@ -48,6 +48,32 @@ class OpenClawWiringTest {
     }
 
     @Test
+    fun `wake word service does not start a mic FGS without the runtime permission`() {
+        val service = source("service/WakeWordService.kt")
+        assertTrue(
+            "must check RECORD_AUDIO before startForeground - on API 34+ a microphone " +
+                "FGS throws SecurityException without it, which crash-loops the app",
+            service.contains("hasRecordAudioPermission()"),
+        )
+        assertTrue(
+            "the microphone FGS type must be gated on the permission",
+            service.contains("if (micPermission && Build.VERSION.SDK_INT"),
+        )
+    }
+
+    @Test
+    fun `talk and wake word request the microphone permission before use`() {
+        assertTrue(
+            "TalkScreen must request RECORD_AUDIO before starting a session",
+            source("ui/voice/TalkScreen.kt").contains("micLauncher.launch(android.Manifest.permission.RECORD_AUDIO)"),
+        )
+        assertTrue(
+            "enabling wake word must request RECORD_AUDIO first",
+            source("ui/settings/AssistantSettingsScreen.kt").contains("micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)"),
+        )
+    }
+
+    @Test
     fun `wake word routes to the talk screen`() {
         assertContains(
             "ui/navigation/HermesNavGraph.kt",
