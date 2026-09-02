@@ -1,99 +1,98 @@
 # Known bugs and limitations
 
-This list describes the current Android port. It is intentionally separate
-from the feature roadmap so regressions can be tracked without presenting
-planned work as a defect.
+This is the readable summary of the current Android port's defect register. It is
+kept separate from the roadmap so regressions are tracked without presenting
+planned work as a bug. The granular register with repro steps and evidence is the
+`Known Issues` sheet of `Hermes-Test-Regimen.xlsx`.
 
-The granular register — every issue with repro steps, evidence and status —
-is the `Known Issues` sheet of `Hermes-Test-Regimen.xlsx`, running K01–K29.
-This file is the readable summary of it.
+Last reviewed: **2026-09-03 (v0.11.3)**.
 
 ## Open
 
-- **K21 — a turn cancelled by ChatViewModel being cleared is lost silently.**
-  `sendMessage` launches the orchestrator in `viewModelScope`, so navigating
-  away mid-turn cancels it. The user message is already persisted; no reply
-  and no error ever arrives, and the thread just looks unanswered.
+- **K21 — a turn cancelled by `ChatViewModel` being cleared is lost silently.**
+  `sendMessage` launches the orchestrator in `viewModelScope`, so navigating away
+  mid-turn cancels it. The user message is already persisted; no reply and no
+  error arrives, and the thread just looks unanswered. Tracked as
+  [issue #13](https://github.com/l3ad3r1/Hermes-Agent-Android/issues/13).
 - **K18 — Shizuku is unusable on Android 16.** Shizuku 13.5.4 crashes with
-  `AbstractMethodError` when its service is started via ADB on API 36.
-  Reconfirmed on-device 2026-08-30; it is an upstream defect, so the
-  privileged-shell path stays unavailable on that platform.
-- **K14 — the stored NVIDIA model may have been changed by stray taps.**
-  Not a code issue; needs the owner to confirm the intended model.
-- **K04 — `RepeatedExecutionGuard` cannot see repeats, by design.** Its
-  fingerprint includes tool output, and create-style tools return a fresh id
-  each call, so two identical creates never look identical to the guard.
+  `AbstractMethodError` when its service is started via ADB on API 36 (upstream
+  defect). The privileged-shell path stays unavailable on that platform; the
+  Companion-apps card still offers the F-Droid install for older devices.
+  Tracked as [issue #14](https://github.com/l3ad3r1/Hermes-Agent-Android/issues/14).
+- **K04 — `RepeatedExecutionGuard` cannot detect repeats, by design.** Its
+  fingerprint includes tool output, and create-style tools return a fresh id each
+  call, so two identical creates never look identical to the guard.
 
 ## Current limitations
 
-- The local model remains a final fallback; it is not selected ahead of an
+- The on-device model is a final fallback; it is not selected ahead of an
   available cloud provider for structured tool tasks.
-- Cloud provider health is evaluated at request time. There is no persistent
-  cross-session health score yet.
+- Cloud-provider health is evaluated per request. There is no persistent
+  cross-session health score yet ([issue #4] covers the persistent store).
 - Google Meet links and attendee invitations require the target calendar app's
-  supported Android intent flow; Hermes does not impersonate an email attendee.
-- Screen automation and app launching require the accessibility service and
-  remain interactive even when trusted background mode is enabled.
+  Android intent flow; Hermes does not impersonate an email attendee.
+- Screen automation and app launching require the accessibility service and stay
+  interactive even in trusted background mode.
 - Shell and Termux commands always require biometric or device-PIN approval.
-- The AppAgent instrumentation suite requires an unlocked, connected Android
-  device and is not an emulator-only test.
+- Certificate pinning is not applied because the cloud endpoint is user-
+  configurable; TLS is still enforced ([issue #5]).
+- Retrieval embeddings are SHA-256 hash vectors and the vector index is in-memory
+  ([issues #3] and [#4]).
 - Release CI cannot sign until `RELEASE_KEYSTORE_BASE64`,
-  `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`
-  are set as repo secrets. The workflow fails loudly rather than shipping an
-  unsigned APK; until they exist, releases are built and published by hand
-  from `hermes.local.properties`.
+  `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD` are
+  set as repo secrets. Until then, releases are built and published by hand from
+  `hermes.local.properties`; the workflow fails loudly rather than shipping an
+  unsigned APK.
+
+[issue #3]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/3
+[issue #4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
+[issues #3]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/3
+[issues #4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
+[#4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
+[issue #5]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/5
+
+## Fixed in 0.11.x
+
+- **Wake word removed entirely.** The KWS engine crash-looped the app on
+  Android 14+ (K43 — a `FOREGROUND_SERVICE_TYPE_MICROPHONE` service was started
+  without `RECORD_AUDIO`) and mis-reported Bluetooth routing (K44). Rather than
+  ship a fragile feature, the whole wake-word path — engine, foreground service,
+  boot receiver, `FOREGROUND_SERVICE_MICROPHONE` permission — was deleted.
+  Hands-free use is the manually-opened Talk mode.
+- **Permissions screen was misreporting grants.** The About screen derived state
+  from `PackageInfo.requestedPermissionsFlags`, which does not reflect special-
+  access grants — "All files access" showed *Not granted* while actually granted.
+  It now checks the real platform API per permission (`Environment
+  .isExternalStorageManager`, `Settings.canDrawOverlays`, `canRequestPackageInstalls`,
+  battery-optimisation, notification-policy) and renders each as a live toggle.
+- **Controls clipped under large system fonts.** The Logs, A/B-benchmark and Usage
+  screens packed buttons and chips into weighted rows that crushed each to a
+  fraction of the width, wrapping labels character-by-character. They now use
+  `FlowRow` and stacked fields.
+- **Send button changed shape mid-stream** (return glyph ↔ equalizer). It is now
+  a single stable control.
+- **Samsung Knox row deleted** — it was a Phase-1 stub that always returned false.
 
 ## Fixed in 0.9.6
 
-Theme and colour (K22–K27). Several of these had been shipping since the theme
-picker landed, and none were caught by review because nothing was measuring
-contrast:
+Theme/contrast (K22–K27): "System" theme always resolved to dark; the active-model
+card drew white-on-white; Material You returned a duplicate tile accent; several
+accent colours were below the 3:1 contrast floor; the ink black/white threshold
+was set where the contrast curves don't actually cross.
 
-- "System" theme mode always resolved to dark — the setting was read, but
-  anything other than `THEME_LIGHT` fell through to dark, so the system
-  setting was never consulted.
-- The active-model card drew its label in hardcoded white, which on Classic's
-  near-white light surface is roughly 1.1:1 — invisible.
-- Material You returned a tile accent that was pixel-identical to another
-  (`compositeOver` on an opaque colour returns that colour) and used the
-  semantic `error` red as decoration. It is now a single-colour style.
-- Cortex's accents were below the 3:1 floor for a graphical object — the cyan
-  reached only 2.51:1 against the white drawn on top of it.
-- The black/white ink choice flipped at luminance 0.45 where the two contrast
-  curves actually cross at 0.179, so every mid-tone ground took the weaker of
-  the two options.
-- Container roles were left at Material's baseline purple, so an ember theme
-  drew a purple selection chip inside its own theme picker.
+Security/correctness: provider keys moved from plaintext SharedPreferences to
+AES-256-GCM under the Keystore (existing values migrated on first read); the
+Tasker plugin fired on any broadcast (now requires a capability token); script
+modules ran with no integrity check (now SHA-256-pinned); the Rhino sandbox
+deadline was inert (abort is now an uncatchable `Error`); OAuth `state` was
+accepted without comparison; Termux reported success on `err=0` with a non-empty
+`errmsg` and dropped its result broadcast on Android 14+ (K20).
 
-Security and correctness:
-
-- Provider keys and OAuth tokens were stored as plaintext in SharedPreferences;
-  they are now AES-256-GCM under a non-exportable Android Keystore key, with
-  existing values migrated transparently on first read.
-- The Tasker plugin fired on any broadcast that reached it, so any app on the
-  device could drive the agent. It now requires a capability token issued to
-  the configuring host over the `startActivityForResult` path, where the caller
-  can actually be identified.
-- Script modules were fetched and executed with no integrity check; they are
-  now pinned by SHA-256 and refuse to load on a mismatch.
-- The Rhino sandbox guard was inert — the instruction-count observer never
-  enforced a deadline, so a plugin could spin forever. The abort is now an
-  `Error`, which plugin JS cannot catch and discard.
-- The OAuth `state` parameter was accepted without being compared to the one
-  issued, which is the CSRF check that parameter exists for.
-- Termux reported success when it returned a non-empty `errmsg` with `err=0`,
-  and its result broadcast was dropped entirely on Android 14+ (K20).
-
-Release and CI (K28, K29):
-
-- The release workflow's signer check could never match apksigner's output, so
-  no release could have shipped through CI even with the signing secrets set.
-- The `versionCode` fallback in `app/build.gradle.kts` sat below the version in
-  `gradle.properties`, so a build without that file would produce an APK
-  Android refuses to install over the release.
+Release/CI (K28, K29): the release workflow's signer check could never match
+apksigner's output; the `versionCode` fallback sat below `gradle.properties`.
 
 ## Reporting a new issue
 
-Please include the app version, Android version/device, whether the action was
+Include the app version, Android version/device, whether the action was
 interactive or background, the selected provider/model, and a redacted log
 excerpt. Never attach API keys, tokens, calendar contents, or personal data.
