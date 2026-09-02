@@ -197,6 +197,7 @@ fun ChatScreen(
                             },
                             reasoningEffort = uiState.reasoningEffort,
                             onReasoningEffortChange = viewModel::setReasoningEffort,
+                            modelName = uiState.activeModel,
                         )
                     }
                 }

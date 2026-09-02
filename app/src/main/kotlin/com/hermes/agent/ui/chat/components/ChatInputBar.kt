@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.BasicTextField
@@ -22,13 +23,16 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.semantics.contentDescription
@@ -46,7 +51,35 @@ import androidx.compose.ui.unit.dp
 import com.hermes.agent.R
 import com.hermes.agent.core.theme.HermesPalette
 
-/** Rounded, reference-style composer with quick actions, text, voice, and send controls. */
+/** Reasoning-effort levels, ordered least → most, as the slider steps through them. */
+private val EFFORT_LEVELS = listOf("minimal", "low", "medium", "high")
+
+private fun String.titlecase(): String = replaceFirstChar { it.uppercase() }
+
+/**
+ * Trims a raw model id down to something that fits the composer's action row:
+ * `claude-sonnet-5` → `Sonnet 5`, `gpt-4.1-mini` → `GPT-4.1-mini`, blank → `Auto`.
+ */
+internal fun shortModelName(raw: String): String {
+    val id = raw.trim()
+    if (id.isEmpty()) return "Auto"
+    val core = id.substringAfterLast('/').removePrefix("claude-").removePrefix("anthropic-")
+    return core.split('-').joinToString(" ") { part ->
+        when {
+            part.isEmpty() -> part
+            part.first().isDigit() -> part
+            part.length <= 3 -> part.uppercase()
+            else -> part.titlecase()
+        }
+    }.trim()
+}
+
+/**
+ * Rounded composer: a full-width text field on top, and a single action row
+ * beneath it — attachments and microphone on the left, the shortened model name,
+ * a reasoning-effort button (with a slider inside), and send/stop/voice on the
+ * right.
+ */
 @Composable
 fun ChatInputBar(
     isSending: Boolean,
@@ -61,6 +94,7 @@ fun ChatInputBar(
     onSendWithAttachment: ((String, String?, String?) -> Unit)? = null,
     reasoningEffort: String = "medium",
     onReasoningEffortChange: ((String) -> Unit)? = null,
+    modelName: String = "",
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var text by remember(prefillText) { mutableStateOf(prefillText) }
@@ -136,185 +170,242 @@ fun ChatInputBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(32.dp),
+            shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Box {
-                    IconButton(
-                        onClick = { quickActionsOpen = true },
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Quick actions")
-                    }
-                DropdownMenu(
-                    expanded = quickActionsOpen,
-                    onDismissRequest = { quickActionsOpen = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Attach image") },
-                        onClick = {
-                            quickActionsOpen = false
-                            imagePickerLauncher.launch("image/*")
-                        },
-                    )
-                    if (onReasoningEffortChange != null) {
-                        DropdownMenuItem(
-                            text = { Text("Reasoning effort: ${reasoningEffort.replaceFirstChar { it.uppercase() }}") },
-                            onClick = { quickActionsOpen = false; effortMenuOpen = true },
-                        )
-                    }
-                    listOf(
-                        "Plan my day" to "Help me plan my day",
-                        "Create a note" to "Create a note for me",
-                        "Look something up" to "Look something up for me",
-                    ).forEach { (label, prompt) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = {
-                                text = prompt
-                                quickActionsOpen = false
-                            },
-                        )
-                    }
-                }
-                DropdownMenu(
-                    expanded = effortMenuOpen,
-                    onDismissRequest = { effortMenuOpen = false },
-                ) {
-                    listOf("minimal", "low", "medium", "high").forEach { level ->
-                        DropdownMenuItem(
-                            text = { Text(level.replaceFirstChar { it.uppercase() } + if (level == reasoningEffort) "  ✓" else "") },
-                            onClick = {
-                                onReasoningEffortChange?.invoke(level)
-                                effortMenuOpen = false
-                            },
-                        )
-                    }
-                }
-            }
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                // Row 1 — the text field, full width.
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 40.dp, max = 148.dp)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(onSend = { submit() }),
+                    maxLines = 6,
+                    decorationBox = { innerTextField ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (text.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.chat_placeholder),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            innerTextField()
+                        }
+                    },
+                )
 
-            BasicTextField(
-                value = text,
-                onValueChange = { text = it },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp, max = 144.dp)
-                    .padding(horizontal = 8.dp, vertical = 13.dp),
-                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                ),
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Send,
-                ),
-                keyboardActions = KeyboardActions(onSend = { submit() }),
-                maxLines = 6,
-                decorationBox = { innerTextField ->
-                    Box(contentAlignment = Alignment.CenterStart) {
-                        if (text.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.chat_placeholder),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // Row 2 — actions.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box {
+                        IconButton(
+                            onClick = { quickActionsOpen = true },
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Icon(Icons.Outlined.Add, contentDescription = "Attachments and actions")
+                        }
+                        DropdownMenu(
+                            expanded = quickActionsOpen,
+                            onDismissRequest = { quickActionsOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Attach image") },
+                                onClick = {
+                                    quickActionsOpen = false
+                                    imagePickerLauncher.launch("image/*")
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Attach document") },
+                                onClick = {
+                                    quickActionsOpen = false
+                                    imagePickerLauncher.launch("*/*")
+                                },
+                            )
+                            listOf(
+                                "Plan my day" to "Help me plan my day",
+                                "Create a note" to "Create a note for me",
+                                "Look something up" to "Look something up for me",
+                            ).forEach { (label, prompt) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        text = prompt
+                                        quickActionsOpen = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onMicToggle,
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        // While the mic is hot the icon becomes the orb, so voice
+                        // capture reads as the same "Hermes is busy" language as
+                        // the chat bubble. Not during voice chat, though — that
+                        // mode already shows an orb on the round button.
+                        if (isListening && !voiceChatActive) {
+                            ThinkingOrb(
+                                diameter = 24.dp,
+                                listening = true,
+                                modifier = Modifier.semantics {
+                                    contentDescription = listeningDescription
+                                },
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Mic,
+                                contentDescription = stringResource(R.string.a11y_voice_input),
+                                tint = MaterialTheme.colorScheme.onSurface,
                             )
                         }
-                        innerTextField()
                     }
-                },
-            )
 
-            IconButton(
-                onClick = onMicToggle,
-                modifier = Modifier.size(44.dp),
-            ) {
-                // While the mic is hot the icon becomes the orb, so voice
-                // capture reads as the same "Hermes is busy" language as the
-                // chat bubble. The button keeps its action and description, so
-                // tapping still stops listening.
-                //
-                // Not during voice chat, though: that mode is listening too, so
-                // both buttons lit up and sat side by side showing two orbs for
-                // one state. In voice chat the round button is the indicator.
-                if (isListening && !voiceChatActive) {
-                    ThinkingOrb(
-                        diameter = 26.dp,
-                        listening = true,
-                        modifier = Modifier.semantics {
-                            contentDescription = listeningDescription
-                        },
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Mic,
-                        contentDescription = stringResource(R.string.a11y_voice_input),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            }
+                    Spacer(Modifier.weight(1f))
 
-            // Stop is red; everything else stays monochrome. See
-            // HermesPalette.Stop for why this one control breaks the palette.
-            val actionColor = when {
-                isSending -> HermesPalette.Stop
-                voiceChatActive -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.primary
-            }
-            Surface(
-                onClick = when {
-                    isSending -> onCancel
-                    text.isNotBlank() -> ::submit
-                    else -> onVoiceChatToggle
-                },
-                modifier = Modifier.size(48.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = actionColor,
-                contentColor = when {
-                    isSending -> HermesPalette.OnStop
-                    voiceChatActive -> MaterialTheme.colorScheme.onError
-                    else -> MaterialTheme.colorScheme.onPrimary
-                },
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    // In voice chat the button becomes the orb. The theme's
-                    // "error" colour is white, identical to the sending state,
-                    // so colour alone could not distinguish the two — and a
-                    // conversation in progress is exactly what the orb means
-                    // everywhere else in the app.
-                    if (voiceChatActive) {
-                        // Breathes while the microphone is open and works the
-                        // puzzle while Hermes is thinking or speaking, so the
-                        // button says whose turn it is.
-                        ThinkingOrb(
-                            diameter = 30.dp,
-                            color = MaterialTheme.colorScheme.onError,
-                            listening = isListening,
-                            modifier = Modifier.semantics {
-                                contentDescription = endVoiceChatDescription
-                            },
-                        )
-                    } else {
-                    Icon(
-                        imageVector = when {
-                            isSending -> Icons.Outlined.Stop
-                            text.isNotBlank() -> Icons.Outlined.ArrowUpward
-                            else -> Icons.Outlined.GraphicEq
-                        },
-                        contentDescription = when {
-                            isSending -> stringResource(R.string.a11y_stop_generating)
-                            text.isNotBlank() -> stringResource(R.string.a11y_send_button)
-                            else -> stringResource(R.string.a11y_start_voice_chat)
-                        },
-                        modifier = Modifier.size(25.dp),
+                    // Shortened model name — display only, mirrors the router's
+                    // active choice.
+                    Text(
+                        text = shortModelName(modelName),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 6.dp),
                     )
+
+                    // Effort — a button showing the current level, with a slider
+                    // inside the popup it opens.
+                    if (onReasoningEffortChange != null) {
+                        Box {
+                            TextButton(
+                                onClick = { effortMenuOpen = true },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 8.dp,
+                                    vertical = 4.dp,
+                                ),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Tune,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(Modifier.size(4.dp))
+                                Text(
+                                    text = reasoningEffort.titlecase(),
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = effortMenuOpen,
+                                onDismissRequest = { effortMenuOpen = false },
+                            ) {
+                                val current = EFFORT_LEVELS.indexOf(reasoningEffort)
+                                    .let { if (it < 0) EFFORT_LEVELS.indexOf("medium") else it }
+                                Column(modifier = Modifier.width(248.dp).padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                    Text(
+                                        text = "Reasoning effort",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = EFFORT_LEVELS[current].titlecase(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Slider(
+                                        value = current.toFloat(),
+                                        onValueChange = { v ->
+                                            val idx = v.toInt().coerceIn(0, EFFORT_LEVELS.lastIndex)
+                                            if (EFFORT_LEVELS[idx] != reasoningEffort) {
+                                                onReasoningEffortChange(EFFORT_LEVELS[idx])
+                                            }
+                                        },
+                                        valueRange = 0f..EFFORT_LEVELS.lastIndex.toFloat(),
+                                        steps = EFFORT_LEVELS.size - 2,
+                                    )
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        Text(
+                                            text = "Minimal",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Spacer(Modifier.weight(1f))
+                                        Text(
+                                            text = "High",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.size(4.dp))
+
+                    // Stop is red; everything else stays monochrome. See
+                    // HermesPalette.Stop for why this one control breaks the palette.
+                    val actionColor = when {
+                        isSending -> HermesPalette.Stop
+                        voiceChatActive -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    Surface(
+                        onClick = when {
+                            isSending -> onCancel
+                            text.isNotBlank() -> ::submit
+                            else -> onVoiceChatToggle
+                        },
+                        modifier = Modifier.size(44.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        color = actionColor,
+                        contentColor = when {
+                            isSending -> HermesPalette.OnStop
+                            voiceChatActive -> MaterialTheme.colorScheme.onError
+                            else -> MaterialTheme.colorScheme.onPrimary
+                        },
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (voiceChatActive) {
+                                ThinkingOrb(
+                                    diameter = 28.dp,
+                                    color = MaterialTheme.colorScheme.onError,
+                                    listening = isListening,
+                                    modifier = Modifier.semantics {
+                                        contentDescription = endVoiceChatDescription
+                                    },
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = when {
+                                        isSending -> Icons.Outlined.Stop
+                                        text.isNotBlank() -> Icons.Outlined.ArrowUpward
+                                        else -> Icons.Outlined.GraphicEq
+                                    },
+                                    contentDescription = when {
+                                        isSending -> stringResource(R.string.a11y_stop_generating)
+                                        text.isNotBlank() -> stringResource(R.string.a11y_send_button)
+                                        else -> stringResource(R.string.a11y_start_voice_chat)
+                                    },
+                                    modifier = Modifier.size(23.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
-}
 }
