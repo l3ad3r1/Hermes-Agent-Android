@@ -1,21 +1,22 @@
 package com.hermes.agent.ui.settings
 import com.hermes.agent.domain.settings.*
 
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -28,8 +29,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,10 +42,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.BuildConfig
 import com.hermes.agent.R
+import com.hermes.agent.ui.theme.hermesSwitchColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +93,12 @@ fun AboutSettingsScreen(
                     )
                 }
             }
-            SecurityAuditPanel()
+            ExpandableCard(
+                title = "Security audit",
+                subtitle = securityAuditSummary,
+            ) {
+                SecurityAuditRows()
+            }
 
             SectionHeader(text = stringResource(R.string.settings_section_about))
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -123,62 +131,157 @@ fun AboutSettingsScreen(
     }
 }
 
-// --- Permissions -----------------------------------------------------------
+// --- Permissions ---------------------------------------------------------------
 
-/** Runtime permissions the app can request with a system dialog. */
-private val RUNTIME_PERMS = setOf(
-    "android.permission.RECORD_AUDIO",
-    "android.permission.POST_NOTIFICATIONS",
-    "android.permission.SEND_SMS",
-    "android.permission.ACCESS_FINE_LOCATION",
-    "android.permission.ACCESS_COARSE_LOCATION",
-    "android.permission.ACCESS_BACKGROUND_LOCATION",
-    "android.permission.READ_CONTACTS",
-    "android.permission.READ_CALENDAR",
-    "android.permission.WRITE_CALENDAR",
-    "android.permission.CAMERA",
+/**
+ * A user-facing permission the app can use. [runtimePermission] is set for the
+ * ones granted through a system dialog; the rest are "special access" toggled on
+ * their own settings screen. [isGranted]/[grantIntent] resolve the real state
+ * and destination — the `requestedPermissionsFlags` bit is unreliable for
+ * special-access grants (e.g. All files access), which is why each entry checks
+ * the actual platform API instead.
+ */
+private class PermissionEntry(
+    val label: String,
+    val description: String,
+    val manifestName: String,
+    val runtimePermission: String? = null,
+    val isGranted: (Context) -> Boolean,
+    val grantIntent: (Context) -> Intent,
 )
 
-/** Special access toggled only on its own system screen. name -> settings action. */
-private val SPECIAL_PERMS = mapOf(
-    "android.permission.WRITE_SETTINGS" to Settings.ACTION_MANAGE_WRITE_SETTINGS,
-    "android.permission.SYSTEM_ALERT_WINDOW" to Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-    "android.permission.MANAGE_EXTERNAL_STORAGE" to Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-    "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS,
-    "android.permission.REQUEST_INSTALL_PACKAGES" to Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-    "android.permission.ACCESS_NOTIFICATION_POLICY" to Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS,
+private fun appDetailsIntent(context: Context) = Intent(
+    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+    Uri.fromParts("package", context.packageName, null),
 )
 
-private val FRIENDLY = mapOf(
-    "RECORD_AUDIO" to "Microphone",
-    "POST_NOTIFICATIONS" to "Show notifications",
-    "SEND_SMS" to "Send SMS",
-    "ACCESS_FINE_LOCATION" to "Precise location",
-    "ACCESS_COARSE_LOCATION" to "Approximate location",
-    "ACCESS_BACKGROUND_LOCATION" to "Location in background",
-    "READ_CONTACTS" to "Read contacts",
-    "READ_CALENDAR" to "Read calendar",
-    "WRITE_CALENDAR" to "Write calendar",
-    "CAMERA" to "Camera",
-    "WRITE_SETTINGS" to "Modify system settings",
-    "SYSTEM_ALERT_WINDOW" to "Draw over other apps",
-    "MANAGE_EXTERNAL_STORAGE" to "All files access",
-    "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "Ignore battery optimisation",
-    "REQUEST_INSTALL_PACKAGES" to "Install unknown apps (for OTA updates)",
-    "ACCESS_NOTIFICATION_POLICY" to "Do Not Disturb control",
-    "INTERNET" to "Internet",
-    "ACCESS_NETWORK_STATE" to "Network state",
-    "FOREGROUND_SERVICE" to "Run foreground services",
-    "FOREGROUND_SERVICE_DATA_SYNC" to "Background data-sync service",
-    "RECEIVE_BOOT_COMPLETED" to "Start on boot",
-    "WAKE_LOCK" to "Keep device awake for tasks",
-    "WRITE_EXTERNAL_STORAGE" to "Write to shared storage (legacy)",
+private fun runtimeGranted(context: Context, permission: String): Boolean =
+    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+private val PERMISSION_ENTRIES: List<PermissionEntry> = listOf(
+    PermissionEntry(
+        "Microphone", "Voice input and hands-free Talk mode.",
+        "android.permission.RECORD_AUDIO", "android.permission.RECORD_AUDIO",
+        { runtimeGranted(it, "android.permission.RECORD_AUDIO") }, ::appDetailsIntent,
+    ),
+    PermissionEntry(
+        "Camera", "Let the agent take or attach photos.",
+        "android.permission.CAMERA", "android.permission.CAMERA",
+        { runtimeGranted(it, "android.permission.CAMERA") }, ::appDetailsIntent,
+    ),
+    PermissionEntry(
+        "Show notifications", "Replies, task results, and proactive nudges.",
+        "android.permission.POST_NOTIFICATIONS", "android.permission.POST_NOTIFICATIONS",
+        {
+            Build.VERSION.SDK_INT < 33 ||
+                runtimeGranted(it, "android.permission.POST_NOTIFICATIONS")
+        },
+        ::appDetailsIntent,
+    ),
+    PermissionEntry(
+        "Precise location", "Ambient presence and location-aware answers.",
+        "android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_FINE_LOCATION",
+        { runtimeGranted(it, "android.permission.ACCESS_FINE_LOCATION") }, ::appDetailsIntent,
+    ),
+    PermissionEntry(
+        "Read contacts", "Resolve names when calling or messaging.",
+        "android.permission.READ_CONTACTS", "android.permission.READ_CONTACTS",
+        { runtimeGranted(it, "android.permission.READ_CONTACTS") }, ::appDetailsIntent,
+    ),
+    PermissionEntry(
+        "Calendar", "Read and create calendar events.",
+        "android.permission.READ_CALENDAR", "android.permission.READ_CALENDAR",
+        { runtimeGranted(it, "android.permission.READ_CALENDAR") }, ::appDetailsIntent,
+    ),
+    PermissionEntry(
+        "Send SMS", "Send text messages you ask the agent to send.",
+        "android.permission.SEND_SMS", "android.permission.SEND_SMS",
+        { runtimeGranted(it, "android.permission.SEND_SMS") }, ::appDetailsIntent,
+    ),
+    PermissionEntry(
+        "All files access", "Save downloaded models into a folder you can browse.",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+        isGranted = { Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager() },
+        grantIntent = {
+            Intent(
+                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.fromParts("package", it.packageName, null),
+            )
+        },
+    ),
+    PermissionEntry(
+        "Draw over other apps", "Show the assistant overlay on top of other apps.",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        isGranted = { Settings.canDrawOverlays(it) },
+        grantIntent = {
+            Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.fromParts("package", it.packageName, null),
+            )
+        },
+    ),
+    PermissionEntry(
+        "Modify system settings", "Change brightness, volume, and similar device settings.",
+        "android.permission.WRITE_SETTINGS",
+        isGranted = { Settings.System.canWrite(it) },
+        grantIntent = {
+            Intent(
+                Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                Uri.fromParts("package", it.packageName, null),
+            )
+        },
+    ),
+    PermissionEntry(
+        "Ignore battery optimisation", "Keep the background heartbeat running reliably.",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        isGranted = {
+            (it.getSystemService(Context.POWER_SERVICE) as PowerManager)
+                .isIgnoringBatteryOptimizations(it.packageName)
+        },
+        grantIntent = { Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS) },
+    ),
+    PermissionEntry(
+        "Install unknown apps", "Install OTA updates downloaded from GitHub.",
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        isGranted = { it.packageManager.canRequestPackageInstalls() },
+        grantIntent = {
+            Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.fromParts("package", it.packageName, null),
+            )
+        },
+    ),
+    PermissionEntry(
+        "Do Not Disturb control", "Let the agent silence or restore notifications.",
+        "android.permission.ACCESS_NOTIFICATION_POLICY",
+        isGranted = {
+            (it.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .isNotificationPolicyAccessGranted
+        },
+        grantIntent = { Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS) },
+    ),
 )
 
 @Composable
 private fun PermissionsCard() {
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
+
+    val declaredNames: Set<String> = remember {
+        runCatching {
+            context.packageManager
+                .getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+                .requestedPermissions
+                ?.toSet()
+                ?: emptySet()
+        }.getOrDefault(emptySet())
+    }
+    val entries = remember(declaredNames) {
+        PERMISSION_ENTRIES.filter { entry ->
+            entry.manifestName in declaredNames &&
+                (entry.manifestName != "android.permission.MANAGE_EXTERNAL_STORAGE" || Build.VERSION.SDK_INT >= 30)
+        }
+    }
 
     val requestLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -187,71 +290,28 @@ private fun PermissionsCard() {
         ActivityResultContracts.StartActivityForResult(),
     ) { refresh++ }
 
-    val declared: List<Pair<String, Boolean>> = remember(refresh) {
-        runCatching {
-            val info: PackageInfo = context.packageManager.getPackageInfo(
-                context.packageName, PackageManager.GET_PERMISSIONS,
-            )
-            val names = info.requestedPermissions ?: emptyArray()
-            val flags = info.requestedPermissionsFlags ?: IntArray(names.size)
-            names.mapIndexed { i, name ->
-                name to (flags.getOrElse(i) { 0 } and PackageInfo.REQUESTED_PERMISSION_GRANTED != 0)
-            }.filter { it.first.startsWith("android.permission.") }
-                .sortedBy { FRIENDLY[it.first.removePrefix("android.permission.")] ?: it.first }
-        }.getOrDefault(emptyList())
-    }
-
-    fun openAppInfo() {
-        settingsLauncher.launch(
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
-        )
-    }
-
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
-            declared.forEachIndexed { index, (name, granted) ->
+            entries.forEachIndexed { index, entry ->
                 if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                val short = name.removePrefix("android.permission.")
-                val label = FRIENDLY[short] ?: short.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
-                val runtime = name in RUNTIME_PERMS
-                val specialAction = SPECIAL_PERMS[name]
-
-                val action: () -> Unit = when {
-                    !granted && runtime -> ({ requestLauncher.launch(name) })
-                    !granted && specialAction != null -> ({
-                        settingsLauncher.launch(
-                            Intent(specialAction, Uri.fromParts("package", context.packageName, null)),
-                        )
-                    })
-                    else -> ::openAppInfo
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = action)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(label, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            if (granted) "Granted — tap to manage in system settings"
-                            else if (runtime || specialAction != null) "Not granted — tap to grant"
-                            else "Not granted",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (granted) MaterialTheme.colorScheme.onSurfaceVariant
-                            else MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    if (!granted && (runtime || specialAction != null)) {
-                        TextButton(onClick = action) { Text("Grant") }
-                    }
-                }
+                val granted = remember(refresh, entry) { entry.isGranted(context) }
+                PermissionToggleRow(
+                    label = entry.label,
+                    description = entry.description,
+                    granted = granted,
+                    onToggle = {
+                        when {
+                            granted -> settingsLauncher.launch(appDetailsIntent(context))
+                            entry.runtimePermission != null ->
+                                requestLauncher.launch(entry.runtimePermission)
+                            else -> settingsLauncher.launch(entry.grantIntent(context))
+                        }
+                    },
+                )
             }
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Text(
-                "Android only lets an app change permissions from its system settings page.",
+                "Toggling opens the system screen where the grant is made — Android never lets an app change its own permissions directly.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(16.dp),
@@ -260,7 +320,36 @@ private fun PermissionsCard() {
     }
 }
 
-// --- Companion apps ------------------------------------------------------
+@Composable
+private fun PermissionToggleRow(
+    label: String,
+    description: String,
+    granted: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = granted,
+            onCheckedChange = { onToggle() },
+            colors = hermesSwitchColors(),
+        )
+    }
+}
+
+// --- Companion apps ----------------------------------------------------------
 
 private const val TERMUX_PKG = "com.termux"
 private const val SHIZUKU_PKG = "moe.shizuku.privileged.api"
@@ -274,60 +363,65 @@ private fun CompanionAppsCard() {
         context.packageManager.getPackageInfo(pkg, 0); true
     }.getOrDefault(false)
 
-    fun open(pkg: String) {
-        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-    }
-
-    fun fdroid(pkg: String) {
-        context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse("https://f-droid.org/en/packages/$pkg/")),
-        )
+    fun openOrGet(pkg: String) {
+        val launch = context.packageManager.getLaunchIntentForPackage(pkg)
+        if (launch != null) {
+            context.startActivity(launch)
+        } else {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("https://f-droid.org/en/packages/$pkg/")),
+            )
+        }
         refresh++
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
-            CompanionRow(
+            CompanionToggleRow(
                 "Termux",
                 "Local Linux shell — powers the termux tool (packages, python, git).",
-                installed(TERMUX_PKG), { open(TERMUX_PKG) }, { fdroid(TERMUX_PKG) },
-                refresh,
+                remember(refresh) { installed(TERMUX_PKG) },
+                { openOrGet(TERMUX_PKG) },
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            CompanionRow(
+            CompanionToggleRow(
                 "Shizuku",
                 "ADB-privileged bridge — lets the shell tool run with elevated privileges.",
-                installed(SHIZUKU_PKG), { open(SHIZUKU_PKG) }, { fdroid(SHIZUKU_PKG) },
-                refresh,
+                remember(refresh) { installed(SHIZUKU_PKG) },
+                { openOrGet(SHIZUKU_PKG) },
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Text(
+                "On → opens the app. Off → opens its F-Droid page to install. Uninstall from the launcher.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(16.dp),
             )
         }
     }
 }
 
 @Composable
-private fun CompanionRow(
+private fun CompanionToggleRow(
     name: String,
     subtitle: String,
     isInstalled: Boolean,
-    onOpen: () -> Unit,
-    onGet: () -> Unit,
-    @Suppress("UNUSED_PARAMETER") refreshKey: Int,
+    onToggle: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(name, style = MaterialTheme.typography.bodyLarge)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Spacer(Modifier.height(0.dp))
-        if (isInstalled) {
-            TextButton(onClick = onOpen) { Text("Installed · Open") }
-        } else {
-            TextButton(onClick = onGet) { Text("Get from F-Droid") }
-        }
+        Switch(
+            checked = isInstalled,
+            onCheckedChange = { onToggle() },
+            colors = hermesSwitchColors(),
+        )
     }
 }

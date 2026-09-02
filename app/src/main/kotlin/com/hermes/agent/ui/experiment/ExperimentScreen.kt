@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ExperimentScreen(
     onBack: () -> Unit = {},
@@ -77,42 +77,38 @@ fun ExperimentScreen(
                 maxLines = 6,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = state.modelA,
-                        onValueChange = viewModel::setModelA,
-                        label = { Text("Model A") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        quickPresets.take(2).forEach { preset ->
-                            SuggestionChip(
-                                onClick = { viewModel.setModelA(preset) },
-                                label = { Text(preset, fontSize = 10.sp) },
-                            )
-                        }
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedTextField(
+                    value = state.modelA,
+                    onValueChange = viewModel::setModelA,
+                    label = { Text("Model A") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    quickPresets.forEach { preset ->
+                        SuggestionChip(
+                            onClick = { viewModel.setModelA(preset) },
+                            label = { Text(preset) },
+                        )
                     }
                 }
+            }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = state.modelB,
-                        onValueChange = viewModel::setModelB,
-                        label = { Text("Model B") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        quickPresets.takeLast(2).forEach { preset ->
-                            SuggestionChip(
-                                onClick = { viewModel.setModelB(preset) },
-                                label = { Text(preset, fontSize = 10.sp) },
-                            )
-                        }
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedTextField(
+                    value = state.modelB,
+                    onValueChange = viewModel::setModelB,
+                    label = { Text("Model B") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    quickPresets.forEach { preset ->
+                        SuggestionChip(
+                            onClick = { viewModel.setModelB(preset) },
+                            label = { Text(preset) },
+                        )
                     }
                 }
             }

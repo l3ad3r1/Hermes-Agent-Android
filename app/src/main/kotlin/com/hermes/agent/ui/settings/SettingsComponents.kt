@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -19,6 +21,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -98,6 +104,50 @@ fun SettingsGroup(title: String, items: List<NavItem>) {
             items.forEachIndexed { index, item ->
                 if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 NavRow(item.icon, item.title, item.subtitle, item.onClick)
+            }
+        }
+    }
+}
+
+/** A card whose body is hidden behind a tappable header row — used to tuck a
+ *  long secondary panel (e.g. the security audit) under one line until asked. */
+@Composable
+fun ExpandableCard(
+    title: String,
+    subtitle: String? = null,
+    initiallyExpanded: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge)
+                    if (subtitle != null) {
+                        Text(
+                            subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (expanded) {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Column(modifier = Modifier.padding(16.dp)) { content() }
             }
         }
     }

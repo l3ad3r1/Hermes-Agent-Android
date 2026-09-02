@@ -4,15 +4,10 @@ import com.hermes.agent.domain.settings.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,49 +20,27 @@ import com.hermes.agent.util.audit.ControlStatus
 import com.hermes.agent.util.audit.SecurityAudit
 import com.hermes.agent.util.audit.SecurityControl
 
+/** Short "N/M enforced" summary for the security-audit header. */
+val securityAuditSummary: String
+    get() = "${SecurityAudit.enforcedCount}/${SecurityAudit.all.size} controls enforced"
+
 /**
- * Phase 4 Settings panel — security audit checklist.
+ * The security-audit checklist rows, with status icons so users (and reviewers)
+ * can see which controls are enforced, partial, or pending. Meant to be dropped
+ * inside an [ExpandableCard] body — it draws no card or header of its own.
  *
- * Renders the [SecurityAudit] controls with status icons so users (and
- * reviewers) can see at a glance which security features are enforced,
- * partial, or pending. Surfaces the per-control description as a
- * subtitle.
+ * NOTE: a plain Column, never a LazyColumn — this is hosted inside a parent
+ * `Modifier.verticalScroll(...)`, and a nested LazyColumn is measured with an
+ * infinite max-height constraint, which Compose throws on. The list is small
+ * and fixed, so `forEach` is correct.
  */
 @Composable
-fun SecurityAuditPanel(modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Security audit",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = "${SecurityAudit.enforcedCount}/${SecurityAudit.all.size} enforced",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        // NOTE: must be a plain Column, not a LazyColumn. This panel is hosted
-        // inside SettingsScreen's Column(Modifier.verticalScroll(...)), and a
-        // LazyColumn nested in a vertically-scrollable parent is measured with an
-        // infinite max-height constraint, which Compose throws on at render time.
-        // The control list is small and fixed, so a Column with forEach is correct.
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SecurityAudit.all.forEach { control ->
-                    SecurityControlRow(control)
-                }
-            }
-        }
+fun SecurityAuditRows(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        SecurityAudit.all.forEach { control -> SecurityControlRow(control) }
     }
 }
 
