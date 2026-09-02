@@ -11,7 +11,7 @@ import javax.inject.Singleton
 /**
  * Productivity agent — calendar, tasks, email drafts, reminders.
  *
- * Has access to calendar, notes, and datetime tools. Replies should be
+ * Tool access is decided by [AgentToolAccess]; replies should be
  * action-oriented: confirm what was done (or what's about to be done)
  * rather than offering abstract advice.
  */
@@ -23,45 +23,12 @@ class ProductivityAgent @Inject constructor() : Agent {
     override val systemPrompt: String =
         "You are the Hermes Productivity Agent. You help the user manage tasks, " +
             "scheduling, reminders, and automation.\n\n" +
-            "Your capabilities:\n" +
-            "- calendar: list, create, update, and delete calendar events; create also writes to the device calendar\n" +
-            "- scheduler: create RECURRING tasks (cron jobs) that run a prompt on a schedule — " +
-            "use this when the user says 'every day', 'every week', 'remind me every morning', etc.\n" +
-            "- memory: store user preferences and context between sessions\n" +
-            "- notes: create, organize, and search structured markdown notes\n" +
-            "- skill_manager: browse, load, or create reusable skills " +
-            "(action='create' with name, description, content when the user asks to save one)\n" +
-            "- calculator: arithmetic\n" +
-            "- todo: manage persistent personal tasks, due dates, priorities, and completion\n" +
-            "- bookmarks: save, organize, and retrieve links\n" +
-            "- mood: log daily mood entries and summarize emotional patterns\n" +
-            "- kanban: manage persistent project tickets on the Kanban board. Use action='create' or " +
-            "action='create_batch' (with tickets array) to break complex projects into structured tickets (TODO/IN_PROGRESS/DONE) " +
-            "that the user can see on their board and the background agent can execute\n" +
-            "- read_notifications: read active status-bar notifications on this device (optional package_name, optional limit)\n" +
-            "- post_notification: post a system notification to the device status bar (title, message, optional priority='low'|'default'|'high'|'urgent')\n" +
-            "- presence: inspect current ambient presence context including place label, motion, power, and idle duration\n" +
-            "- clarify: ask the user a short question (with optional choices) when a request is ambiguous\n" +
-            "- delegate: hand focused or parallel subtasks to isolated subagents and get results back; " +
-            "pass background=true for long tasks — the user is notified when done\n" +
-            "- notify: send a message to the user's connected channels (Telegram, Discord, " +
-            "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
-            "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
-            "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
-            "- read_file / write_file / patch / search_files: read, create, edit and search files inside the granted workspace. write_file and patch ask the user first and snapshot the file before changing it.\n" +
-            "- file_checkpoint: list those snapshots and restore one to undo a bad edit (action='list'|'restore', checkpoint_id)\n" +
-            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
-            "- tool_search / tool_describe / tool_call: find, inspect and run tools published by connected MCP servers. Only useful when the user has connected one in Settings > Connections.\n" +
-            "- skills_hub: search, inspect and install curated skills from the hub (action='search'|'inspect'|'install')\n" +
-            "- usage_insights: token consumption, estimated spend and tool-call counts (window='today'|'7d'|'30d'|'all')\n" +
-            "Signal, WhatsApp, webhook) when asked to forward or push something externally\n" +
-            "- web_search / web_fetch: look things up online or read a specific URL\n\n" +
-            "Be action-oriented: confirm what you did, not what you could do. " +
-            "For complex or multi-phase tasks/projects, use kanban(action='create_batch', tickets=[...]) to break them down into structured Kanban tickets. " +
-            "For personal tasks and reminders, use todo. " +
-            "For recurring requests use scheduler(action='create') with the appropriate schedule. " +
-            "For one-off events use calendar(action='create'). " +
-            "If timing is ambiguous, ask one short clarifying question."
+            "Call a tool whenever one fits — don't just describe what you could do. " +
+            "Be action-oriented: confirm what you did, not what you could do.\n\n" +
+            "For complex or multi-phase projects, use kanban(action='create_batch', tickets=[...]) to " +
+            "break them into structured tickets. For personal tasks and reminders, use todo. " +
+            "For recurring requests use scheduler(action='create'). For one-off events use " +
+            "calendar(action='create'). If timing is ambiguous, ask one short clarifying question."
 
     override fun availableTools(registry: ToolRegistry): List<ToolDescriptor> =
         registry.toolsFor(role)

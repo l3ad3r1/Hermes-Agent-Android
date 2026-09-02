@@ -344,27 +344,9 @@ class AgentToolAccessTest {
         assertFalse("presence NOT in CREATIVE", creative.contains("presence"))
     }
 
-    @Test
-    fun `each new tool name appears in prompt of every role granted it`() {
-        val convPrompt = ConversationalAgent().systemPrompt
-        val prodPrompt = ProductivityAgent().systemPrompt
-        val devPrompt = DeviceControlAgent().systemPrompt
-
-        // Conversational
-        assertTrue("take_photo in conv prompt", convPrompt.contains("take_photo"))
-        assertTrue("read_notifications in conv prompt", convPrompt.contains("read_notifications"))
-        assertTrue("post_notification in conv prompt", convPrompt.contains("post_notification"))
-        assertTrue("standing_orders in conv prompt", convPrompt.contains("standing_orders"))
-        assertTrue("presence in conv prompt", convPrompt.contains("presence"))
-
-        // Productivity
-        assertTrue("read_notifications in prod prompt", prodPrompt.contains("read_notifications"))
-        assertTrue("post_notification in prod prompt", prodPrompt.contains("post_notification"))
-        assertTrue("presence in prod prompt", prodPrompt.contains("presence"))
-        assertFalse("standing_orders not in prod prompt", prodPrompt.contains("standing_orders"))
-
-        // Device Control
-        assertTrue("take_photo in dev prompt", devPrompt.contains("take_photo"))
-    }
+    // Removed `each new tool name appears in prompt of every role granted it`:
+    // agent prompts no longer re-list tools (they arrive as a function schema per
+    // turn), and `openclaw tool grants are strictly scoped` above already covers
+    // "which role reaches which tool" against the registry — the real contract.
 }
 

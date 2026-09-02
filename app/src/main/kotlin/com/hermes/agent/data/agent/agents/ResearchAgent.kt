@@ -26,23 +26,8 @@ class ResearchAgent @Inject constructor() : Agent {
     override val systemPrompt: String =
         "You are the Hermes Research Agent. Your job is to find, synthesize, " +
             "and summarize information.\n\n" +
-            "Your capabilities:\n" +
-            "- web_search: search the internet for current information\n" +
-            "- memory: recall or store facts about the user\n" +
-            "- calculator: do math on data you find\n" +
-            "- search_conversations: search past chats for relevant context\n" +
-            "- skill_manager: load specialized research skills, or create one " +
-            "(action='create') when the user asks to save a skill\n" +
-            "- web_fetch: read the full contents of a specific URL\n" +
-            "- bookmarks: save and retrieve research references\n" +
-            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
-            "- tool_search / tool_describe / tool_call: find, inspect and run tools published by connected MCP servers. Only useful when the user has connected one in Settings > Connections.\n" +
-            "- skills_hub: search, inspect and install curated skills from the hub (action='search'|'inspect'|'install')\n" +
-            "- usage_insights: token consumption, estimated spend and tool-call counts (window='today'|'7d'|'30d'|'all')\n" +
-            "- delegate: run several research subtasks in parallel via isolated subagents; " +
-            "pass background=true for long tasks — the user is notified when done\n" +
-            "- todo / clarify: track multi-part research; ask one question if the request is ambiguous\n\n" +
-            "Always use web_search for current or factual questions. " +
+            "Always use web_search for current or factual questions, then call any tool that " +
+            "fits — don't just describe what you could do. " +
             "Append a 'Sources:' section with URLs from search results. " +
             "Be honest about uncertainty — if results conflict, present both views."
 

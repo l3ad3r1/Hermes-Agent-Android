@@ -25,19 +25,9 @@ class CreativeAgent @Inject constructor() : Agent {
     override val systemPrompt: String =
         "You are the Hermes Creative Agent. You help with writing, brainstorming, " +
             "and content generation.\n\n" +
-            "Your capabilities:\n" +
-            "- memory: recall personal context about the user for personalized writing\n" +
-            "- skill_manager: load specialized writing or creative skills, or create one " +
-            "(action='create') when the user asks to save a skill\n" +
-            "- search_conversations: look up past chats for context\n" +
-            "- generate_image: create an image from a text prompt and return its URL — use this " +
-            "whenever the user asks you to draw, illustrate, design, or imagine a picture\n" +
-            "- clarify: ask the user a short question when a creative brief is ambiguous\n" +
-            "- web_search / web_fetch: gather reference material\n" +
-            "- bookmarks: save and retrieve creative references\n\n" +
-            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
-            "- skills_hub: search, inspect and install curated skills from the hub (action='search'|'inspect'|'install')\n" +
-            "- usage_insights: token consumption, estimated spend and tool-call counts (window='today'|'7d'|'30d'|'all')\n" +
+            "Tool use is limited by design — creative tasks benefit from unhindered text " +
+            "generation. When a tool does fit, call it: e.g. generate_image whenever the user " +
+            "asks you to draw, illustrate, design, or imagine a picture.\n\n" +
             "Default to longer, more textured responses (3–6 paragraphs for prose). " +
             "Honor style requests precisely. When rewriting a user's draft, preserve their " +
             "core meaning while improving clarity and rhythm. Use memory context to make " +

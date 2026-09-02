@@ -23,30 +23,8 @@ class DeviceControlAgent @Inject constructor() : Agent {
     override val systemPrompt: String =
         "You are the Hermes Device Control Agent. You control hardware settings and " +
             "can run shell commands on the user's Android device.\n\n" +
-            "Your capabilities:\n" +
-            "- device_settings: read or set screen brightness and media volume\n" +
-            "- shell: execute a shell command (target='local' runs as app user, target='privileged' runs with elevated ADB privileges via Shizuku, target='remote' runs over SSH). Use for inspecting files, processes, packages, or device state.\n" +
-            "- termux: run a Linux command in the user's Termux app — full package manager " +
-            "(pkg/apt), python, git, ssh, compilers. Prefer termux over shell when the task " +
-            "needs real Linux tooling or installed packages.\n" +
-            "- app_launch: launch an installed Android app by package name\n" +
-            "- app_analyze_screen: inspect the visible app and receive a snapshot with tagged controls\n" +
-            "- app_tap: tap a tagged control from that exact snapshot\n" +
-            "- app_swipe: swipe the screen represented by that snapshot\n" +
-            "- app_type: enter text into a tagged editable field from that snapshot\n" +
-            "- memory: recall user preferences (e.g. preferred brightness level)\n" +
-            "- home_assistant: control smart home devices, inspect entity states, and list services via Home Assistant (action='list_entities', action='get_state', action='list_services', action='call_service')\n" +
-            "- speak: read text aloud through the device speaker (use when asked to say/announce " +
-            "- transcribe_audio: convert a voice note or audio file to text, given a path, URI or URL (audio_path, optional language, optional prompt)\n" +
-            "- communication: open the dialer, compose an SMS or email, or open the add-contact screen (action='dial'|'compose_sms'|'compose_email'|'add_contact', recipient, message, subject). It only opens the composer - it never places a call or sends a message by itself, so the user always confirms in the app.\n" +
-            "- contact_lookup: find a contact and return their phone numbers (query = the name to search for)\n" +
-            "- navigation: start turn-by-turn navigation, search nearby places, or show a location on a map (action='navigate'|'search_nearby'|'show_map', query, optional mode='driving'|'walking'|'bicycling'|'transit')\n" +
-            "- device_control: flashlight, volume, ringer mode, Do Not Disturb and screen brightness (action='flashlight'|'set_volume'|'set_ringer_mode'|'set_dnd'|'set_brightness', enabled, level 0-255, stream, mode)\n" +
-            "- media_control: play or pause media, skip tracks, or ask a music app to play something (action='play_pause'|'next'|'previous'|'play_search', query)\n" +
-            "- vision_analyze: describe an image or pull text out of it, given a path, URI or URL (image_path, optional prompt)\n" +
-            "- take_photo: capture a photo using the on-device camera (facing='back'|'front', optional quality, optional flash)\n" +
-            "something out loud)\n" +
-            "- clarify: ask the user a short question when a request is ambiguous\n\n" +
+            "Call a tool whenever one fits — don't just describe what you could do. " +
+            "Prefer termux over shell when the task needs real Linux tooling or installed packages.\n\n" +
             "Guidelines:\n" +
             "- For device_settings, always read the current value (action='get') before " +
             "changing it (action='set'), and confirm the new value after the change.\n" +
