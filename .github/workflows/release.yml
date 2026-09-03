@@ -20,28 +20,36 @@ permissions:
   contents: write   # needed to create the release / upload the asset
 
 jobs:
+  # Releases are normally cut by hand: the maintainer runs `gh release create`
+  # locally, signing with the keystore that never leaves that machine. That
+  # still pushes a tag, which lands here. When the CI signing secrets are not
+  # configured this job has nothing to add, so it is *skipped* (not failed) —
+  # a red Release run should mean "CI tried to sign and could not", not "the
+  # maintainer released the normal way". Populate the four secrets under
+  # Settings -> Secrets and variables -> Actions to turn CI signing on.
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      can-sign: ${{ steps.check.outputs.can-sign }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ] \
+            && [ -n "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" ] \
+            && [ -n "${{ secrets.RELEASE_KEY_ALIAS }}" ] \
+            && [ -n "${{ secrets.RELEASE_KEY_PASSWORD }}" ]; then
+            echo "can-sign=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can-sign=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::CI signing secrets not configured — skipping the signed-build job. The tag's release is expected to have been built and uploaded locally with the local keystore."
+          fi
+
   build-sign-release:
+    needs: check-secrets
+    if: needs.check-secrets.outputs.can-sign == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      # A tag push is an explicit instruction to cut a release. If the signing
-      # secrets are missing there is nothing this job can produce, so it fails
-      # loudly here rather than skipping every remaining step and reporting
-      # success — a green Release run must always mean "a signed APK shipped".
-      # To release by hand instead, delete the tag rather than pushing it.
-      - name: Require signing secrets
-        run: |
-          missing=""
-          [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]   || missing="$missing RELEASE_KEYSTORE_BASE64"
-          [ -n "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" ] || missing="$missing RELEASE_KEYSTORE_PASSWORD"
-          [ -n "${{ secrets.RELEASE_KEY_ALIAS }}" ]         || missing="$missing RELEASE_KEY_ALIAS"
-          [ -n "${{ secrets.RELEASE_KEY_PASSWORD }}" ]      || missing="$missing RELEASE_KEY_PASSWORD"
-          if [ -n "$missing" ]; then
-            echo "::error::Cannot build a signed release. Missing repo secrets:$missing"
-            echo "Set them under Settings -> Secrets and variables -> Actions, then re-run this job."
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
         with:
           submodules: recursive
