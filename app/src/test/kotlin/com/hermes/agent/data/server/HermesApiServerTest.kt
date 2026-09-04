@@ -5,6 +5,14 @@ import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.Orchestrator
 import com.hermes.agent.domain.agent.OrchestratorEvent
 import com.hermes.agent.domain.model.AgentRole
+import com.hermes.agent.domain.model.ChatStreamEvent
+import com.hermes.agent.domain.model.Message
+import com.hermes.agent.domain.model.MessageRole
+import com.hermes.agent.domain.repository.ChatRepository
+import com.hermes.agent.domain.repository.ConversationRepository
+import io.mockk.coVerify
+import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,6 +65,53 @@ class HermesApiServerTest {
         server = HermesApiServer("127.0.0.1", port, apiKey, fakeOrchestrator(reply), scope).also {
             it.start(1000, false)
         }
+    }
+
+    /** Records the turns a persist call would write, and echoes a canned reply. */
+    private class RecordingChatRepository(private val reply: String) : ChatRepository {
+        val persisted = mutableListOf<Pair<String, String>>() // conversationId to userMessage
+
+        override fun sendMessage(
+            conversationId: String,
+            content: String,
+            attachmentUri: String?,
+            attachmentMimeType: String?,
+        ): Flow<ChatStreamEvent> = flow { }
+
+        override fun sendMessageOrchestrated(
+            conversationId: String,
+            content: String,
+            origin: ExecutionOrigin,
+            attachmentUri: String?,
+            attachmentMimeType: String?,
+        ): Flow<OrchestratorEvent> = flow {
+            persisted += conversationId to content
+            emit(OrchestratorEvent.ReplyComplete(reply, AgentRole.CONVERSATIONAL, isOnDevice = true))
+        }
+
+        override fun summarizeConversation(conversationId: String) {}
+    }
+
+    private fun startWithPersist(reply: String): RecordingChatRepository {
+        val chatRepo = RecordingChatRepository(reply)
+        port = ServerSocket(0).use { it.localPort }
+        server = HermesApiServer(
+            "127.0.0.1", port, "", fakeOrchestrator("unused"), scope,
+            chatRepository = chatRepo,
+        ).also { it.start(1000, false) }
+        return chatRepo
+    }
+
+    private fun startWithConversationRepo(): Pair<RecordingChatRepository, ConversationRepository> {
+        val chatRepo = RecordingChatRepository("should not be used")
+        val convRepo = mockk<ConversationRepository>(relaxed = true)
+        port = ServerSocket(0).use { it.localPort }
+        server = HermesApiServer(
+            "127.0.0.1", port, "", fakeOrchestrator("unused"), scope,
+            chatRepository = chatRepo,
+            conversationRepository = convRepo,
+        ).also { it.start(1000, false) }
+        return chatRepo to convRepo
     }
 
     @Before fun noop() {}
@@ -149,6 +204,44 @@ class HermesApiServerTest {
             assertTrue("expected content delta", text.contains("streamed"))
             assertTrue("expected DONE sentinel", text.contains("data: [DONE]"))
         }
+    }
+
+    @Test
+    fun `persist request is routed through the chat repository`() {
+        val chatRepo = startWithPersist(reply = "filed and answered")
+        val body = """
+            {"messages":[{"role":"user","content":"mail body"}],
+             "hermes_persist_conversation":"po-your-note",
+             "hermes_persist_title":"PO: your note"}
+        """.trimIndent()
+        postCompletion(body).use { resp ->
+            assertEquals(200, resp.code)
+            val content = json.parseToJsonElement(resp.body!!.string()).jsonObject["choices"]!!
+                .jsonArray[0].jsonObject["message"]!!.jsonObject["content"]!!.jsonPrimitive.content
+            assertEquals("filed and answered", content)
+        }
+        assertEquals(listOf("po-your-note" to "mail body"), chatRepo.persisted)
+    }
+
+    @Test
+    fun `deliver-only request files the mail without running the agent`() {
+        val (chatRepo, convRepo) = startWithConversationRepo()
+        val body = """
+            {"messages":[{"role":"user","content":"fyi mail"}],
+             "hermes_persist_conversation":"po-note",
+             "hermes_persist_title":"PO: note",
+             "hermes_deliver_only":true}
+        """.trimIndent()
+        postCompletion(body).use { resp ->
+            assertEquals(200, resp.code)
+        }
+        // The agent was never invoked...
+        assertTrue(chatRepo.persisted.isEmpty())
+        // ...but the incoming mail was filed as a user message.
+        val slot = slot<Message>()
+        coVerify { convRepo.addMessage("po-note", capture(slot)) }
+        assertEquals(MessageRole.USER, slot.captured.role)
+        assertEquals("fyi mail", slot.captured.content)
     }
 
     @Test

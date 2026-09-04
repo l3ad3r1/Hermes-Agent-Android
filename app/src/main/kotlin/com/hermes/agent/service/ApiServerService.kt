@@ -16,6 +16,8 @@ import com.hermes.agent.R
 import com.hermes.agent.data.server.HermesApiServer
 import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.agent.Orchestrator
+import com.hermes.agent.domain.repository.ChatRepository
+import com.hermes.agent.domain.repository.ConversationRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +41,8 @@ class ApiServerService : Service() {
 
     @Inject lateinit var orchestrator: Orchestrator
     @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var chatRepository: ChatRepository
+    @Inject lateinit var conversationRepository: ConversationRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var server: HermesApiServer? = null
@@ -89,6 +93,8 @@ class ApiServerService : Service() {
                 apiKey = settings.apiServerKey,
                 orchestrator = orchestrator,
                 scope = scope,
+                chatRepository = chatRepository,
+                conversationRepository = conversationRepository,
             )
             try {
                 // NanoHTTPD.start with SOCKET_READ_TIMEOUT and daemon=false so the

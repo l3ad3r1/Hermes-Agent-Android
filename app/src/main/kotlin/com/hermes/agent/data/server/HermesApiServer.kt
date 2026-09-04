@@ -4,6 +4,11 @@ import com.hermes.agent.domain.llm.*
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.Orchestrator
 import com.hermes.agent.domain.agent.OrchestratorEvent
+import com.hermes.agent.domain.model.Message
+import com.hermes.agent.domain.model.MessageRole
+import com.hermes.agent.domain.repository.ChatRepository
+import com.hermes.agent.domain.repository.ConversationRepository
+import com.hermes.agent.util.IdGenerator
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
@@ -30,6 +35,12 @@ import java.util.UUID
  * tools, skills, memory) under an ephemeral conversation id, so nothing is
  * written to the user's chat history.
  *
+ * The one exception is the non-standard `hermes_persist_conversation` body
+ * field: when a caller sets it (the post office courier does), that turn is
+ * persisted to a real conversation via [chatRepository] so the exchange shows
+ * up in the app's chat list. [chatRepository]/[conversationRepository] are
+ * nullable so plain-transport tests can construct the server without them.
+ *
  * Auth: when an API key is configured, every request must present
  * `Authorization: Bearer <key>`. Transport/thread model is NanoHTTPD's
  * (one worker thread per request); suspend agent calls are bridged with
@@ -42,6 +53,8 @@ class HermesApiServer(
     private val apiKey: String,
     private val orchestrator: Orchestrator,
     private val scope: CoroutineScope,
+    private val chatRepository: ChatRepository? = null,
+    private val conversationRepository: ConversationRepository? = null,
 ) : NanoHTTPD(hostname, port) {
 
     override fun serve(session: IHTTPSession): Response {
@@ -97,9 +110,22 @@ class HermesApiServer(
             )
 
         val id = "chatcmpl-" + UUID.randomUUID().toString().replace("-", "").take(24)
+        val promptTokens = ApiCompletion.estimateTokens(body)
+
+        val persistId = request.persistConversationId
+        if (persistId != null && chatRepository != null) {
+            return persistedResponse(
+                id,
+                persistId,
+                request.persistConversationTitle,
+                userMessage,
+                promptTokens,
+                request.deliverOnly,
+            )
+        }
+
         val conversationId = "api-" + UUID.randomUUID()
         val prior = request.priorContext()
-        val promptTokens = ApiCompletion.estimateTokens(body)
 
         return if (request.stream) {
             streamingResponse(id, conversationId, userMessage, prior)
@@ -126,6 +152,82 @@ class HermesApiServer(
                 }
                 is OrchestratorEvent.Failed -> failure = event.message
                 else -> { /* ignore plan/tool events for the API surface */ }
+            }
+        }
+        if (failure != null) {
+            json(
+                Response.Status.INTERNAL_ERROR,
+                ApiCompletion.errorResponse(failure ?: "agent failed", "server_error"),
+            )
+        } else {
+            val text = reply.toString()
+            json(
+                Response.Status.OK,
+                ApiCompletion.completionResponse(id, text, promptTokens, ApiCompletion.estimateTokens(text)),
+            )
+        }
+    }
+
+    /**
+     * Persisted (non-streaming) path for `hermes_persist_conversation` callers.
+     * Routes through [ChatRepository.sendMessageOrchestrated], which writes the
+     * user turn and the assistant reply into [conversationId] the same way the
+     * chat UI does — so the exchange appears in the app's conversation list.
+     *
+     * When [deliverOnly] is set, the incoming turn is filed and the call returns
+     * without running the agent — the post office courier uses this to drop
+     * `fyi`/`note` mail into the app with no inference.
+     */
+    private fun persistedResponse(
+        id: String,
+        conversationId: String,
+        conversationTitle: String?,
+        userMessage: String,
+        promptTokens: Int,
+        deliverOnly: Boolean,
+    ): Response = runBlocking {
+        val repo = chatRepository ?: return@runBlocking json(
+            Response.Status.INTERNAL_ERROR,
+            ApiCompletion.errorResponse("persistence not available", "server_error"),
+        )
+        // Set the title on first use; ensureConversation leaves an existing row
+        // (and its title) untouched, so later turns just append.
+        conversationRepository?.ensureConversation(conversationId, conversationTitle ?: "Post Office")
+
+        if (deliverOnly) {
+            val convRepo = conversationRepository ?: return@runBlocking json(
+                Response.Status.INTERNAL_ERROR,
+                ApiCompletion.errorResponse("deliver-only needs conversation persistence", "server_error"),
+            )
+            convRepo.addMessage(
+                conversationId,
+                Message(
+                    id = IdGenerator.newId(),
+                    conversationId = conversationId,
+                    role = MessageRole.USER,
+                    content = userMessage,
+                    timestamp = System.currentTimeMillis(),
+                    tokens = ApiCompletion.estimateTokens(userMessage),
+                    isOnDevice = true,
+                ),
+            )
+            return@runBlocking json(
+                Response.Status.OK,
+                ApiCompletion.completionResponse(id, "", promptTokens, 0),
+            )
+        }
+
+        val reply = StringBuilder()
+        var failure: String? = null
+        repo.sendMessageOrchestrated(conversationId, userMessage, ExecutionOrigin.BACKGROUND).collect { event ->
+            when (event) {
+                is OrchestratorEvent.ReplyToken -> reply.append(event.text)
+                is OrchestratorEvent.ReplyComplete -> {
+                    reply.setLength(0)
+                    reply.append(event.finalText)
+                }
+                is OrchestratorEvent.Failed -> failure = event.message
+                else -> { /* plan/tool events are not part of the API surface */ }
             }
         }
         if (failure != null) {
