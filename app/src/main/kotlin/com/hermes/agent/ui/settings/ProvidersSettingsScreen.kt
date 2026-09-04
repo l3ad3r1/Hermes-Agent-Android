@@ -31,7 +31,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -191,7 +190,6 @@ private fun AddProviderDialog(
     var customName by remember { mutableStateOf("") }
     var baseUrl by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
-    var reasoningEffort by remember { mutableStateOf("") }
 
     val isCustom = selectedPresetId == "custom"
     val selectedDefinition = remember(selectedPresetId) {
@@ -293,17 +291,9 @@ private fun AddProviderDialog(
                     colors = hermesFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-
-                Text("Reasoning effort", style = MaterialTheme.typography.labelMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("" to "Inherit", "minimal" to "Min", "low" to "Low", "medium" to "Med", "high" to "High").forEach { (value, label) ->
-                        FilterChip(
-                            selected = reasoningEffort == value,
-                            onClick = { reasoningEffort = value },
-                            label = { Text(label) },
-                        )
-                    }
-                }
+                // Reasoning effort is not set per provider here — it is driven
+                // from the chat composer (and Maestro routing aliases) at send
+                // time, so every provider is added with "inherit".
             }
         },
         confirmButton = {
@@ -311,7 +301,7 @@ private fun AddProviderDialog(
                 onClick = {
                     val finalName = if (isCustom) customName.ifBlank { "Custom Provider" } else (selectedDefinition?.name ?: "Provider")
                     val finalUrl = baseUrl.ifBlank { selectedDefinition?.defaultBaseUrl.orEmpty() }
-                    onAdd(selectedPresetId, finalName, finalUrl, apiKey, reasoningEffort)
+                    onAdd(selectedPresetId, finalName, finalUrl, apiKey, "")
                 },
                 enabled = baseUrl.isNotBlank() || !isCustom,
             ) {

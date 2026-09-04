@@ -345,6 +345,11 @@ class OrchestratorImpl @Inject constructor(
                 RoutingContext(
                     requiresReliableToolCalls = tools.isNotEmpty() &&
                         step.agentRole != AgentRole.CONVERSATIONAL,
+                    // The router is handed messages, never the tool list, so it
+                    // cannot otherwise tell a tool turn from a chat turn — and
+                    // the on-device tool caller is only worth its prefill on the
+                    // former. This is the only path that advertises tools.
+                    toolCount = tools.size,
                 ),
             )
             val provider = when (decision) {

@@ -95,6 +95,7 @@ fun AssistantSettingsScreen(
 
             SectionHeader(text = "On-Device AI (Local Engine)")
             OnDeviceAiCard(settings = settings, viewModel = viewModel)
+            ToolCallerCard(settings = settings, viewModel = viewModel)
 
             SectionHeader(text = "Chat")
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -269,24 +270,9 @@ private fun OnDeviceAiCard(
     val selectedModel = com.hermes.agent.data.llm.ModelCatalog.byId(settings.selectedModelId)
 
     // Storage-access state; re-checked when the user returns from the grant flow.
-    var hasStorage by remember { mutableStateOf(viewModel.hasStorageAccess()) }
-    val allFilesLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        hasStorage = viewModel.hasStorageAccess()
-        viewModel.onStorageAccessMaybeChanged()
-    }
-    val writePermLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) {
-        hasStorage = viewModel.hasStorageAccess()
-        viewModel.onStorageAccessMaybeChanged()
-    }
-    fun requestStorageAccess() {
-        val intent = viewModel.allFilesAccessIntent()
-        if (intent != null) allFilesLauncher.launch(intent)
-        else writePermLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    }
+    val storage = rememberStorageAccess(viewModel)
+    val hasStorage = storage.granted
+    fun requestStorageAccess() = storage.request()
 
     val customPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -500,6 +486,157 @@ private fun OnDeviceAiCard(
                         onClick = { customPicker.launch(arrayOf("application/octet-stream")) },
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("Pick a custom model (.gguf) instead") }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * External-storage grant state, shared by the two model-download cards.
+ *
+ * Both cards download into the same folder and so need the same grant; the
+ * launchers have to be registered per-composable, but the dance around them is
+ * identical and worth having in one place.
+ */
+private class StorageAccess(val granted: Boolean, val request: () -> Unit)
+
+@Composable
+private fun rememberStorageAccess(viewModel: SettingsViewModel): StorageAccess {
+    var granted by remember { mutableStateOf(viewModel.hasStorageAccess()) }
+    val allFilesLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        granted = viewModel.hasStorageAccess()
+        viewModel.onStorageAccessMaybeChanged()
+    }
+    val writePermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        granted = viewModel.hasStorageAccess()
+        viewModel.onStorageAccessMaybeChanged()
+    }
+    return StorageAccess(granted) {
+        val intent = viewModel.allFilesAccessIntent()
+        if (intent != null) allFilesLauncher.launch(intent)
+        else writePermLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    }
+}
+
+/**
+ * The on-device tool caller: a small model that answers device commands before
+ * the cloud is asked, and hands the turn on when it is not confident.
+ *
+ * Its own card rather than a row inside [OnDeviceAiCard] because the two are
+ * independent — this one runs on tool turns whether or not the chat fallback is
+ * enabled, and it has its own model, its own download and its own RAM cost.
+ */
+@Composable
+private fun ToolCallerCard(
+    settings: com.hermes.agent.domain.settings.UserSettings,
+    viewModel: SettingsViewModel,
+) {
+    val isDownloaded by viewModel.isToolCallerDownloaded.collectAsStateWithLifecycle()
+    val isDownloading by viewModel.isModelDownloading.collectAsStateWithLifecycle()
+    val downloadProgress by viewModel.modelDownloadProgress.collectAsStateWithLifecycle()
+    val storage = rememberStorageAccess(viewModel)
+    val model = viewModel.toolCallerModel
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Tool caller (experimental)", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "A ${model.sizeLabel} model that runs device commands on the phone, ahead " +
+                            "of the cloud, and passes the turn on when it isn't confident.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.onDeviceToolCallerEnabled,
+                    onCheckedChange = viewModel::setOnDeviceToolCallerEnabled,
+                )
+            }
+
+            if (settings.onDeviceToolCallerEnabled) {
+                Text(
+                    text = "Only tool turns — asking for the torch, a timer, a note. Ordinary " +
+                        "conversation is untouched and still goes to your usual model. A command " +
+                        "it gets wrong or is unsure about falls through to the cloud, so the cost " +
+                        "of a miss is latency, not a wrong action.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Download state stays visible with the switch off, so the model can
+            // be fetched on wifi ahead of time rather than only at the moment
+            // someone turns the feature on.
+
+            val preflight = remember(model.id) { viewModel.evaluateToolCallerPreflight() }
+            when (preflight.level) {
+                com.hermes.agent.data.llm.PreflightLevel.BLOCKED -> Text(
+                    text = "⚠️ Preflight: ${preflight.detail}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                com.hermes.agent.data.llm.PreflightLevel.WARNING -> Text(
+                    text = "ℹ️ Preflight: ${preflight.detail}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+                com.hermes.agent.data.llm.PreflightLevel.OPTIMAL -> Unit
+            }
+
+            when {
+                isDownloaded -> Text(
+                    text = "${model.displayName} is downloaded and ready.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                isDownloading -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Deliberately not "downloading the tool caller": both models
+                    // share one download coordinator, so this flag cannot say
+                    // which fetch is running.
+                    Text(
+                        text = "A model download is in progress… (${(downloadProgress * 100).toInt()}%)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { downloadProgress },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                !storage.granted -> {
+                    Text(
+                        text = "Storage access is needed to save the model into a folder you can see.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { storage.request() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Grant storage access") }
+                }
+                else -> {
+                    androidx.compose.material3.Button(
+                        onClick = { viewModel.downloadToolCaller() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Download ${model.displayName} (${model.sizeLabel})") }
+                    Text(
+                        text = "Saved to the same \"${viewModel.defaultModelDirName}\" folder as " +
+                            "the local chat model. Switching the tool caller on starts this " +
+                            "download by itself — ${model.sizeLabel}, so prefer wifi. Until it " +
+                            "finishes, device commands keep going where they do today.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Stop
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -61,11 +61,20 @@ private val EFFORT_LEVELS = listOf("minimal", "low", "medium", "high")
  * ponytail: cosmetic label — short tokens read as acronyms, the rest title-case;
  * good enough without a per-vendor lookup table.
  */
-internal fun shortModelName(raw: String): String =
-    raw.trim().substringAfterLast('/').removePrefix("claude-").removePrefix("anthropic-")
+internal fun shortModelName(raw: String): String {
+    val tokens = raw.trim().substringAfterLast('/')
+        .removePrefix("claude-").removePrefix("anthropic-")
         .split('-', ' ').filter { it.isNotBlank() }
+        .toMutableList()
+    // Drop a trailing instruction-tuned marker: "gemma-4-31b-it" reads fine as
+    // "Gemma 4 31B" in the composer.
+    if (tokens.size > 1 && tokens.last().lowercase() in setOf("it", "instruct")) {
+        tokens.removeAt(tokens.lastIndex)
+    }
+    return tokens
         .joinToString(" ") { if (it.length <= 3) it.uppercase() else it.replaceFirstChar(Char::uppercase) }
         .ifBlank { "Auto" }
+}
 
 /**
  * Rounded composer: a full-width text field on top, and a single action row
@@ -159,20 +168,25 @@ fun ChatInputBar(
             }
         }
 
+        // The rounded box holds the text field and the send button; the
+        // remaining controls (+, mic, model, effort) sit in a row beneath it so
+        // the typing area keeps most of the width on a narrow screen (S24U).
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 0.dp),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
         ) {
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-                // Row 1 — the text field, full width.
+            Row(
+                modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
                 BasicTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .weight(1f)
                         .heightIn(min = 40.dp, max = 148.dp)
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
@@ -199,9 +213,73 @@ fun ChatInputBar(
                     },
                 )
 
-                // Row 2 — actions.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box {
+                Spacer(Modifier.size(4.dp))
+
+                // Send / stop / voice — colour shifts with state, the shape and
+                // keyboard-return glyph stay constant. Stop is red; see
+                // HermesPalette.Stop.
+                val hasText = text.isNotBlank()
+                val actionColor = when {
+                    isSending -> HermesPalette.Stop
+                    voiceChatActive -> MaterialTheme.colorScheme.error
+                    hasText -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.surfaceVariant
+                }
+                Surface(
+                    onClick = when {
+                        isSending -> onCancel
+                        hasText -> ::submit
+                        else -> onVoiceChatToggle
+                    },
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = actionColor,
+                    contentColor = when {
+                        isSending -> HermesPalette.OnStop
+                        voiceChatActive -> MaterialTheme.colorScheme.onError
+                        hasText -> MaterialTheme.colorScheme.onPrimary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (voiceChatActive) {
+                            ThinkingOrb(
+                                diameter = 26.dp,
+                                color = MaterialTheme.colorScheme.onError,
+                                listening = isListening,
+                                modifier = Modifier.semantics {
+                                    contentDescription = endVoiceChatDescription
+                                },
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (isSending) {
+                                    Icons.Outlined.Stop
+                                } else {
+                                    Icons.AutoMirrored.Outlined.KeyboardReturn
+                                },
+                                contentDescription = when {
+                                    isSending -> stringResource(R.string.a11y_stop_generating)
+                                    hasText -> stringResource(R.string.a11y_send_button)
+                                    else -> stringResource(R.string.a11y_start_voice_chat)
+                                },
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Action row — sits below the input box so the typing area keeps the
+        // full width of the composer.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 18.dp, end = 16.dp, top = 2.dp, bottom = 6.dp),
+        ) {
+            Box {
                         IconButton(
                             onClick = { quickActionsOpen = true },
                             modifier = Modifier.size(40.dp),
@@ -242,9 +320,11 @@ fun ChatInputBar(
                         }
                     }
 
+                    // Pulled in tight against the + so the two read as one
+                    // cluster rather than evenly-spaced toolbar buttons.
                     IconButton(
                         onClick = onMicToggle,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(40.dp).offset(x = (-10).dp),
                     ) {
                         // While the mic is hot the icon becomes the orb, so voice
                         // capture reads as the same "Hermes is busy" language as
@@ -289,12 +369,6 @@ fun ChatInputBar(
                                     vertical = 4.dp,
                                 ),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Tune,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(Modifier.size(4.dp))
                                 Text(
                                     text = reasoningEffort.replaceFirstChar { it.uppercase() },
                                     style = MaterialTheme.typography.labelLarge,
@@ -341,65 +415,6 @@ fun ChatInputBar(
                             }
                         }
                     }
-
-                    Spacer(Modifier.size(4.dp))
-
-                    // The button keeps one shape — a keyboard-return glyph —
-                    // whether or not there is text; only its colour shifts
-                    // (accent when it will send, muted when an empty tap starts
-                    // voice chat). Stop is red; see HermesPalette.Stop.
-                    val hasText = text.isNotBlank()
-                    val actionColor = when {
-                        isSending -> HermesPalette.Stop
-                        voiceChatActive -> MaterialTheme.colorScheme.error
-                        hasText -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                    Surface(
-                        onClick = when {
-                            isSending -> onCancel
-                            hasText -> ::submit
-                            else -> onVoiceChatToggle
-                        },
-                        modifier = Modifier.size(44.dp),
-                        shape = RoundedCornerShape(22.dp),
-                        color = actionColor,
-                        contentColor = when {
-                            isSending -> HermesPalette.OnStop
-                            voiceChatActive -> MaterialTheme.colorScheme.onError
-                            hasText -> MaterialTheme.colorScheme.onPrimary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            if (voiceChatActive) {
-                                ThinkingOrb(
-                                    diameter = 28.dp,
-                                    color = MaterialTheme.colorScheme.onError,
-                                    listening = isListening,
-                                    modifier = Modifier.semantics {
-                                        contentDescription = endVoiceChatDescription
-                                    },
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = if (isSending) {
-                                        Icons.Outlined.Stop
-                                    } else {
-                                        Icons.AutoMirrored.Outlined.KeyboardReturn
-                                    },
-                                    contentDescription = when {
-                                        isSending -> stringResource(R.string.a11y_stop_generating)
-                                        hasText -> stringResource(R.string.a11y_send_button)
-                                        else -> stringResource(R.string.a11y_start_voice_chat)
-                                    },
-                                    modifier = Modifier.size(23.dp),
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
     }
-}

@@ -214,6 +214,17 @@ class SettingsViewModel @Inject constructor(
     val modelCatalog: List<com.hermes.agent.data.llm.DownloadableModel> =
         com.hermes.agent.data.llm.ModelCatalog.MODELS
 
+    val isToolCallerDownloaded = MutableStateFlow(false)
+
+    /**
+     * The tool-calling model. Fixed rather than chosen: it is not an
+     * alternative to the chat models in [modelCatalog], it runs on a different
+     * path, and offering it in that dropdown would let someone select a 270M
+     * model as their assistant.
+     */
+    val toolCallerModel: com.hermes.agent.data.llm.DownloadableModel =
+        com.hermes.agent.data.llm.ToolCallerCatalog.DEFAULT
+
     /** Default folder name shown when the user hasn't set a custom directory. */
     val defaultModelDirName: String = com.hermes.agent.data.llm.ModelCatalog.DEFAULT_DIR_NAME
 
@@ -224,9 +235,14 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             isModelDownloaded.value = localLlmManager.isModelDownloaded()
+            isToolCallerDownloaded.value = localLlmManager.isToolCallerDownloaded()
             localLlmManager.isDownloading.collect { downloading ->
                 if (!downloading) {
+                    // Both, because the two models share one download
+                    // coordinator: this flag going false could be either fetch
+                    // finishing, and the flag is all there is to tell them apart.
                     isModelDownloaded.value = localLlmManager.isModelDownloaded()
+                    isToolCallerDownloaded.value = localLlmManager.isToolCallerDownloaded()
                 }
             }
         }
@@ -715,6 +731,33 @@ class SettingsViewModel @Inject constructor(
     fun setLocalLlmEnabled(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setLocalLlmEnabled(enabled)
     }
+
+    /**
+     * Off switch for the on-device tool caller.
+     *
+     * Independent of [setLocalLlmEnabled]: the tool caller runs on tool turns
+     * whether or not the chat fallback is on, so the two are separate switches
+     * over separate models.
+     */
+    fun setOnDeviceToolCallerEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setOnDeviceToolCallerEnabled(enabled)
+        val present = localLlmManager.isToolCallerDownloaded()
+        isToolCallerDownloaded.value = present
+        // Switching it on without the model is a dead switch: the router checks
+        // for the file and skips the provider, so nothing would change and there
+        // would be nothing on screen saying why. Fetch it instead.
+        // startToolCallerDownload no-ops when a download is already running and
+        // reports its own error when storage access is missing.
+        if (enabled && !present) localLlmManager.startToolCallerDownload()
+    }
+
+    fun downloadToolCaller() {
+        viewModelScope.launch { localLlmManager.startToolCallerDownload() }
+    }
+
+    /** Device RAM preflight for the tool-calling model. */
+    fun evaluateToolCallerPreflight(): com.hermes.agent.data.llm.PreflightDecision =
+        localLlmManager.evaluatePreflight(toolCallerModel)
 
     // --- Local API server ---
 

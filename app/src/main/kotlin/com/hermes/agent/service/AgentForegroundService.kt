@@ -51,7 +51,6 @@ class AgentForegroundService : Service() {
 
     @Inject lateinit var taskProcessor: KanbanTaskProcessor
     @Inject lateinit var kanbanRepository: KanbanRepository
-    @Inject lateinit var telegramBotGateway: TelegramBotGateway
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var loopJob: Job? = null
     private var wakeWatcherJob: Job? = null
@@ -99,7 +98,6 @@ class AgentForegroundService : Service() {
             serviceType,
         )
         AgentServiceController.setRunning(true)
-        telegramBotGateway.start(scope)
 
         // Wake watcher: Room re-emits the TODO count on every board change;
         // a positive count pokes the (conflated) wake channel.
@@ -142,7 +140,6 @@ class AgentForegroundService : Service() {
     )
 
     private fun stopAgent() {
-        telegramBotGateway.stop()
         loopJob?.cancel()
         loopJob = null
         wakeWatcherJob?.cancel()
