@@ -47,6 +47,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hermes.agent.data.llm.CloudKeyValidator
 import com.hermes.agent.data.llm.CloudProviderDefinition
 import com.hermes.agent.data.llm.CloudProviderRegistry
 import com.hermes.agent.domain.settings.CloudProviderProfile
@@ -331,6 +332,7 @@ private fun ProviderCredentialCard(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var apiKey by remember(profile.apiKey) { mutableStateOf(profile.apiKey) }
+    val keyMismatch = CloudKeyValidator.mismatchWarning(profile.id, profile.name, apiKey)
     var baseUrl by remember(profile.baseUrl) { mutableStateOf(profile.baseUrl) }
 
     DisposableEffect(profile.id) {
@@ -388,6 +390,11 @@ private fun ProviderCredentialCard(
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 colors = hermesFieldColors(),
+                // A key pasted into the wrong provider comes back as a bare 401
+                // naming the key, not the mistake. Say so here instead.
+                supportingText = keyMismatch?.let { warning ->
+                    { Text(warning, color = MaterialTheme.colorScheme.error) }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .onFocusChanged { focus ->
