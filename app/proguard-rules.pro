@@ -56,3 +56,12 @@
 -dontwarn java.beans.Introspector
 -dontwarn java.beans.PropertyDescriptor
 -dontwarn javax.lang.model.SourceVersion
+
+# --- ONNX Runtime (embeddings) ---
+# libonnxruntime4j_jni.so resolves its Java side by name at runtime
+# (GetMethodID inside convertToTensorInfo). R8 renaming those classes turns
+# that lookup into a null and the JNI layer calls abort(), taking the whole
+# process down -- a release-only SIGABRT that never shows up in debug builds
+# because minification is off there. Keep the package intact.
+-keep class ai.onnxruntime.** { *; }
+-keepclassmembers class ai.onnxruntime.** { *; }
