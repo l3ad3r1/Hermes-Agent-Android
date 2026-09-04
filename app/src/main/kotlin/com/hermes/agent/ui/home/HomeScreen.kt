@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Markunread
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.ViewKanban
@@ -75,6 +76,7 @@ fun HomeScreen(
     onOpenExperiment: () -> Unit = {},
     onOpenDocuments: () -> Unit = {},
     onOpenHaDashboard: () -> Unit = {},
+    onOpenPostOffice: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val threads by viewModel.recentThreads.collectAsStateWithLifecycle()
@@ -198,10 +200,11 @@ fun HomeScreen(
                 add(SuperpowerTile("Starmap Memory", "Knowledge graph", Icons.Filled.Hub, 2, onOpenMemory))
                 add(SuperpowerTile("Skill Studio", "Custom tools", Icons.Filled.Psychology, 3, onOpenSkills))
                 add(SuperpowerTile("CRON Routines", "Scheduled triggers", Icons.Filled.Schedule, 4, onOpenSchedule))
-                add(SuperpowerTile("Messaging & Bot", "Telegram gateway", Icons.Filled.Forum, 0, onOpenConnections))
-                add(SuperpowerTile("A/B Benchmark", "Latency & tok/s", Icons.Filled.Bolt, 1, onOpenExperiment))
-                add(SuperpowerTile("Knowledge Base", "Documents & RAG", Icons.AutoMirrored.Filled.LibraryBooks, 2, onOpenDocuments))
-                if (showHa) add(SuperpowerTile("Home Assistant", "Smart-home dashboard", Icons.Filled.Dashboard, 3, onOpenHaDashboard))
+                add(SuperpowerTile("Post Office", "Cross-agent mail", Icons.Filled.Markunread, 0, onOpenPostOffice))
+                add(SuperpowerTile("Messaging & Bot", "Telegram gateway", Icons.Filled.Forum, 1, onOpenConnections))
+                add(SuperpowerTile("A/B Benchmark", "Latency & tok/s", Icons.Filled.Bolt, 2, onOpenExperiment))
+                add(SuperpowerTile("Knowledge Base", "Documents & RAG", Icons.AutoMirrored.Filled.LibraryBooks, 3, onOpenDocuments))
+                if (showHa) add(SuperpowerTile("Home Assistant", "Smart-home dashboard", Icons.Filled.Dashboard, 4, onOpenHaDashboard))
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

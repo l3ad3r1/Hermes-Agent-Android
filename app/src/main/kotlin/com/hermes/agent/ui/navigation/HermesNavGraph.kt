@@ -50,6 +50,7 @@ import com.hermes.agent.ui.ledger.LedgerScreen
 import com.hermes.agent.ui.logs.LogScreen
 import com.hermes.agent.ui.memory.MemoryScreen
 import com.hermes.agent.ui.plugins.PluginsScreen
+import com.hermes.agent.ui.postoffice.PostOfficeScreen
 import com.hermes.agent.ui.sessions.SessionBrowserScreen
 import com.hermes.agent.ui.settings.AboutSettingsScreen
 import com.hermes.agent.ui.settings.AdvancedSettingsScreen
@@ -189,6 +190,15 @@ fun HermesNavGraph(
                     onOpenExperiment = { navController.navigate(TopLevelDestination.EXPERIMENT.route) },
                     onOpenDocuments = { navController.navigate(TopLevelDestination.DOCUMENTS.route) },
                     onOpenHaDashboard = { navController.navigate("ha_dashboard") },
+                    onOpenPostOffice = { navController.navigate("post_office") },
+                )
+            }
+            composable("post_office") {
+                PostOfficeScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenConversation = { id ->
+                        navController.navigate(TopLevelDestination.chatRoute(id))
+                    },
                 )
             }
             composable("ha_dashboard") {
