@@ -254,8 +254,17 @@ class SettingsViewModel @Inject constructor(
         isModelDownloaded.value = localLlmManager.isModelDownloaded()
     }
 
-    fun downloadLocalModel() {
-        viewModelScope.launch { localLlmManager.startDownload() }
+    /**
+     * Starts a model download after committing the folder currently shown in
+     * Settings. Keeping these in one coroutine prevents a tap on Download
+     * from racing the text field's focus-loss save.
+     */
+    fun downloadLocalModel(downloadDir: String) {
+        viewModelScope.launch {
+            localLlmManager.setModelDownloadDir(downloadDir.trim())
+            isModelDownloaded.value = localLlmManager.isModelDownloaded()
+            localLlmManager.startDownload()
+        }
     }
 
     fun cancelModelDownload() = localLlmManager.cancelDownload()

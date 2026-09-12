@@ -12,6 +12,7 @@ import com.hermes.agent.data.update.OtaInstaller
 import com.hermes.agent.data.update.OtaUpdateChecker
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -99,6 +100,46 @@ class SettingsViewModelCloudModelsTest {
         assertEquals(primary, specialist)
         coVerify(exactly = 1) {
             catalog.listModels("https://models.example/v1", "key")
+        }
+    }
+
+    @Test
+    fun `download commits the pending folder before starting`() = runTest(dispatcher) {
+        val settingsRepository = mockk<SettingsRepository>(relaxed = true) {
+            every { observe() } returns MutableStateFlow(UserSettings())
+        }
+        val localManager = mockk<LocalLlmManager>(relaxed = true) {
+            every { isDownloading } returns MutableStateFlow(false)
+            every { downloadProgress } returns MutableStateFlow(0f)
+            every { downloadError } returns MutableStateFlow("")
+            coEvery { isModelDownloaded() } returns false
+        }
+        val viewModel = SettingsViewModel(
+            appContext = mockk<Context>(relaxed = true),
+            settingsRepository = settingsRepository,
+            keystore = mockk<KeystoreManager>(relaxed = true),
+            otaUpdateChecker = mockk<OtaUpdateChecker>(relaxed = true),
+            otaInstaller = mockk<OtaInstaller>(relaxed = true),
+            sessionExporter = mockk<SessionExporter>(relaxed = true),
+            jsonBackupManager = mockk<com.hermes.agent.data.export.JsonBackupManager>(relaxed = true),
+            credentialVault = mockk<com.hermes.agent.data.security.CredentialVault>(relaxed = true),
+            cloudModelCatalog = mockk(relaxed = true),
+            localLlmManager = localManager,
+            privilegedShellBackend = mockk<com.hermes.agent.domain.device.PrivilegedShellBackend>(relaxed = true),
+            privilegedShellRetryGate = com.hermes.agent.data.device.PrivilegedShellRetryGate(),
+            oauthManager = mockk<com.hermes.agent.data.oauth.OAuthManager>(relaxed = true),
+            oauthCallbackReceiver = com.hermes.agent.data.oauth.OAuthCallbackReceiver(),
+            heartbeatScheduler = mockk<com.hermes.agent.work.HeartbeatScheduler>(relaxed = true),
+            presenceBeaconScheduler = mockk<com.hermes.agent.work.PresenceBeaconScheduler>(relaxed = true),
+            presenceManager = mockk<com.hermes.agent.data.presence.PresenceManager>(relaxed = true),
+        )
+
+        viewModel.downloadLocalModel("  /storage/emulated/0/Hermes Models  ")
+        advanceUntilIdle()
+
+        coVerifyOrder {
+            localManager.setModelDownloadDir("/storage/emulated/0/Hermes Models")
+            localManager.startDownload()
         }
     }
 }

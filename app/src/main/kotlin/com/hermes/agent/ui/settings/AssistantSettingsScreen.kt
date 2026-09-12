@@ -493,7 +493,7 @@ private fun OnDeviceAiCard(
                 }
                 else -> {
                     androidx.compose.material3.Button(
-                        onClick = { viewModel.downloadLocalModel() },
+                        onClick = { viewModel.downloadLocalModel(dirText) },
                         enabled = hasStorage,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("Download ${selectedModel.displayName} (${selectedModel.sizeLabel})") }
