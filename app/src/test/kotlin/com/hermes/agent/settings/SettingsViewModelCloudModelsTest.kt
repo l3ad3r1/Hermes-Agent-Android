@@ -133,6 +133,7 @@ class SettingsViewModelCloudModelsTest {
             heartbeatScheduler = mockk<com.hermes.agent.work.HeartbeatScheduler>(relaxed = true),
             presenceBeaconScheduler = mockk<com.hermes.agent.work.PresenceBeaconScheduler>(relaxed = true),
             presenceManager = mockk<com.hermes.agent.data.presence.PresenceManager>(relaxed = true),
+            tailnet = mockk<com.hermes.agent.data.remote.TailnetNode>(relaxed = true),
         )
 
         viewModel.downloadLocalModel("  /storage/emulated/0/Hermes Models  ")
