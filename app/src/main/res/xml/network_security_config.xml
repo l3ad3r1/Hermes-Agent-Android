@@ -1,9 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Cleartext HTTP is permitted only for the local-network hosts a self-hosted
-  Home Assistant instance or a local Ollama server can reasonably run on.
-  Everything else (cloud LLM providers, MCP servers, GitHub, etc.) still
-  requires HTTPS via the base-config default below.
+  Home Assistant instance, a local Ollama server, or a PC Hermes gateway (in
+  remote thin-client mode) can reasonably run on. Everything else (cloud LLM
+  providers, MCP servers, GitHub, etc.) still requires HTTPS via the
+  base-config default below.
+
+  Android's domain-config matches EXACT hostnames — CIDR ranges and wildcard
+  IPs are NOT supported — so only well-known names are listed here:
+
+    * `local`        — mDNS names (http://hermes-pc.local:8642)
+    * `ts.net`       — Tailscale MagicDNS names (http://mymachine.tailnet.ts.net:8642)
+    * `localhost`,
+      `127.0.0.1`,
+      `10.0.2.2`     — on-device loopback and the Android emulator's host alias
+
+  For a gateway reachable only by raw IP (e.g. http://192.168.1.50:8642),
+  prefer HTTPS, Tailscale Serve, or a reverse proxy. Cleartext HTTP to a
+  specific IP can be enabled by adding that exact IP as a <domain> entry
+  here; see the "Point at your PC's Hermes gateway" note in Settings.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
@@ -12,6 +27,7 @@
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">local</domain>
+        <domain includeSubdomains="true">ts.net</domain>
         <domain includeSubdomains="false">192.168.8.183</domain>
         <domain includeSubdomains="true">homeassistant.local</domain>
     </domain-config>

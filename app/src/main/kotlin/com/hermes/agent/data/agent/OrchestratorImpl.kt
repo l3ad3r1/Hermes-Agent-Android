@@ -39,7 +39,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
@@ -110,7 +110,11 @@ class OrchestratorImpl @Inject constructor(
         userMessage: String,
         recentMessages: List<LlmMessage>,
         origin: ExecutionOrigin,
-    ): Flow<OrchestratorEvent> = flow {
+    // channelFlow, not flow: the agent loop runs inside DeferredToolScope.withScope, which adds a
+    // thread-local element to the coroutine context, and its callbacks emit from there. A plain
+    // flow refuses that ("Flow invariant is violated") and kills the turn on any deferred tool
+    // call; channelFlow's send is context-safe.
+    ): Flow<OrchestratorEvent> = channelFlow {
 
         // High-confidence phone commands bypass model inference entirely.
         // The same execution policy, confirmation UI, ledger, and tool registry
@@ -123,10 +127,10 @@ class OrchestratorImpl @Inject constructor(
             val routing = RoutingResult.Solo(deterministic.role, confidence = 1f)
             val plan = buildPlan(conversationId, userMessage, routing)
             executionPlanRepository.save(plan)
-            emit(OrchestratorEvent.PlanReady(plan))
+            send(OrchestratorEvent.PlanReady(plan))
             val step = plan.steps.single()
             executionPlanRepository.markStepRunning(step.id)
-            emit(OrchestratorEvent.StepStarted(step.id, step.agentRole))
+            send(OrchestratorEvent.StepStarted(step.id, step.agentRole))
 
             val tool = toolRegistry.byName(deterministic.call.name)
             val result = if (tool == null) {
@@ -144,7 +148,7 @@ class OrchestratorImpl @Inject constructor(
                     decision::class.simpleName,
                     tool.descriptor.requiresConfirmation,
                 )
-                emit(OrchestratorEvent.ToolCallRequested(deterministic.call, mustConfirm))
+                send(OrchestratorEvent.ToolCallRequested(deterministic.call, mustConfirm))
                 when {
                     decision is ToolExecutionDecision.Deny -> ToolResult.error(decision.reason)
                     mustConfirm && !toolConfirmationService.awaitConfirmation(deterministic.call) ->
@@ -164,7 +168,7 @@ class OrchestratorImpl @Inject constructor(
                     success = result.success,
                 ),
             )
-            emit(
+            send(
                 OrchestratorEvent.ToolCallResult(
                     deterministic.call,
                     result.output.ifEmpty { result.errorMessage.orEmpty() },
@@ -176,11 +180,11 @@ class OrchestratorImpl @Inject constructor(
                 if (result.success) StepStatus.SUCCEEDED else StepStatus.FAILED,
                 result.errorMessage,
             )
-            emit(OrchestratorEvent.StepFinished(step.id, result.success))
+            send(OrchestratorEvent.StepFinished(step.id, result.success))
             val reply = if (result.success) result.output else result.errorMessage.orEmpty()
-            emit(OrchestratorEvent.ReplyToken(reply))
-            emit(OrchestratorEvent.ReplyComplete(reply, deterministic.role, isOnDevice = true))
-            return@flow
+            send(OrchestratorEvent.ReplyToken(reply))
+            send(OrchestratorEvent.ReplyComplete(reply, deterministic.role, isOnDevice = true))
+            return@channelFlow
         }
 
         // 1. Route.
@@ -196,7 +200,7 @@ class OrchestratorImpl @Inject constructor(
         // 2. Build plan.
         val plan = buildPlan(conversationId, userMessage, routing)
         executionPlanRepository.save(plan)
-        emit(OrchestratorEvent.PlanReady(plan))
+        send(OrchestratorEvent.PlanReady(plan))
 
         // 3. Load memories + user model and inject into system prompt.
         // The four context lookups are independent — run them concurrently so
@@ -263,7 +267,7 @@ class OrchestratorImpl @Inject constructor(
 
         for (step in plan.steps) {
             executionPlanRepository.markStepRunning(step.id)
-            emit(OrchestratorEvent.StepStarted(step.id, step.agentRole))
+            send(OrchestratorEvent.StepStarted(step.id, step.agentRole))
 
             val agent = agentRegistry.get(step.agentRole)
             // Progressive disclosure: MCP and plugin tools hide behind the three
@@ -359,9 +363,9 @@ class OrchestratorImpl @Inject constructor(
                         StepStatus.FAILED,
                         decision.reason,
                     )
-                    emit(OrchestratorEvent.StepFinished(step.id, success = false))
-                    emit(OrchestratorEvent.Failed(withCompletedWork(decision.reason, completedWork)))
-                    return@flow
+                    send(OrchestratorEvent.StepFinished(step.id, success = false))
+                    send(OrchestratorEvent.Failed(withCompletedWork(decision.reason, completedWork)))
+                    return@channelFlow
                 }
             }
             AgentActivity.setPhase(AgentPhase.THINKING)
@@ -374,7 +378,7 @@ class OrchestratorImpl @Inject constructor(
                     origin = origin,
                     onToolRequested = { call, requiresConfirmation ->
                         AgentActivity.setPhase(AgentPhase.WORKING)
-                        emit(OrchestratorEvent.ToolCallRequested(call, requiresConfirmation))
+                        send(OrchestratorEvent.ToolCallRequested(call, requiresConfirmation))
                     },
                     confirmationGate = ToolCallExecutor.ConfirmationGate { call, requiresConfirmation ->
                         if (requiresConfirmation) toolConfirmationService.awaitConfirmation(call) else true
@@ -392,7 +396,7 @@ class OrchestratorImpl @Inject constructor(
                             ),
                         )
                         if (result.success) completedWork += call.name
-                        emit(
+                        send(
                             OrchestratorEvent.ToolCallResult(
                                 call = call,
                                 output = result.output.ifEmpty { result.errorMessage.orEmpty() },
@@ -418,9 +422,9 @@ class OrchestratorImpl @Inject constructor(
             } catch (error: Exception) {
                 val message = error.message ?: "The plan step failed unexpectedly."
                 executionPlanRepository.markStepFinished(step.id, StepStatus.FAILED, message)
-                emit(OrchestratorEvent.StepFinished(step.id, success = false))
-                emit(OrchestratorEvent.Failed(withCompletedWork(message, completedWork)))
-                return@flow
+                send(OrchestratorEvent.StepFinished(step.id, success = false))
+                send(OrchestratorEvent.Failed(withCompletedWork(message, completedWork)))
+                return@channelFlow
             }
 
             val completed = when (loopOutcome) {
@@ -432,9 +436,9 @@ class OrchestratorImpl @Inject constructor(
                         StepStatus.FAILED,
                         loopOutcome.userMessage,
                     )
-                    emit(OrchestratorEvent.StepFinished(step.id, success = false))
-                    emit(OrchestratorEvent.Failed(withCompletedWork(loopOutcome.userMessage, completedWork)))
-                    return@flow
+                    send(OrchestratorEvent.StepFinished(step.id, success = false))
+                    send(OrchestratorEvent.Failed(withCompletedWork(loopOutcome.userMessage, completedWork)))
+                    return@channelFlow
                 }
             }
 
@@ -442,13 +446,13 @@ class OrchestratorImpl @Inject constructor(
             allToolsUsed += completed.toolsInvoked
             aggregator.append(completed.reply)
             AgentActivity.setPhase(AgentPhase.COMPOSING)
-            emit(OrchestratorEvent.ReplyToken(completed.reply))
+            send(OrchestratorEvent.ReplyToken(completed.reply))
             executionPlanRepository.markStepFinished(step.id, StepStatus.SUCCEEDED)
-            emit(OrchestratorEvent.StepFinished(step.id, success = true))
+            send(OrchestratorEvent.StepFinished(step.id, success = true))
         }
 
         val finalText = aggregator.toString()
-        emit(
+        send(
             OrchestratorEvent.ReplyComplete(
                 finalText = finalText,
                 agentRole = primaryRole,

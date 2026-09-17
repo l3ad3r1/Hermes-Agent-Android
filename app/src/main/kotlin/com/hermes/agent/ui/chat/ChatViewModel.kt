@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hermes.agent.data.agent.ClarificationBus
 import com.hermes.agent.data.agent.TodoStore
+import com.hermes.agent.data.remote.RemoteChatRepository
 import com.hermes.agent.data.voice.VoiceInputEvent
 import com.hermes.agent.data.voice.VoiceInputManager
 import com.hermes.agent.data.voice.VoiceOutputEvent
@@ -395,6 +396,9 @@ class ChatViewModel @Inject constructor(
 
     fun cancel() {
         clarificationBus.cancel()
+        // Remote (thin-client) mode: cancelling the local stream alone would
+        // leave the run executing (and spending) on the PC - stop it there too.
+        (chatRepository as? RemoteChatRepository)?.stopActiveRun()
         sendJob?.cancel()
         sendJob = null
         _ephemeral.value = ChatEphemeralState()

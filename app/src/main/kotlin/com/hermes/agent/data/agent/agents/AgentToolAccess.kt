@@ -43,7 +43,7 @@ internal object AgentToolAccess {
                 "todo", "voice", "clarify", "delegate", "media_generation", "documents", "kanban",
                 "bookmarks", "mood", "home_assistant", "vision", "files", "mcp", "tool_search",
                 "skills_hub", "usage_insights", "camera", "notifications_read", "notifications_post",
-                "standing_orders", "presence",
+                "standing_orders", "presence", "desktop_bots",
             ),
             // Belt and braces: excludedCapabilities is checked before anything
             // else, so app automation stays out of a conversational turn even if
@@ -57,7 +57,7 @@ internal object AgentToolAccess {
                 "skills", "user_memory", "scheduler", "todo", "clarify", "delegate", "notification",
                 "phone", "contacts", "navigation", "documents", "notes_and_reminders", "kanban",
                 "bookmarks", "mood", "vision", "files", "mcp", "tool_search", "skills_hub", "usage_insights",
-                "notifications_read", "notifications_post", "presence",
+                "notifications_read", "notifications_post", "presence", "desktop_bots",
             ),
             excludedCapabilities = setOf("camera", "standing_orders"),
         ),

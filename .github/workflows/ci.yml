@@ -25,6 +25,11 @@ jobs:
       # exist" — which is exactly how every run between the engine split and
       # 2026-08-30 failed. agent-core.ref pins the engine commit so a green
       # run names the engine it was green against.
+      #
+      # NOTE: the engine is fetched from upstream l3ad3r1/agent-core.
+      # agent-core.ref pins the commit that added the remote-gateway
+      # settings fields (f939add, merged upstream 2026-09-11) so a green
+      # run names the engine it was green against.
       - name: Resolve pinned agent-core ref
         id: engine
         run: |

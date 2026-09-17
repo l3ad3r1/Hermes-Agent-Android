@@ -821,6 +821,58 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setHomeAssistantDashboardEnabled(enabled)
     }
 
+    // --- Remote gateway (thin-client mode) ---
+
+    fun setRemoteGatewayEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setRemoteGatewayEnabled(enabled)
+    }
+
+    fun setRemoteGatewayUrl(url: String) = viewModelScope.launch {
+        settingsRepository.setRemoteGatewayUrl(url)
+    }
+
+    fun setRemoteGatewayApiKey(key: String) = viewModelScope.launch {
+        settingsRepository.setRemoteGatewayApiKey(key)
+    }
+
+    /** Ping the gateway's /health endpoint to verify connectivity. */
+    fun testRemoteGatewayConnection(onResult: (Boolean, String) -> Unit) =
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val current = settingsRepository.current()
+            val url = current.remoteGatewayUrl.trim().removeSuffix("/")
+            val key = current.remoteGatewayApiKey.trim()
+            if (url.isBlank()) {
+                onResult(false, "Please specify the gateway URL.")
+                return@launch
+            }
+            if (key.isBlank()) {
+                onResult(false, "Please provide the gateway API key.")
+                return@launch
+            }
+            try {
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+                val request = okhttp3.Request.Builder()
+                    .url("$url/health")
+                    .header("Authorization", "Bearer $key")
+                    .get()
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        onResult(true, "Connected: ${response.body?.string()?.take(60) ?: "OK"}")
+                    } else if (response.code == 401) {
+                        onResult(false, "Unauthorized (HTTP 401): Check your API key.")
+                    } else {
+                        onResult(false, "HTTP ${response.code}: ${response.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                onResult(false, "Connection error: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }
+
 
     // --- Heartbeat, standing instructions, presence, notification reading (OpenClaw) ---
 

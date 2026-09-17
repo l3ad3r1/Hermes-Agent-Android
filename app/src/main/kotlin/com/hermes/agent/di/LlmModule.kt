@@ -31,6 +31,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import javax.inject.Named
 import javax.inject.Singleton
@@ -41,15 +42,7 @@ abstract class LlmModule {
 
     @Binds
     @Singleton
-    abstract fun bindConversationRepository(impl: ConversationRepositoryImpl): ConversationRepository
-
-    @Binds
-    @Singleton
     abstract fun bindMemoryRepository(impl: MemoryRepositoryImpl): MemoryRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindChatRepository(impl: ChatRepositoryImpl): ChatRepository
 
     @Binds
     @Singleton
@@ -119,5 +112,40 @@ abstract class LlmModule {
                 productIdentity,
                 credentialPool,
             )
+    }
+}
+
+/**
+ * Provides the [ChatRepository] and [ConversationRepository] bindings,
+ * selecting local vs remote based on the current
+ * [UserSettings.remoteGatewayEnabled] value.
+ *
+ * This is a separate object module because [Provides] cannot live in an
+ * abstract class that also has [Binds] methods. Like the [Orchestrator]
+ * binding, the selection is made once at graph creation, so toggling
+ * remote mode requires an app restart.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object RemoteRepositoryProviderModule {
+
+    @Provides
+    @Singleton
+    fun provideChatRepository(
+        localImpl: ChatRepositoryImpl,
+        remoteImpl: com.hermes.agent.data.remote.RemoteChatRepository,
+        settings: SettingsRepository,
+    ): ChatRepository = runBlocking {
+        if (settings.current().remoteGatewayEnabled) remoteImpl else localImpl
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationRepository(
+        localImpl: ConversationRepositoryImpl,
+        remoteImpl: com.hermes.agent.data.remote.RemoteConversationRepository,
+        settings: SettingsRepository,
+    ): ConversationRepository = runBlocking {
+        if (settings.current().remoteGatewayEnabled) remoteImpl else localImpl
     }
 }

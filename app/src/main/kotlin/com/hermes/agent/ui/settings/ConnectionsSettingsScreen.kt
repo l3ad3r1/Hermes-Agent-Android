@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -111,6 +112,15 @@ fun ConnectionsSettingsScreen(
                 onDashboardPath = viewModel::setHomeAssistantDashboardPath,
                 onDashboardEnabled = viewModel::setHomeAssistantDashboardEnabled,
                 onTestConnection = viewModel::testHomeAssistantConnection,
+            )
+
+            SectionHeader(text = "Remote gateway")
+            RemoteGatewaySection(
+                settings = settings,
+                onToggle = viewModel::setRemoteGatewayEnabled,
+                onUrl = viewModel::setRemoteGatewayUrl,
+                onApiKey = viewModel::setRemoteGatewayApiKey,
+                onTestConnection = viewModel::testRemoteGatewayConnection,
             )
 
             SectionHeader(text = "MCP servers")
@@ -407,6 +417,142 @@ private fun HomeAssistantSection(
                 subtitle = "Add a Home Assistant tile to the Home dashboard that opens this dashboard in-app.",
                 checked = settings.homeAssistantDashboardEnabled,
                 onCheckedChange = onDashboardEnabled,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RemoteGatewaySection(
+    settings: UserSettings,
+    onToggle: (Boolean) -> Unit,
+    onUrl: (String) -> Unit,
+    onApiKey: (String) -> Unit,
+    onTestConnection: ((Boolean, String) -> Unit) -> Unit,
+) {
+    var keyVisible by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+    var testing by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ToggleRow(
+                title = "Use remote gateway",
+                subtitle = "Delegate all agent execution to a PC Hermes gateway. " +
+                    "The PC is the canonical conversation store; the phone is a chat + " +
+                    "approval surface. Requires app restart to take effect.",
+                checked = settings.remoteGatewayEnabled,
+                onCheckedChange = onToggle,
+            )
+
+            // URL and key stay visible with thin-client mode off: the desktop_bots tool uses them too.
+            HorizontalDivider()
+
+            Text(
+                "Point at your PC's Hermes gateway. The gateway runs " +
+                    "`hermes gateway` and exposes an API server (default port 8642). " +
+                    "Use a hostname the phone can resolve: an mDNS name " +
+                    "(http://hermes-pc.local:8642) on your LAN, or a Tailscale " +
+                    "MagicDNS name (http://mymachine.tailnet.ts.net:8642). " +
+                    "Cleartext HTTP is allowed for these hosts; for a raw IP " +
+                    "use HTTPS, Tailscale Serve, or a reverse proxy.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            var url by remember(settings.remoteGatewayUrl) {
+                mutableStateOf(settings.remoteGatewayUrl)
+            }
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it; onUrl(it) },
+                label = { Text("Gateway URL") },
+                placeholder = { Text("http://hermes-pc.local:8642") },
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            var key by remember(settings.remoteGatewayApiKey) {
+                mutableStateOf(settings.remoteGatewayApiKey)
+            }
+            OutlinedTextField(
+                value = key,
+                onValueChange = { key = it },
+                label = { Text("Gateway API key") },
+                supportingText = { Text("The PC's API_SERVER_KEY (set in ~/.hermes/.env).") },
+                visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                singleLine = true,
+                colors = hermesFieldColors(),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                    // Persist on focus loss, not per keystroke: the API key
+                    // is encrypted with the hardware Keystore on every write,
+                    // which is far too slow to run for each character typed.
+                    if (!focusState.isFocused && key != settings.remoteGatewayApiKey) {
+                        onApiKey(key)
+                    }
+                },
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = { keyVisible = !keyVisible },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (keyVisible) "Hide key" else "Reveal key")
+                }
+                OutlinedButton(
+                    onClick = {
+                        // The field saves on focus loss; save explicitly too
+                        // in case the button press consumed the focus event.
+                        if (key != settings.remoteGatewayApiKey) onApiKey(key)
+                        testing = true
+                        testResult = null
+                        onTestConnection { success, message ->
+                            testing = false
+                            testResult = success to message
+                        }
+                    },
+                    enabled = !testing,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (testing) "Testing…" else "Test connection")
+                }
+            }
+
+            testResult?.let { (success, message) ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                )
+            }
+
+            HorizontalDivider()
+            Text(
+                "When enabled, conversations on this phone map to PC gateway " +
+                    "sessions. A turn sent from the phone appears on the PC, and " +
+                    "vice versa. Tool approvals are forwarded to the phone's " +
+                    "existing approval dialog.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            HorizontalDivider()
+            Text(
+                "Security: the phone inherits the full authority of the PC " +
+                    "gateway — terminal, file operations, everything the agent " +
+                    "can do. The API key is stored in the Android Keystore and " +
+                    "never leaves the device, but anyone with the key can drive " +
+                    "the agent. For a scoped connection, configure a dedicated " +
+                    "gateway profile (e.g. /p/phone/) with a restricted toolset " +
+                    "and point this URL at that profile prefix. The gateway is " +
+                    "the enforcement point — the phone cannot self-limit tools " +
+                    "that the PC has already started.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }
