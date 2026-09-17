@@ -52,13 +52,17 @@ import kotlin.coroutines.coroutineContext
  */
 @Singleton
 class GatewayApiClient @Inject constructor(
-    private val client: OkHttpClient,
+    private val rawClient: OkHttpClient,
     private val json: Json,
     private val settingsRepository: SettingsRepository,
     private val dispatchers: DispatcherProvider,
+    private val tailnet: TailnetNode,
 ) {
 
     private val jsonMediaType = "application/json".toMediaType()
+
+    /** The HTTP client, routed through the embedded tailnet node while that node is running. */
+    private val client: OkHttpClient get() = tailnet.wrap(rawClient)
 
     private suspend fun baseUrl(): String =
         settingsRepository.current().remoteGatewayUrl.trimEnd('/')

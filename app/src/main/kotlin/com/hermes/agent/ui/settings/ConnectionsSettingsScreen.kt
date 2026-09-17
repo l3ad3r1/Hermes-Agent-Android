@@ -29,10 +29,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.hermes.agent.data.remote.TailnetStatus
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -113,6 +116,9 @@ fun ConnectionsSettingsScreen(
                 onDashboardEnabled = viewModel::setHomeAssistantDashboardEnabled,
                 onTestConnection = viewModel::testHomeAssistantConnection,
             )
+
+            SectionHeader(text = "Tailnet (experimental)")
+            TailnetSection(viewModel = viewModel)
 
             SectionHeader(text = "Remote gateway")
             RemoteGatewaySection(
@@ -422,13 +428,96 @@ private fun HomeAssistantSection(
     }
 }
 
+/**
+ * SPIKE: the in-app Tailscale node. With it running, the gateway URL below is reached over
+ * the tailnet with no Tailscale app installed and no VPN permission.
+ */
+@Composable
+private fun TailnetSection(viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    var status by remember { mutableStateOf<TailnetStatus?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var logs by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            viewModel.refreshTailnet { status = it }
+            kotlinx.coroutines.delay(2000)
+        }
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val current = status
+            Text(
+                text = buildString {
+                    append("State: ").append(current?.state ?: "…")
+                    current?.hostname?.let { append("\nNode: ").append(it) }
+                    current?.addresses?.takeIf { it.isNotEmpty() }?.let { append("\nAddress: ").append(it.joinToString(", ")) }
+                    current?.error?.let { append("\nError: ").append(it) }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (current?.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        busy = true
+                        if (current?.running == true) {
+                            viewModel.stopTailnet { status = it; busy = false }
+                        } else {
+                            viewModel.startTailnet { status = it; busy = false }
+                        }
+                    },
+                    enabled = !busy,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (current?.running == true) "Stop node" else "Start node")
+                }
+                OutlinedButton(
+                    onClick = { viewModel.tailnetLogs { logs = it.takeLast(2000) } },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Show logs")
+                }
+            }
+
+            current?.authUrl?.let { url ->
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(
+                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Sign in to Tailscale")
+                }
+            }
+
+            if (logs.isNotBlank()) {
+                Text(logs, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Text(
+                "Experimental. The node runs inside this app only — no VPN permission, and " +
+                    "nothing else on the phone is rerouted. It keeps its key in this app's storage, " +
+                    "so signing in is a one-time step.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 @Composable
 private fun RemoteGatewaySection(
     settings: UserSettings,
     onToggle: (Boolean) -> Unit,
     onUrl: (String) -> Unit,
     onApiKey: (String) -> Unit,
-    onTestConnection: ((Boolean, String) -> Unit) -> Unit,
+    onTestConnection: (String, String, (Boolean, String) -> Unit) -> Unit,
 ) {
     var keyVisible by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
@@ -460,17 +549,19 @@ private fun RemoteGatewaySection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            var url by remember(settings.remoteGatewayUrl) {
-                mutableStateOf(settings.remoteGatewayUrl)
-            }
+            // Seeded once, not re-keyed on the stored value: persisting per keystroke and
+            // re-seeding from the settings flow reorders characters while typing.
+            var url by rememberSaveable { mutableStateOf(settings.remoteGatewayUrl) }
             OutlinedTextField(
                 value = url,
-                onValueChange = { url = it; onUrl(it) },
+                onValueChange = { url = it },
                 label = { Text("Gateway URL") },
                 placeholder = { Text("http://hermes-pc.local:8642") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                    if (!focusState.isFocused && url != settings.remoteGatewayUrl) onUrl(url)
+                },
             )
 
             var key by remember(settings.remoteGatewayApiKey) {
@@ -511,7 +602,7 @@ private fun RemoteGatewaySection(
                         if (key != settings.remoteGatewayApiKey) onApiKey(key)
                         testing = true
                         testResult = null
-                        onTestConnection { success, message ->
+                        onTestConnection(url, key) { success, message ->
                             testing = false
                             testResult = success to message
                         }

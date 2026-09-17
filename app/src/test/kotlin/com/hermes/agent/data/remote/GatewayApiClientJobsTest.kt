@@ -4,6 +4,7 @@ import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.domain.settings.UserSettings
 import com.hermes.agent.util.DispatcherProvider
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -42,7 +43,9 @@ class GatewayApiClientJobsTest {
             override val main = Dispatchers.Unconfined
             override val unconfined = Dispatchers.Unconfined
         }
-        return GatewayApiClient(http, Json { ignoreUnknownKeys = true }, settings, dispatchers)
+        val tailnet = mockk<TailnetNode>()
+        every { tailnet.wrap(any()) } answers { firstArg() } // node stopped: client passes through
+        return GatewayApiClient(http, Json { ignoreUnknownKeys = true }, settings, dispatchers, tailnet)
     }
 
     @Test

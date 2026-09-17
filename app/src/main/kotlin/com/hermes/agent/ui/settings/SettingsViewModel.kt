@@ -86,6 +86,7 @@ class SettingsViewModel @Inject constructor(
     private val cloudModelCatalog: CloudModelCatalog,
     private val localLlmManager: com.hermes.agent.data.llm.LocalLlmManager,
     private val jsonBackupManager: JsonBackupManager,
+    private val tailnet: com.hermes.agent.data.remote.TailnetNode,
     private val credentialVault: CredentialVault,
     private val deviceAuthenticationService: DeviceAuthenticationService = DeviceAuthenticationService(),
     private val privilegedShellBackend: com.hermes.agent.domain.device.PrivilegedShellBackend,
@@ -821,6 +822,32 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setHomeAssistantDashboardEnabled(enabled)
     }
 
+    // --- SPIKE: embedded Tailscale node ---
+
+    /** Start the in-app tailnet node, then report its state (it may need a sign-in). */
+    fun startTailnet(onResult: (com.hermes.agent.data.remote.TailnetStatus) -> Unit) =
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { tailnet.start() }
+                .onFailure {
+                    onResult(com.hermes.agent.data.remote.TailnetStatus(false, "Stopped", error = it.message))
+                    return@launch
+                }
+            onResult(tailnet.status())
+        }
+
+    fun stopTailnet(onResult: (com.hermes.agent.data.remote.TailnetStatus) -> Unit) =
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { tailnet.stop() }
+            onResult(tailnet.status())
+        }
+
+    fun refreshTailnet(onResult: (com.hermes.agent.data.remote.TailnetStatus) -> Unit) =
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { onResult(tailnet.status()) }
+
+    /** The node's recent log lines — the spike's only diagnostic surface. */
+    fun tailnetLogs(onResult: (String) -> Unit) =
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { onResult(tailnet.logs()) }
+
     // --- Remote gateway (thin-client mode) ---
 
     fun setRemoteGatewayEnabled(enabled: Boolean) = viewModelScope.launch {
@@ -835,12 +862,16 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setRemoteGatewayApiKey(key)
     }
 
-    /** Ping the gateway's /health endpoint to verify connectivity. */
-    fun testRemoteGatewayConnection(onResult: (Boolean, String) -> Unit) =
+    /**
+     * Ping the gateway with the values the user can see. They are passed in rather than read
+     * back from settings: saving is asynchronous, so a test fired right after an edit used to
+     * read the previous (often blank) key and report it missing.
+     */
+    fun testRemoteGatewayConnection(typedUrl: String, typedKey: String, onResult: (Boolean, String) -> Unit) =
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val current = settingsRepository.current()
-            val url = current.remoteGatewayUrl.trim().removeSuffix("/")
-            val key = current.remoteGatewayApiKey.trim()
+            val url = typedUrl.trim().ifBlank { current.remoteGatewayUrl }.trim().removeSuffix("/")
+            val key = typedKey.trim().ifBlank { current.remoteGatewayApiKey }.trim()
             if (url.isBlank()) {
                 onResult(false, "Please specify the gateway URL.")
                 return@launch
@@ -850,10 +881,12 @@ class SettingsViewModel @Inject constructor(
                 return@launch
             }
             try {
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
+                val client = tailnet.wrap(
+                    okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                        .build(),
+                )
                 val request = okhttp3.Request.Builder()
                     .url("$url/health")
                     .header("Authorization", "Bearer $key")
