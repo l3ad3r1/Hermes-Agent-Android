@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.hermes.agent.data.remote.TailnetStatus
 import androidx.compose.ui.Alignment
@@ -516,7 +517,7 @@ private fun RemoteGatewaySection(
     onToggle: (Boolean) -> Unit,
     onUrl: (String) -> Unit,
     onApiKey: (String) -> Unit,
-    onTestConnection: ((Boolean, String) -> Unit) -> Unit,
+    onTestConnection: (String, String, (Boolean, String) -> Unit) -> Unit,
 ) {
     var keyVisible by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
@@ -548,17 +549,19 @@ private fun RemoteGatewaySection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            var url by remember(settings.remoteGatewayUrl) {
-                mutableStateOf(settings.remoteGatewayUrl)
-            }
+            // Seeded once, not re-keyed on the stored value: persisting per keystroke and
+            // re-seeding from the settings flow reorders characters while typing.
+            var url by rememberSaveable { mutableStateOf(settings.remoteGatewayUrl) }
             OutlinedTextField(
                 value = url,
-                onValueChange = { url = it; onUrl(it) },
+                onValueChange = { url = it },
                 label = { Text("Gateway URL") },
                 placeholder = { Text("http://hermes-pc.local:8642") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                    if (!focusState.isFocused && url != settings.remoteGatewayUrl) onUrl(url)
+                },
             )
 
             var key by remember(settings.remoteGatewayApiKey) {
@@ -599,7 +602,7 @@ private fun RemoteGatewaySection(
                         if (key != settings.remoteGatewayApiKey) onApiKey(key)
                         testing = true
                         testResult = null
-                        onTestConnection { success, message ->
+                        onTestConnection(url, key) { success, message ->
                             testing = false
                             testResult = success to message
                         }

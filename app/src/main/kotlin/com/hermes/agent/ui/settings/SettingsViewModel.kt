@@ -853,12 +853,16 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setRemoteGatewayApiKey(key)
     }
 
-    /** Ping the gateway's /health endpoint to verify connectivity. */
-    fun testRemoteGatewayConnection(onResult: (Boolean, String) -> Unit) =
+    /**
+     * Ping the gateway with the values the user can see. They are passed in rather than read
+     * back from settings: saving is asynchronous, so a test fired right after an edit used to
+     * read the previous (often blank) key and report it missing.
+     */
+    fun testRemoteGatewayConnection(typedUrl: String, typedKey: String, onResult: (Boolean, String) -> Unit) =
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val current = settingsRepository.current()
-            val url = current.remoteGatewayUrl.trim().removeSuffix("/")
-            val key = current.remoteGatewayApiKey.trim()
+            val url = typedUrl.trim().ifBlank { current.remoteGatewayUrl }.trim().removeSuffix("/")
+            val key = typedKey.trim().ifBlank { current.remoteGatewayApiKey }.trim()
             if (url.isBlank()) {
                 onResult(false, "Please specify the gateway URL.")
                 return@launch
