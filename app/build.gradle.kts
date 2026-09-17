@@ -247,6 +247,8 @@ kotlin {
 }
 
 dependencies {
+    // SPIKE: embedded Tailscale node, built by tsnet-bridge/build.sh (gomobile).
+    implementation(files("libs/tsbridge.aar"))
     implementation(project(":core:tools"))
     implementation(project(":core:llm"))
     implementation(project(":core:memory"))
