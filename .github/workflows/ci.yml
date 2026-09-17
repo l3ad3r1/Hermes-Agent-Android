@@ -56,6 +56,36 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # The embedded Tailscale node is Go code (tsnet-bridge/) turned into an
+      # .aar by gomobile. The .aar is a 14 MB build output and is gitignored, so
+      # CI builds it here — app/build.gradle.kts depends on app/libs/tsbridge.aar
+      # and Gradle fails without it. gomobile shells out to javac and to the NDK,
+      # so this must run after setup-java and with ANDROID_NDK_HOME set.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache-dependency-path: tsnet-bridge/go.sum
+
+      - name: Build the tsnet bridge (gomobile)
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME || env.ANDROID_SDK_ROOT }}
+        run: |
+          set -euo pipefail
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          go install golang.org/x/mobile/cmd/gobind@latest
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          # Newest installed NDK; the runner ships at least one.
+          export ANDROID_NDK_HOME="$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)"
+          echo "Using NDK $ANDROID_NDK_HOME"
+          cd tsnet-bridge
+          gomobile init
+          gomobile bind -target=android/arm64 -androidapi 29 -o ../app/libs/tsbridge.aar .
+          # gomobile can exit 0 after failing to run javac, leaving an empty file.
+          test -s ../app/libs/tsbridge.aar
+
+      - name: Test the tsnet bridge
+        run: cd tsnet-bridge && go test ./...
+
       # assembleDebug compiles the llama.cpp native libs (arm64-v8a); Vulkan is
       # off (GGML_VULKAN=OFF in build.gradle.kts), so no host Vulkan SDK is needed.
       - name: Compile and build debug APK
