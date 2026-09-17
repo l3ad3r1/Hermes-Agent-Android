@@ -308,7 +308,62 @@ class GatewayApiClient @Inject constructor(
         ok
     }
 
+    // ── Jobs API (the PC's cron bots) ─────────────────────────────────────
+
+    /**
+     * List a profile's scheduled jobs, paused ones included so they can be resumed. A named
+     * [profile] is reached through a multiplexing gateway's `/p/<profile>/` prefix; null or
+     * "default" uses the unprefixed routes.
+     */
+    suspend fun listJobs(profile: String? = null): List<RemoteJob> = withContext(dispatchers.io) {
+        val request = authBuilder("${baseUrl()}${profilePrefix(profile)}/api/jobs?include_disabled=true", apiKey()).build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string().orEmpty()
+        response.close()
+        if (!response.isSuccessful) throw IOException("listJobs failed: ${response.code} ${body.take(200)}")
+        parseJobs(body)
+    }
+
+    /** Apply `pause`, `resume` or `run` to a job and return its updated state. */
+    suspend fun jobAction(jobId: String, action: String, profile: String? = null): RemoteJob = withContext(dispatchers.io) {
+        require(action in JOB_ACTIONS) { "unknown job action: $action" }
+        val request = authBuilder("${baseUrl()}${profilePrefix(profile)}/api/jobs/$jobId/$action", apiKey())
+            .post("{}".toRequestBody(jsonMediaType))
+            .build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string().orEmpty()
+        response.close()
+        if (!response.isSuccessful) throw IOException("$action job failed: ${response.code} ${body.take(200)}")
+        val obj = json.parseToJsonElement(body).jsonObject
+        parseJob((obj["job"] as? JsonObject) ?: obj)
+            ?: throw IOException("$action job: could not parse response: ${body.take(200)}")
+    }
+
+    private fun profilePrefix(profile: String?): String =
+        if (profile.isNullOrBlank() || profile == "default") "" else "/p/$profile"
+
     // ── Parsing ───────────────────────────────────────────────────────────
+
+    private fun parseJobs(body: String): List<RemoteJob> {
+        val jobs = runCatching { json.parseToJsonElement(body).jsonObject["jobs"] }.getOrNull()
+            as? kotlinx.serialization.json.JsonArray ?: return emptyList()
+        return jobs.mapNotNull { (it as? JsonObject)?.let(::parseJob) }
+    }
+
+    private fun parseJob(obj: JsonObject): RemoteJob? {
+        fun str(key: String) = (obj[key] as? JsonPrimitive)?.contentOrNull
+        return RemoteJob(
+            id = str("id") ?: return null,
+            name = str("name") ?: "",
+            schedule = str("schedule_display") ?: "",
+            enabled = str("enabled")?.toBooleanStrictOrNull() ?: true,
+            state = str("state") ?: "",
+            nextRunAt = str("next_run_at"),
+            lastRunAt = str("last_run_at"),
+            lastStatus = str("last_status"),
+            lastError = str("last_error"),
+        )
+    }
 
     private fun parseEvent(type: String, data: String): GatewayEvent? {
         if (data.isBlank() || data == "[DONE]") return null
@@ -474,6 +529,22 @@ data class RemoteSession(
     val createdAt: Long,
     val updatedAt: Long,
     val messageCount: Int,
+)
+
+/** Actions accepted by `POST /api/jobs/{id}/{action}`. */
+val JOB_ACTIONS = setOf("pause", "resume", "run")
+
+/** A scheduled job (bot) on the PC gateway, mapped from `/api/jobs`. Timestamps are ISO-8601. */
+data class RemoteJob(
+    val id: String,
+    val name: String,
+    val schedule: String,
+    val enabled: Boolean,
+    val state: String,
+    val nextRunAt: String?,
+    val lastRunAt: String?,
+    val lastStatus: String?,
+    val lastError: String?,
 )
 
 /** A message in a PC gateway session, mapped from `/api/sessions/{id}/messages`. */
