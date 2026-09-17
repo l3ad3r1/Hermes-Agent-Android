@@ -67,10 +67,11 @@ jobs:
           cache-dependency-path: tsnet-bridge/go.sum
 
       - name: Build the tsnet bridge (gomobile)
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME || env.ANDROID_SDK_ROOT }}
         run: |
           set -euo pipefail
+          # The runner exports ANDROID_HOME/ANDROID_SDK_ROOT itself; naming them in
+          # an `env:` block here overrode them with empty strings.
+          export ANDROID_HOME="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           go install golang.org/x/mobile/cmd/gomobile@latest
           go install golang.org/x/mobile/cmd/gobind@latest
           export PATH="$PATH:$(go env GOPATH)/bin"
