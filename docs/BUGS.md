@@ -5,7 +5,7 @@ kept separate from the roadmap so regressions are tracked without presenting
 planned work as a bug. The granular register with repro steps and evidence is the
 `Known Issues` sheet of `Hermes-Test-Regimen.xlsx`.
 
-Last reviewed: **2026-09-19 (v1.0.5)**.
+Last reviewed: **2026-09-20 (v1.0.6)**.
 
 ## Open
 
@@ -83,6 +83,15 @@ Last reviewed: **2026-09-19 (v1.0.5)**.
 [issues #4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [#4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [issue #5]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/5
+
+## Fixed in 1.0.6
+
+- **The Tailscale sign-in prompt was easy to miss.** The link arrives from Tailscale's
+  server several seconds after *Start node*; until then the screen showed a bare
+  `NeedsLogin`, and the link was a small outlined button under the node controls. While the
+  node needs login it now says it is fetching the link, then shows a prominent **Sign in to
+  Tailscale** button and **Copy link**, and opens the browser once per link after *Start
+  node* is tapped.
 
 ## Fixed in 1.0.5
 
