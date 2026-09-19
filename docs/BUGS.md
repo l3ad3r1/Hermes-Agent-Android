@@ -24,7 +24,9 @@ Last reviewed: **2026-09-19 (v1.0.5)**.
   call, so two identical creates never look identical to the guard.
 - **K30 — the gateway cannot list its bots without a patch.** The Chief of Bots
   offers a new desktop's existing bots by asking `GET /api/profiles`, an endpoint
-  that upstream `hermes-agent` does not have. Without it the app falls back to
+  that upstream `hermes-agent` does not have; the patch and an installer are in
+  [hermes-gateway-profiles](https://github.com/l3ad3r1/hermes-gateway-profiles) (`python apply.py`, then restart the gateway).
+  Without it the app falls back to
   probing a few common names (`redditbot`, `research`, `coder`, `writer`,
   `assistant`), so a bot with any other name is not offered and has to be added by
   hand with **+**. Tracked with the rest of the 1.0.5 follow-ups in
