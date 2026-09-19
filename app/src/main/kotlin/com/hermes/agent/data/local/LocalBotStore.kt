@@ -1,6 +1,7 @@
 package com.hermes.agent.data.local
 
 import android.content.Context
+import com.hermes.agent.data.export.ImportReport
 import com.hermes.agent.data.remote.ChiefOfBots
 import com.hermes.agent.ui.bloub.ColorId
 import com.hermes.agent.ui.bloub.ShapeId
@@ -88,6 +89,36 @@ class LocalBotStore @Inject constructor(
 
     fun remove(id: String) {
         write(_bots.value.filterNot { it.id == id })
+    }
+
+    /**
+     * Bring bots back from a backup with the ids they had, because a bot's id is also its chat's
+     * conversation id and a restored chat is only reachable through the same one. [add] mints a
+     * new id, which would leave the restored history attached to nothing.
+     *
+     * A bot whose id is already here is left alone unless [overwrite]; a bot that would take a
+     * name another bot already has is skipped, since names are unique.
+     */
+    fun restore(backedUp: List<LocalBot>, overwrite: Boolean): ImportReport {
+        var added = 0
+        var replaced = 0
+        var skipped = 0
+        var next = _bots.value
+        for (bot in backedUp) {
+            val existing = next.firstOrNull { it.id == bot.id }
+            when {
+                existing != null && overwrite -> {
+                    next = next.map { if (it.id == bot.id) bot else it }; replaced++
+                }
+                existing != null -> skipped++
+                next.any { it.name.equals(bot.name, ignoreCase = true) } -> skipped++
+                else -> {
+                    next = next + bot; added++
+                }
+            }
+        }
+        if (next != _bots.value) write(next)
+        return ImportReport(added, replaced, skipped)
     }
 
     /**

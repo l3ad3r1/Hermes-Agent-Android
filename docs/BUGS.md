@@ -5,7 +5,7 @@ kept separate from the roadmap so regressions are tracked without presenting
 planned work as a bug. The granular register with repro steps and evidence is the
 `Known Issues` sheet of `Hermes-Test-Regimen.xlsx`.
 
-Last reviewed: **2026-09-20 (v1.0.6)**.
+Last reviewed: **2026-09-20 (v1.0.7)**.
 
 ## Open
 
@@ -48,6 +48,14 @@ Last reviewed: **2026-09-20 (v1.0.6)**.
   do" line stops it claiming otherwise.
 - **K35 — no way to delete a bot chat thread.** The new history list opens and
   starts threads but cannot remove one.
+- **K36 — backups do not carry attachments.** A message's attachment is a content URI
+  that only means something on the device that made it, and the file behind it is not in
+  the backup, so it is left out rather than restored as a dead link. The text of the
+  message is kept.
+- **K37 — a restore does not bring back the tailnet sign-in.** The embedded Tailscale
+  node's key identifies one device, so it is deliberately not backed up; a new install
+  signs in once with *Start node*. The gateway URL and bots come back; the gateway API
+  key only if *Cloud API keys* was ticked (which needs a password).
 
 ## Current limitations
 
@@ -83,6 +91,19 @@ Last reviewed: **2026-09-20 (v1.0.6)**.
 [issues #4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [#4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [issue #5]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/5
+
+## Added in 1.0.7
+
+- **Backup & Restore now covers everything.** Settings → Advanced → Backup & Restore has
+  two new choices: **Chat history** (every conversation and its messages, which includes
+  each bot's threads) and **Bots setup** (phone bots with their ids, the PC bots in the tab
+  bar, the Chief's name, the gateway URL). A chat is restored whole or not at all, so two
+  histories that diverged are never interleaved; an existing chat is kept unless
+  *Restoring replaces items that already exist* is on. Verified on a device: back up,
+  remove a bot tab, restore, tab returns.
+- **Restore lost three keys it had saved.** The credentials section wrote the local API
+  server key and the SSH password to the file but never put them back; it now does, and
+  it also carries the PC gateway key.
 
 ## Fixed in 1.0.6
 

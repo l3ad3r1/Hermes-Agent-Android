@@ -100,7 +100,7 @@ fun AdvancedSettingsScreen(
             SectionHeader(text = "Backup & Restore")
             JsonBackupSection(
                 state = jsonBackupState,
-                onBackup = viewModel::exportJson,
+                onBackup = { uri, sections, password, bots -> viewModel.exportJson(uri, sections, password, bots) },
                 onRestore = viewModel::importJson,
                 onDismiss = viewModel::dismissJsonBackupState,
             )
@@ -397,7 +397,7 @@ private fun ExportSection(
 @Composable
 private fun JsonBackupSection(
     state: BackupUiState,
-    onBackup: (android.net.Uri, Set<BackupSection>, String?) -> Unit,
+    onBackup: (android.net.Uri, Set<BackupSection>, String?, Boolean) -> Unit,
     onRestore: (android.net.Uri, Boolean, String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -405,6 +405,9 @@ private fun JsonBackupSection(
     // storage, so carrying keys has to be a deliberate act rather than the
     // thing that happens if you do not read the screen.
     var selected by remember { mutableStateOf(BackupSection.DEFAULT) }
+    // The Bots hub's setup is the app's own, so it is offered here beside the shared sections
+    // rather than being one of them.
+    var includeBots by remember { mutableStateOf(true) }
     var password by rememberSaveable { mutableStateOf("") }
     var overwrite by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
@@ -413,11 +416,11 @@ private fun JsonBackupSection(
     // Enforced in the UI so the button explains itself, and again in encode()
     // so no caller can bypass it.
     val passwordRequired = keysSelected
-    val canBackUp = selected.isNotEmpty() && (!passwordRequired || password.isNotBlank())
+    val canBackUp = (selected.isNotEmpty() || includeBots) && (!passwordRequired || password.isNotBlank())
 
     val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri -> if (uri != null) onBackup(uri, selected, password.ifBlank { null }) }
+    ) { uri -> if (uri != null) onBackup(uri, selected, password.ifBlank { null }, includeBots) }
 
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
@@ -496,6 +499,22 @@ private fun JsonBackupSection(
                             )
                         }
                     }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { includeBots = !includeBots },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Checkbox(checked = includeBots, onCheckedChange = { includeBots = it })
+                    Text("Bots setup", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        " · phone bots, PC bots, Chief's name",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 OutlinedTextField(
