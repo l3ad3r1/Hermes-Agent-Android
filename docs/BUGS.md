@@ -27,8 +27,8 @@ Last reviewed: **2026-09-19 (v1.0.5)**.
   that upstream `hermes-agent` does not have. Without it the app falls back to
   probing a few common names (`redditbot`, `research`, `coder`, `writer`,
   `assistant`), so a bot with any other name is not offered and has to be added by
-  hand with **+**. Tracked with the rest of the 1.0.5 follow-ups in the release
-  issue.
+  hand with **+**. Tracked with the rest of the 1.0.5 follow-ups in
+  [issue #18](https://github.com/l3ad3r1/Hermes-Agent-Android/issues/18).
 - **K31 — a bare "delete X" is not understood on the phone.** "Remove the bot
   named scribe", "delete bot scribe" and "delete the scribe bot" are handled by the
   app; "delete Scribe" is not recognised as a bot command, so it goes to the PC's
