@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -417,11 +418,28 @@ private fun TailnetSection(viewModel: SettingsViewModel) {
     var status by remember { mutableStateOf<TailnetStatus?>(null) }
     var busy by remember { mutableStateOf(false) }
     var logs by remember { mutableStateOf("") }
+    // Sign-in link already opened for the user's own Start-node tap; keyed by URL so a new
+    // link (a fresh login attempt) is opened again, but the same link is not reopened on every poll.
+    var startedByUser by remember { mutableStateOf(false) }
+    var openedUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         while (true) {
             viewModel.refreshTailnet { status = it }
             kotlinx.coroutines.delay(2000)
+        }
+    }
+
+    val pendingUrl = status?.authUrl
+    LaunchedEffect(pendingUrl, startedByUser) {
+        if (startedByUser && pendingUrl != null && pendingUrl != openedUrl) {
+            openedUrl = pendingUrl
+            runCatching {
+                context.startActivity(
+                    android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(pendingUrl))
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
         }
     }
 
@@ -446,6 +464,8 @@ private fun TailnetSection(viewModel: SettingsViewModel) {
                         if (current?.running == true) {
                             viewModel.stopTailnet { status = it; busy = false }
                         } else {
+                            startedByUser = true
+                            openedUrl = null
                             viewModel.startTailnet { status = it; busy = false }
                         }
                     },
@@ -464,16 +484,47 @@ private fun TailnetSection(viewModel: SettingsViewModel) {
                 }
             }
 
-            current?.authUrl?.let { url ->
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(
-                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Sign in to Tailscale")
+            // Sign-in is shown whenever the node needs it, including after an app restart with
+            // the node left on. Tailscale's server takes several seconds to return the link, so
+            // say so instead of showing nothing.
+            if (current?.state == "NeedsLogin") {
+                val url = current.authUrl
+                if (url == null) {
+                    Text(
+                        "Getting your Tailscale sign-in link…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    Text(
+                        "Sign in to finish connecting this device to your tailnet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Button(
+                        onClick = {
+                            openedUrl = url
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Sign in to Tailscale")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            context.getSystemService(android.content.ClipboardManager::class.java)
+                                ?.setPrimaryClip(android.content.ClipData.newPlainText("Tailscale sign-in link", url))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = SettingsButtonPadding,
+                    ) {
+                        ButtonLabel("Copy link")
+                    }
                 }
             }
 
