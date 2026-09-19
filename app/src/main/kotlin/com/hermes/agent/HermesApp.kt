@@ -24,6 +24,7 @@ import com.hermes.agent.domain.repository.SkillRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
@@ -82,9 +83,23 @@ class HermesApp : Application(), Configuration.Provider {
     @Inject
     lateinit var tailnetNodeProvider: Provider<com.hermes.agent.data.remote.TailnetNode>
 
+    @Inject
+    lateinit var cronRepositoryProvider: Provider<com.hermes.agent.domain.repository.CronRepository>
+
+    @Inject
+    lateinit var cronSchedulerProvider: Provider<com.hermes.agent.work.CronScheduler>
+
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCreate() {
+        // A restore is staged by the running app and applied here, on the next launch: this is the
+        // one point before Hilt has built anything, so the database and settings can be swapped
+        // without racing the code that uses them. Only the main process, since the shell service
+        // runs another copy of this class. It cannot be attachBaseContext: DataStore needs the
+        // application context, which does not exist yet there.
+        if (getProcessName() == packageName) {
+            com.hermes.agent.data.export.PendingRestore.applyIfPending(this)
+        }
         super.onCreate()
         DebugScreenAwake.install(this)
         // Capture logs to a file (all build types) so the user can pull them
@@ -110,6 +125,14 @@ class HermesApp : Application(), Configuration.Provider {
         }
 
         scheduleAmbientWorkers()
+
+        // The schedule lives in WorkManager's own database, not with the task rows, so a restored
+        // or reinstalled app has the jobs listed and nothing running them.
+        applicationScope.launch {
+            runCatching {
+                cronSchedulerProvider.get().reconcile(cronRepositoryProvider.get().observe().first())
+            }.onFailure { Timber.tag("Cron").w(it, "could not re-schedule cron jobs") }
+        }
 
         // The Gist backup is gone, but an install that used it still holds the
         // GitHub token it was given. Deleting the feature does not delete the

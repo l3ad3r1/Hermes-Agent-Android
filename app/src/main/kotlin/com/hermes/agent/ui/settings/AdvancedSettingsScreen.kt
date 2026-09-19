@@ -97,7 +97,10 @@ fun AdvancedSettingsScreen(
                 onResetGate = viewModel::resetPrivilegedGate,
             )
 
-            SectionHeader(text = "Backup & Restore")
+            SectionHeader(text = "Full Backup")
+            FullBackupSection()
+
+            SectionHeader(text = "Export & Import (chosen content)")
             JsonBackupSection(
                 state = jsonBackupState,
                 onBackup = { uri, sections, password, bots -> viewModel.exportJson(uri, sections, password, bots) },

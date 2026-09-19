@@ -204,7 +204,7 @@ fun HomeScreen(
                 add(SuperpowerTile("CRON Routines", "Scheduled triggers", Icons.Filled.Schedule, 4, onOpenSchedule))
                 add(SuperpowerTile("Post Office", "Cross-agent mail", Icons.Filled.Markunread, 0, onOpenPostOffice))
                 add(SuperpowerTile("Bots", "PC bots & chat", Icons.Filled.SmartToy, 1, onOpenBots))
-                add(SuperpowerTile("Messaging & Bot", "Telegram gateway", Icons.Filled.Forum, 1, onOpenConnections))
+                add(SuperpowerTile("Messaging", "Telegram gateway", Icons.Filled.Forum, 1, onOpenConnections))
                 add(SuperpowerTile("A/B Benchmark", "Latency & tok/s", Icons.Filled.Bolt, 2, onOpenExperiment))
                 add(SuperpowerTile("Knowledge Base", "Documents & RAG", Icons.AutoMirrored.Filled.LibraryBooks, 3, onOpenDocuments))
                 if (showHa) add(SuperpowerTile("Home Assistant", "Smart-home dashboard", Icons.Filled.Dashboard, 4, onOpenHaDashboard))

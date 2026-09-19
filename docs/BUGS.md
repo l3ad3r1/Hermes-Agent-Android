@@ -5,7 +5,7 @@ kept separate from the roadmap so regressions are tracked without presenting
 planned work as a bug. The granular register with repro steps and evidence is the
 `Known Issues` sheet of `Hermes-Test-Regimen.xlsx`.
 
-Last reviewed: **2026-09-20 (v1.0.7)**.
+Last reviewed: **2026-09-20 (v1.0.8)**.
 
 ## Open
 
@@ -52,10 +52,18 @@ Last reviewed: **2026-09-20 (v1.0.7)**.
   that only means something on the device that made it, and the file behind it is not in
   the backup, so it is left out rather than restored as a dead link. The text of the
   message is kept.
-- **K37 — a restore does not bring back the tailnet sign-in.** The embedded Tailscale
-  node's key identifies one device, so it is deliberately not backed up; a new install
-  signs in once with *Start node*. The gateway URL and bots come back; the gateway API
-  key only if *Cloud API keys* was ticked (which needs a password).
+- **K38 — the "Add MCP server" dialog stays open while it connects.** Each extra tap on
+  *Add* registers another copy (three taps on a placeholder URL made three rows). Seen
+  while testing the full backup; the backup itself is unaffected.
+- **K39 — a full backup cannot restore Android-level grants.** Runtime permissions, the
+  accessibility service, notification access and the workspace folder grant belong to the
+  OS and to this install. The workspace folder *setting* comes back but the folder has to
+  be granted again; downloaded models are left out (download them again).
+- **K37 — the tailnet sign-in only comes back on the same phone.** The embedded
+  Tailscale node's key identifies one device. *Export & Import* never carries it; a
+  *Full backup* carries it and applies it only when restored onto the phone it came from
+  (matched by a hash of the device id), because two devices sharing one node key would
+  fight over it. Restored onto another phone, it signs in again with *Start node*.
 
 ## Current limitations
 
@@ -91,6 +99,36 @@ Last reviewed: **2026-09-20 (v1.0.7)**.
 [issues #4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [#4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [issue #5]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/5
+
+## Added in 1.0.8
+
+- **Full backup: everything, in one encrypted file.** Settings → Advanced → Full Backup.
+  Unlike *Export & Import* (which is a list of chosen content), this takes the app's whole
+  storage: the entire database (chats, memory, cron jobs, MCP servers, connectors, skills,
+  modules, board, notes, documents and anything added later), every setting including API
+  keys and tokens (opened from this install's Keystore and sealed again on the new one),
+  every preference file (bots, Chief name, budget, proactive), the private files and the
+  agent's workspace. It is chosen by where data lives, not by a feature list, so a table or
+  setting added next month is carried without anyone remembering to add it. One file, a
+  password is required, and it streams in chunks so a large database does not need the
+  memory to hold it.
+- **Restore is checked first and applied on the next launch.** The whole file is decrypted
+  and verified (integrity, version, no path escapes) before anything changes, so a wrong
+  password or a damaged file leaves the app exactly as it was. Swapping the database under
+  running screens would crash them, so the swap happens at the start of the next launch,
+  before anything has opened it, as a rename. The previous database is kept beside it as
+  `hermes.db.pre-restore`. Verified on a phone: back up, uninstall, reinstall, restore;
+  every table row-for-row identical.
+
+## Fixed in 1.0.8
+
+- **Cron jobs were never re-scheduled from the database.** The schedule lives in
+  WorkManager's own database, separate from the task rows, and only the Cron screen ever
+  enqueued work, so after a reinstall or restore the jobs were listed and never ran. They
+  are now reconciled at every start (an already-scheduled job keeps its timing). Verified:
+  a restored job appeared in WorkManager on an install that began with none.
+- Restore now puts back the local API server key and SSH password that the older backup
+  wrote but never applied (from 1.0.7).
 
 ## Added in 1.0.7
 

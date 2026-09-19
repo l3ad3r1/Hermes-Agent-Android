@@ -12,16 +12,27 @@ import javax.inject.Singleton
 /**
  * Enqueues / cancels the periodic WorkManager job backing a [ScheduledTask].
  *
- * Driven by the cron UI ([com.hermes.agent.ui.cron.CronViewModel]). A restored
- * install picks its jobs back up from the database, so anything that writes a
- * task must schedule it here too — otherwise it sits in the list but never
- * fires.
+ * Driven by the cron UI ([com.hermes.agent.ui.cron.CronViewModel]). The schedule lives in
+ * WorkManager's own database, separate from the task rows, so a task that is in the list is not
+ * necessarily scheduled: a restored or reinstalled app has the rows and none of the work.
+ * [reconcile] closes that gap at startup.
  */
 @Singleton
 class CronScheduler @Inject constructor(
     private val workManager: WorkManager,
 ) {
-    fun schedule(task: ScheduledTask) {
+    fun schedule(task: ScheduledTask) = enqueue(task, ExistingPeriodicWorkPolicy.UPDATE)
+
+    /**
+     * Makes sure every enabled task has its periodic work. A task that is already scheduled is
+     * left exactly as it is (KEEP), so running this on every launch does not restart anyone's
+     * timing; only a task WorkManager has lost gets enqueued again.
+     */
+    fun reconcile(tasks: List<ScheduledTask>) {
+        tasks.filter { it.isEnabled }.forEach { enqueue(it, ExistingPeriodicWorkPolicy.KEEP) }
+    }
+
+    private fun enqueue(task: ScheduledTask, policy: ExistingPeriodicWorkPolicy) {
         val data = Data.Builder()
             .putString(ScheduledTaskWorker.KEY_TASK_ID, task.id)
             .putString(ScheduledTaskWorker.KEY_TASK_PROMPT, task.prompt)
@@ -43,7 +54,7 @@ class CronScheduler @Inject constructor(
 
         workManager.enqueueUniquePeriodicWork(
             "cron_${task.id}",
-            ExistingPeriodicWorkPolicy.UPDATE,
+            policy,
             request,
         )
     }
