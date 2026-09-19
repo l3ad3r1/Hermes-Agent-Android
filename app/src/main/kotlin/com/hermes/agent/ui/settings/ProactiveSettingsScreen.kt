@@ -66,13 +66,12 @@ fun ProactiveSettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
-            Text(
-                text = "Hermes only pings when a capability below is on, outside quiet hours " +
+            InfoNote(
+                "When Hermes pings",
+                "Hermes only pings when a capability below is on, outside quiet hours " +
                     "(${state.quietLabel}), within ${state.dailyCap} pings a day, and never " +
                     "during Do Not Disturb. Every ping — sent or suppressed — is listed under " +
                     "\"What Hermes did\".",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(16.dp))
 
@@ -123,19 +122,13 @@ fun ProactiveSettingsScreen(
                     .padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Notification summary in digest",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        text = "Also needs notification access granted to Hermes in system " +
-                            "settings. Captured text appears only in your digest — it is " +
-                            "never shown to the AI. Turning this off deletes captured data.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                DescribedTitle(
+                    title = "Notification summary in digest",
+                    description = "Also needs notification access granted to Hermes in system " +
+                        "settings. Captured text appears only in your digest — it is " +
+                        "never shown to the AI. Turning this off deletes captured data.",
+                    modifier = Modifier.weight(1f),
+                )
                 Switch(
                     checked = state.notificationCapture,
                     onCheckedChange = { viewModel.setNotificationCapture(it) },

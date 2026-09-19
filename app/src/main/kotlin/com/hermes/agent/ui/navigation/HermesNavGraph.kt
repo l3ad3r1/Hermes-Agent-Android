@@ -191,6 +191,15 @@ fun HermesNavGraph(
                     onOpenDocuments = { navController.navigate(TopLevelDestination.DOCUMENTS.route) },
                     onOpenHaDashboard = { navController.navigate("ha_dashboard") },
                     onOpenPostOffice = { navController.navigate("post_office") },
+                    onOpenBots = { navController.navigate("bots") },
+                )
+            }
+            composable("bots") {
+                com.hermes.agent.ui.bots.BotsScreen(
+                    onBack = { navController.popBackStack() },
+                    // The notice this opens says "add its URL and API key" — those fields are on the
+                    // connections settings page, not the Connect hub (messaging integrations).
+                    onOpenConnections = { navController.navigate("settings_connections") },
                 )
             }
             composable("post_office") {

@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Markunread
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.ViewKanban
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -77,6 +78,7 @@ fun HomeScreen(
     onOpenDocuments: () -> Unit = {},
     onOpenHaDashboard: () -> Unit = {},
     onOpenPostOffice: () -> Unit = {},
+    onOpenBots: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val threads by viewModel.recentThreads.collectAsStateWithLifecycle()
@@ -201,6 +203,7 @@ fun HomeScreen(
                 add(SuperpowerTile("Skill Studio", "Custom tools", Icons.Filled.Psychology, 3, onOpenSkills))
                 add(SuperpowerTile("CRON Routines", "Scheduled triggers", Icons.Filled.Schedule, 4, onOpenSchedule))
                 add(SuperpowerTile("Post Office", "Cross-agent mail", Icons.Filled.Markunread, 0, onOpenPostOffice))
+                add(SuperpowerTile("Bots", "PC bots & chat", Icons.Filled.SmartToy, 1, onOpenBots))
                 add(SuperpowerTile("Messaging & Bot", "Telegram gateway", Icons.Filled.Forum, 1, onOpenConnections))
                 add(SuperpowerTile("A/B Benchmark", "Latency & tok/s", Icons.Filled.Bolt, 2, onOpenExperiment))
                 add(SuperpowerTile("Knowledge Base", "Documents & RAG", Icons.AutoMirrored.Filled.LibraryBooks, 3, onOpenDocuments))

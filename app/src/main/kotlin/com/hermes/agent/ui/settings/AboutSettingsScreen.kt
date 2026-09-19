@@ -310,11 +310,10 @@ private fun PermissionsCard() {
                 )
             }
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            Text(
+            InfoNote(
+                "How toggling works",
                 "Toggling opens the system screen where the grant is made — Android never lets an app change its own permissions directly.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
     }
@@ -333,14 +332,7 @@ private fun PermissionToggleRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        DescribedTitle(title = label, description = description, modifier = Modifier.weight(1f))
         Switch(
             checked = granted,
             onCheckedChange = { onToggle() },
@@ -391,11 +383,10 @@ private fun CompanionAppsCard() {
                 { openOrGet(SHIZUKU_PKG) },
             )
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            Text(
+            InfoNote(
+                "How toggling works",
                 "On → opens the app. Off → opens its F-Droid page to install. Uninstall from the launcher.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
     }
@@ -414,10 +405,7 @@ private fun CompanionToggleRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(name, style = MaterialTheme.typography.bodyLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        DescribedTitle(title = name, description = subtitle, modifier = Modifier.weight(1f))
         Switch(
             checked = isInstalled,
             onCheckedChange = { onToggle() },

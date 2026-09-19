@@ -168,19 +168,21 @@ private fun FilesWorkspaceSection(
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Button(
                     onClick = { launcher.launch(null) },
                     modifier = Modifier.weight(1f),
+                    contentPadding = SettingsButtonPadding,
                 ) {
-                    Text(if (rootUri.isBlank()) "Grant Directory" else "Change Directory")
+                    ButtonLabel(if (rootUri.isBlank()) "Grant Directory" else "Change Directory")
                 }
                 if (rootUri.isNotBlank()) {
                     OutlinedButton(
                         onClick = { onUpdateRoot("") },
+                        contentPadding = SettingsButtonPadding,
                     ) {
-                        Text("Revoke / Reset")
+                        ButtonLabel("Revoke / Reset")
                     }
                 }
             }
@@ -209,14 +211,11 @@ private fun PrivilegedShellSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Enable Privileged Shell", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Allows the shell tool to run with ADB privileges (UID 2000) via Shizuku.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                DescribedTitle(
+                    title = "Enable Privileged Shell",
+                    description = "Allows the shell tool to run with ADB privileges (UID 2000) via Shizuku.",
+                    modifier = Modifier.weight(1f),
+                )
                 androidx.compose.material3.Switch(
                     checked = enabled,
                     onCheckedChange = onToggleEnabled,
@@ -327,13 +326,12 @@ private fun ExportSection(
                 )
                 Text("Export sessions for evolution", style = MaterialTheme.typography.bodyLarge)
             }
-            Text(
+            InfoNote(
+                "How the export is used",
                 "Exports your conversations as a JSON archive for the offline " +
                     "hermes-agent-self-evolution tool. Unzip into ~/.hermes/sessions/ " +
                     "on your computer, then run the evolver with --eval-source sessiondb. " +
                     "The archive contains raw chat text — treat it as sensitive.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             when (state) {
@@ -352,12 +350,12 @@ private fun ExportSection(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { onShare(state.zipFile) }, modifier = Modifier.weight(1f)) {
-                            Text("Share archive")
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Button(onClick = { onShare(state.zipFile) }, modifier = Modifier.weight(1f), contentPadding = SettingsButtonPadding) {
+                            ButtonLabel("Share archive")
                         }
-                        OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                            Text("Done")
+                        OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f), contentPadding = SettingsButtonPadding) {
+                            ButtonLabel("Done")
                         }
                     }
                 }
@@ -436,11 +434,10 @@ private fun JsonBackupSection(
                 )
                 Text("Backup & Restore", style = MaterialTheme.typography.bodyLarge)
             }
-            Text(
+            InfoNote(
+                "About backup and restore",
                 "Choose what to include. Restoring merges into what is already " +
                     "here and needs no restart.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             when (state) {
@@ -544,13 +541,14 @@ private fun JsonBackupSection(
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilledTonalButton(
                         onClick = { backupLauncher.launch(defaultBackupFileName(APP_LABEL)) },
                         enabled = canBackUp,
                         modifier = Modifier.weight(1f),
+                        contentPadding = SettingsButtonPadding,
                     ) {
-                        Text("Back up")
+                        ButtonLabel("Back up")
                     }
                     OutlinedButton(
                         // Some providers hand JSON back as octet-stream or
@@ -562,8 +560,9 @@ private fun JsonBackupSection(
                             )
                         },
                         modifier = Modifier.weight(1f),
+                        contentPadding = SettingsButtonPadding,
                     ) {
-                        Text("Restore")
+                        ButtonLabel("Restore")
                     }
                 }
                 if (passwordRequired && password.isBlank()) {

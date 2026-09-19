@@ -148,4 +148,31 @@ object RemoteRepositoryProviderModule {
     ): ConversationRepository = runBlocking {
         if (settings.current().remoteGatewayEnabled) remoteImpl else localImpl
     }
+
+    /**
+     * A [ChatRepository] that always runs on this phone's own model, regardless of
+     * [UserSettings.remoteGatewayEnabled]. [ChatRepositoryImpl] itself always resolves the
+     * `Orchestrator` binding — which [OrchestratorProviderModule] switches to
+     * [com.hermes.agent.data.remote.RemoteOrchestrator] app-wide when the remote gateway is
+     * on — so `localImpl` above is not actually local-only once that setting is enabled.
+     * Bots that must run on-device (e.g. the Bots screen's local personas) need this instead.
+     */
+    @Provides
+    @Singleton
+    @Named("local")
+    fun provideLocalOnlyChatRepository(
+        conversationRepository: ConversationRepositoryImpl,
+        memoryRepository: com.hermes.agent.domain.repository.MemoryRepository,
+        router: LlmRouter,
+        orchestratorImpl: com.hermes.agent.data.agent.OrchestratorImpl,
+        compressor: com.hermes.agent.data.llm.ConversationCompressor,
+        dispatchers: DispatcherProvider,
+    ): ChatRepository = ChatRepositoryImpl(
+        conversationRepository,
+        memoryRepository,
+        router,
+        orchestratorImpl,
+        compressor,
+        dispatchers,
+    )
 }

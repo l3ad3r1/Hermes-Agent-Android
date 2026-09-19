@@ -121,10 +121,10 @@ fun AssistantSettingsScreen(
                     TextButton(onClick = onOpenTalk) {
                         Text("Open hands-free Talk mode")
                     }
-                    Text(
+                    InfoNote(
+                        "About Talk mode",
                         "Continuous voice conversation: it listens, answers aloud, and stops " +
                             "speaking the moment you talk over it.",
-                        style = MaterialTheme.typography.bodySmall,
                     )
                 }
             }
@@ -232,7 +232,8 @@ fun AssistantSettingsScreen(
                     ToggleRow(
                         title = "Auto-approve phone actions",
                         subtitle = "Run alarms, navigation, calls, media, calendar, app launches, " +
-                            "and device controls without asking each time. Shell, Termux, raw settings, " +
+                            "device controls, and the Chief of Bots' create/remove bots " +
+                            "without asking each time. Shell, Termux, raw settings, " +
                             "and background actions stay protected.",
                         checked = settings.autoApprovePhoneActions,
                         onCheckedChange = viewModel::setAutoApprovePhoneActions,
@@ -300,15 +301,13 @@ private fun OnDeviceAiCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Local model", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "Off skips the on-device fallback entirely — cloud-only, and a clear error " +
-                            "instead of a silent switch to local when cloud is unreachable.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                DescribedTitle(
+                    title = "Local model",
+                    description = "Off skips the on-device fallback entirely — cloud-only, and a clear error " +
+                        "instead of a silent switch to local when cloud is unreachable.",
+                    modifier = Modifier.weight(1f),
+                    titleStyle = MaterialTheme.typography.titleSmall,
+                )
                 Switch(
                     checked = settings.localLlmEnabled,
                     onCheckedChange = viewModel::setLocalLlmEnabled,
@@ -317,11 +316,10 @@ private fun OnDeviceAiCard(
 
             if (!settings.localLlmEnabled) return@Column
 
-            Text(
-                text = "Cloud models are preferred when enabled. This on-device model is the private " +
+            InfoNote(
+                "How the local model is used",
+                "Cloud models are preferred when enabled. This on-device model is the private " +
                     "offline fallback — pick a model, choose where to save it, and download.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // ── Model dropdown ──────────────────────────────────────────────
@@ -563,15 +561,13 @@ private fun ToolCallerCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Tool caller (experimental)", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "A ${model.sizeLabel} model that runs device commands on the phone, ahead " +
-                            "of the cloud, and passes the turn on when it isn't confident.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                DescribedTitle(
+                    title = "Tool caller (experimental)",
+                    description = "A ${model.sizeLabel} model that runs device commands on the phone, ahead " +
+                        "of the cloud, and passes the turn on when it isn't confident.",
+                    modifier = Modifier.weight(1f),
+                    titleStyle = MaterialTheme.typography.titleSmall,
+                )
                 Switch(
                     checked = settings.onDeviceToolCallerEnabled,
                     onCheckedChange = viewModel::setOnDeviceToolCallerEnabled,
@@ -579,13 +575,12 @@ private fun ToolCallerCard(
             }
 
             if (settings.onDeviceToolCallerEnabled) {
-                Text(
-                    text = "Only tool turns — asking for the torch, a timer, a note. Ordinary " +
+                InfoNote(
+                    "What it handles",
+                    "Only tool turns — asking for the torch, a timer, a note. Ordinary " +
                         "conversation is untouched and still goes to your usual model. A command " +
                         "it gets wrong or is unsure about falls through to the cloud, so the cost " +
                         "of a miss is latency, not a wrong action.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -644,13 +639,12 @@ private fun ToolCallerCard(
                         onClick = { viewModel.downloadToolCaller() },
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("Download ${model.displayName} (${model.sizeLabel})") }
-                    Text(
-                        text = "Saved to the same \"${viewModel.defaultModelDirName}\" folder as " +
+                    InfoNote(
+                        "About this download",
+                        "Saved to the same \"${viewModel.defaultModelDirName}\" folder as " +
                             "the local chat model. Switching the tool caller on starts this " +
                             "download by itself — ${model.sizeLabel}, so prefer wifi. Until it " +
                             "finishes, device commands keep going where they do today.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

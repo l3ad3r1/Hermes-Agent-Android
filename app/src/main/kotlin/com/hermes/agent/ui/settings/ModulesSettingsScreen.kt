@@ -65,10 +65,10 @@ fun ModulesSettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
+            InfoNote(
+                "About modules",
                 "Modules add new tools to Hermes. They run in a sandbox and only get the " +
                     "permissions you approve.",
-                style = MaterialTheme.typography.bodyMedium,
             )
 
             OutlinedTextField(

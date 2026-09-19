@@ -4,8 +4,11 @@ import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.data.llm.LlmRouter
 import com.hermes.agent.data.llm.RoutingDecision
 import com.hermes.agent.data.llm.RoutingContext
+import com.hermes.agent.data.local.BotThreads
+import com.hermes.agent.data.local.LocalBotStore
 import com.hermes.agent.data.memory.ConversationLearner
 import com.hermes.agent.data.memory.UserModelService
+import com.hermes.agent.data.remote.ChiefOfBots
 import com.hermes.agent.data.tool.ToolCallExecutor
 import com.hermes.agent.domain.agent.AgentRouter
 import com.hermes.agent.domain.agent.Orchestrator
@@ -62,6 +65,13 @@ import javax.inject.Singleton
  */
 private const val ASSUMED_CONTEXT_TOKENS = 32_768
 
+/** A reply that begins with a tool-call envelope, tagged (`<tool_call>`) or bare (`tool_call {`). */
+private val RAW_TOOL_CALL_START = Regex("""^\s*(?:<tool_?call>|tool_call\b)""", RegexOption.IGNORE_CASE)
+
+/** An assistant message that is nothing but a tool call that never ran. */
+internal fun isRawToolCallReply(message: LlmMessage): Boolean =
+    message.role == "assistant" && RAW_TOOL_CALL_START.containsMatchIn(message.content)
+
 
 /**
  * Default [Orchestrator] implementation.
@@ -100,6 +110,7 @@ class OrchestratorImpl @Inject constructor(
     private val executionPlanRepository: ExecutionPlanRepository,
     private val activityLedger: ActivityLedger,
     private val settingsRepository: com.hermes.agent.domain.settings.SettingsRepository,
+    private val localBotStore: LocalBotStore,
 ) : Orchestrator {
 
     // Supervisor scope for fire-and-forget post-turn learning tasks.
@@ -189,7 +200,16 @@ class OrchestratorImpl @Inject constructor(
 
         // 1. Route.
         AgentActivity.setPhase(AgentPhase.SOLVING)
-        val routing = agentRouter.route(userMessage)
+        // A persona chat — a local bot, or the Chief of Bots' own thread — is one fixed agent: the
+        // persona. Routing it by keyword sent "create a bot … that takes meeting notes" to the
+        // PRODUCTIVITY agent, whose prompt describes a `todo` tool the Chief does not have, and the
+        // small on-device model improvised from it: it replied with a raw `todo` call, and, asked to
+        // list bots, invented "ManageBots" and "Todo".
+        val routing = if (localBotStore.isLocalBot(conversationId)) {
+            RoutingResult.Solo(AgentRole.CONVERSATIONAL, confidence = 1f)
+        } else {
+            agentRouter.route(userMessage)
+        }
         val primaryRole = when (routing) {
             is RoutingResult.Solo -> routing.agent
             is RoutingResult.MultiAgent -> routing.agents.first()
@@ -270,6 +290,19 @@ class OrchestratorImpl @Inject constructor(
             send(OrchestratorEvent.StepStarted(step.id, step.agentRole))
 
             val agent = agentRegistry.get(step.agentRole)
+            // manage_bots is deliberately granted to no role in AgentToolAccess — it is
+            // added back in here, only for the one conversation belonging to the local bot
+            // flagged as Chief of Bots (or the Chief's own thread), rather than to every
+            // conversation of this role.
+            val availableTools = when {
+                // A persona chat is just a chat: offering the full catalogue to a small
+                // on-device model made it improvise calls to unrelated tools (desktop_bots,
+                // kanban) instead of answering. The Chief of Bots gets exactly one tool.
+                localBotStore.isChiefOfBots(conversationId) ->
+                    listOfNotNull(toolRegistry.byName("manage_bots")?.descriptor)
+                localBotStore.isLocalBot(conversationId) -> emptyList()
+                else -> agent.availableTools(toolRegistry)
+            }
             // Progressive disclosure: MCP and plugin tools hide behind the three
             // bridge tools once their schemas would eat into the context. Without
             // this call the bridge tools were advertised on every turn (with
@@ -277,7 +310,7 @@ class OrchestratorImpl @Inject constructor(
             // context size assumed here is fixed because routing has not happened
             // yet at this point - see ASSUMED_CONTEXT_TOKENS.
             val disclosure = ToolSearchEngine.evaluate(
-                agent.availableTools(toolRegistry),
+                availableTools,
                 contextWindowTokens = ASSUMED_CONTEXT_TOKENS,
             )
             val tools = disclosure.modelVisibleDescriptors
@@ -332,13 +365,38 @@ class OrchestratorImpl @Inject constructor(
             // tool schema + persona + standing instructions + tool-call format — every
             // turn. The per-turn recall (memory, skill match, prior-agent context)
             // goes in a second system block that the cache skips.
-            val stableSystem = agent.systemPrompt + standingBlock + toolInstruction
+            // A local bot's persona is layered on top of the role's default prompt for
+            // its own conversation thread, rather than replacing it — the default prompt
+            // carries tool-use guardrails tuned for the on-device model, and dropping them
+            // made a small model (Llama 3.2 1B) noticeably more prone to hallucinating tool
+            // calls. Every other conversation is unaffected.
+            val localPersona = localBotStore.systemPromptFor(conversationId)
+            val persona = if (localPersona != null) {
+                agent.systemPrompt + "\n\n## Custom persona for this conversation\n" + localPersona
+            } else {
+                agent.systemPrompt
+            }
+            val stableSystem = persona + standingBlock + toolInstruction
             val turnContext = memoryBlock + skillBlock + previousContext + deferredBlock
+            // A persona chat is replayed to a small model as history, so what it once said badly
+            // is what it says next: a reply that was only a raw `tool_call {...}` (the call never
+            // ran; it was stored as if it were an answer) made the Chief answer the next request
+            // with the same call again. Those rows carry nothing the model should imitate.
+            val history = when {
+                // Creating or removing a bot is one self-contained instruction; the thread adds
+                // nothing to it and can only mislead. Given the earlier turns, the Chief answered
+                // "remove the bot named scribe" by repeating its own earlier (invented) list of
+                // bots word for word, and never called the tool. A fresh context cannot do that.
+                BotThreads.baseOf(conversationId) == ChiefOfBots.THREAD && ChiefOfBots.looksLikeBotManagement(userMessage) ->
+                    emptyList()
+                localBotStore.isLocalBot(conversationId) -> recentMessages.filterNot(::isRawToolCallReply)
+                else -> recentMessages
+            }
             val llmMessages = buildList {
                 add(LlmMessage(role = "system", content = stableSystem))
                 if (turnContext.isNotBlank()) add(LlmMessage(role = "system", content = turnContext))
-                addAll(recentMessages)
-                if (recentMessages.none { it.role == "user" && it.content == userMessage }) {
+                addAll(history)
+                if (history.none { it.role == "user" && it.content == userMessage }) {
                     add(LlmMessage(role = "user", content = userMessage))
                 }
             }

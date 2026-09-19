@@ -29,10 +29,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.hermes.agent.data.remote.TailnetStatus
@@ -184,28 +186,18 @@ private fun ApiServerSection(
                     } else {
                         PasswordVisualTransformation()
                     },
+                    trailingIcon = { RevealToggle(tokenVisible) { tokenVisible = !tokenVisible } },
                     colors = hermesFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(
+                OutlinedButton(
+                    onClick = {
+                        clipboard?.setPrimaryClip(
+                            android.content.ClipData.newPlainText("Hermes API key", settings.apiServerKey),
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = { tokenVisible = !tokenVisible },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(if (tokenVisible) "Hide token" else "Reveal token")
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            clipboard?.setPrimaryClip(
-                                android.content.ClipData.newPlainText("Hermes API key", settings.apiServerKey),
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) { Text("Copy token") }
-                }
+                ) { Text("Copy token") }
                 OutlinedButton(
                     onClick = { confirmRegeneration = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -219,10 +211,9 @@ private fun ApiServerSection(
                     checked = settings.apiServerAllowLan,
                     onCheckedChange = onAllowLan,
                 )
-                Text(
+                InfoNote(
+                    "When changes apply",
                     "Changing LAN or port takes effect the next time you toggle the server off and on.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -254,12 +245,11 @@ private fun RemoteShellSection(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
+            InfoNote(
+                "About the remote shell",
                 "Let the shell tool run commands on a remote host over SSH " +
                     "(target='remote'). Through SSH you also reach Docker on that host " +
                     "(docker exec …). Leave the host blank to keep the shell on-device only.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             var host by remember(settings.sshHost) { mutableStateOf(settings.sshHost) }
@@ -341,10 +331,9 @@ private fun HomeAssistantSection(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
+            InfoNote(
+                "About Home Assistant control",
                 "Control lights, switches, climates, and scenes via your local or remote Home Assistant instance.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             var url by remember(settings.homeAssistantUrl) { mutableStateOf(settings.homeAssistantUrl) }
@@ -365,35 +354,25 @@ private fun HomeAssistantSection(
                 label = { Text("Long-lived access token") },
                 supportingText = { Text("Create under Profile -> Security -> Long-Lived Access Tokens in Home Assistant.") },
                 visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = { RevealToggle(tokenVisible) { tokenVisible = !tokenVisible } },
                 singleLine = true,
                 colors = hermesFieldColors(),
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Row(
+            OutlinedButton(
+                onClick = {
+                    testing = true
+                    testResult = null
+                    onTestConnection { success, message ->
+                        testing = false
+                        testResult = success to message
+                    }
+                },
+                enabled = !testing,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(
-                    onClick = { tokenVisible = !tokenVisible },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (tokenVisible) "Hide token" else "Reveal token")
-                }
-                OutlinedButton(
-                    onClick = {
-                        testing = true
-                        testResult = null
-                        onTestConnection { success, message ->
-                            testing = false
-                            testResult = success to message
-                        }
-                    },
-                    enabled = !testing,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (testing) "Testing…" else "Test connection")
-                }
+                Text(if (testing) "Testing…" else "Test connection")
             }
 
             testResult?.let { (success, message) ->
@@ -460,7 +439,7 @@ private fun TailnetSection(viewModel: SettingsViewModel) {
                 color = if (current?.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(
                     onClick = {
                         busy = true
@@ -472,14 +451,16 @@ private fun TailnetSection(viewModel: SettingsViewModel) {
                     },
                     enabled = !busy,
                     modifier = Modifier.weight(1f),
+                    contentPadding = SettingsButtonPadding,
                 ) {
-                    Text(if (current?.running == true) "Stop node" else "Start node")
+                    ButtonLabel(if (current?.running == true) "Stop node" else "Start node")
                 }
                 OutlinedButton(
                     onClick = { viewModel.tailnetLogs { logs = it.takeLast(2000) } },
                     modifier = Modifier.weight(1f),
+                    contentPadding = SettingsButtonPadding,
                 ) {
-                    Text("Show logs")
+                    ButtonLabel("Show logs")
                 }
             }
 
@@ -500,12 +481,11 @@ private fun TailnetSection(viewModel: SettingsViewModel) {
                 Text(logs, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            Text(
+            InfoNote(
+                "About this node",
                 "Experimental. The node runs inside this app only — no VPN permission, and " +
                     "nothing else on the phone is rerouted. It keeps its key in this app's storage, " +
                     "so signing in is a one-time step.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -537,7 +517,8 @@ private fun RemoteGatewaySection(
             // URL and key stay visible with thin-client mode off: the desktop_bots tool uses them too.
             HorizontalDivider()
 
-            Text(
+            InfoNote(
+                "Which address to use",
                 "Point at your PC's Hermes gateway. The gateway runs " +
                     "`hermes gateway` and exposes an API server (default port 8642). " +
                     "Use a hostname the phone can resolve: an mDNS name " +
@@ -545,16 +526,21 @@ private fun RemoteGatewaySection(
                     "MagicDNS name (http://mymachine.tailnet.ts.net:8642). " +
                     "Cleartext HTTP is allowed for these hosts; for a raw IP " +
                     "use HTTPS, Tailscale Serve, or a reverse proxy.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // Seeded once, not re-keyed on the stored value: persisting per keystroke and
-            // re-seeding from the settings flow reorders characters while typing.
+            // re-seeding from the settings flow reorders characters while typing. The settings
+            // flow's first emission is the empty default, though, so adopt the stored URL when it
+            // arrives and the field has not been edited — otherwise the blank seed was written
+            // back over a saved URL.
             var url by rememberSaveable { mutableStateOf(settings.remoteGatewayUrl) }
+            var urlEdited by rememberSaveable { mutableStateOf(false) }
+            LaunchedEffect(settings.remoteGatewayUrl) {
+                if (!urlEdited && url != settings.remoteGatewayUrl) url = settings.remoteGatewayUrl
+            }
             OutlinedTextField(
                 value = url,
-                onValueChange = { url = it },
+                onValueChange = { url = it; urlEdited = true },
                 label = { Text("Gateway URL") },
                 placeholder = { Text("http://hermes-pc.local:8642") },
                 singleLine = true,
@@ -573,6 +559,7 @@ private fun RemoteGatewaySection(
                 label = { Text("Gateway API key") },
                 supportingText = { Text("The PC's API_SERVER_KEY (set in ~/.hermes/.env).") },
                 visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = { RevealToggle(keyVisible) { keyVisible = !keyVisible } },
                 singleLine = true,
                 colors = hermesFieldColors(),
                 modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
@@ -585,33 +572,37 @@ private fun RemoteGatewaySection(
                 },
             )
 
-            Row(
+            // Leaving the screen with a field still focused never reports focus loss, so what was
+            // typed was silently dropped. Commit any pending edit on the way out.
+            val latestUrl by rememberUpdatedState(url)
+            val latestKey by rememberUpdatedState(key)
+            val latestSettings by rememberUpdatedState(settings)
+            DisposableEffect(Unit) {
+                onDispose {
+                    if (latestUrl != latestSettings.remoteGatewayUrl) onUrl(latestUrl)
+                    if (latestKey != latestSettings.remoteGatewayApiKey) onApiKey(latestKey)
+                }
+            }
+
+            OutlinedButton(
+                onClick = {
+                    // The field saves on focus loss; save explicitly too
+                    // in case the button press consumed the focus event. The URL as
+                    // well: this used to save only the key, so a test could report
+                    // "Connected" for a URL that was never stored.
+                    if (url != settings.remoteGatewayUrl) onUrl(url)
+                    if (key != settings.remoteGatewayApiKey) onApiKey(key)
+                    testing = true
+                    testResult = null
+                    onTestConnection(url, key) { success, message ->
+                        testing = false
+                        testResult = success to message
+                    }
+                },
+                enabled = !testing,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(
-                    onClick = { keyVisible = !keyVisible },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (keyVisible) "Hide key" else "Reveal key")
-                }
-                OutlinedButton(
-                    onClick = {
-                        // The field saves on focus loss; save explicitly too
-                        // in case the button press consumed the focus event.
-                        if (key != settings.remoteGatewayApiKey) onApiKey(key)
-                        testing = true
-                        testResult = null
-                        onTestConnection(url, key) { success, message ->
-                            testing = false
-                            testResult = success to message
-                        }
-                    },
-                    enabled = !testing,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (testing) "Testing…" else "Test connection")
-                }
+                Text(if (testing) "Testing…" else "Test connection")
             }
 
             testResult?.let { (success, message) ->
@@ -623,17 +614,17 @@ private fun RemoteGatewaySection(
             }
 
             HorizontalDivider()
-            Text(
+            InfoNote(
+                "What the remote gateway does",
                 "When enabled, conversations on this phone map to PC gateway " +
                     "sessions. A turn sent from the phone appears on the PC, and " +
                     "vice versa. Tool approvals are forwarded to the phone's " +
                     "existing approval dialog.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             HorizontalDivider()
-            Text(
-                "Security: the phone inherits the full authority of the PC " +
+            InfoNote(
+                "Security",
+                "The phone inherits the full authority of the PC " +
                     "gateway — terminal, file operations, everything the agent " +
                     "can do. The API key is stored in the Android Keystore and " +
                     "never leaves the device, but anyone with the key can drive " +
@@ -642,8 +633,7 @@ private fun RemoteGatewaySection(
                     "and point this URL at that profile prefix. The gateway is " +
                     "the enforcement point — the phone cannot self-limit tools " +
                     "that the PC has already started.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                textColor = MaterialTheme.colorScheme.error,
             )
         }
     }
@@ -672,12 +662,11 @@ private fun McpServersSection(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
+            InfoNote(
+                "About MCP servers",
                 "Connect Model Context Protocol servers over HTTP or SSE. Their tools become " +
                     "available to the agent, namespaced per server and confirmation-gated before " +
                     "they run.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             if (servers.isEmpty()) {
@@ -723,7 +712,7 @@ private fun McpServersSection(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -732,14 +721,16 @@ private fun McpServersSection(
                         },
                         enabled = server.enabled && busyServerId == null,
                         modifier = Modifier.weight(1f),
+                        contentPadding = SettingsButtonPadding,
                     ) {
-                        Text(if (busyServerId == server.id) "Syncing..." else "Sync tools")
+                        ButtonLabel(if (busyServerId == server.id) "Syncing..." else "Sync tools")
                     }
                     OutlinedButton(
                         onClick = { pendingDelete = server },
                         modifier = Modifier.weight(1f),
+                        contentPadding = SettingsButtonPadding,
                     ) {
-                        Text("Remove")
+                        ButtonLabel("Remove")
                     }
                 }
             }
@@ -823,14 +814,15 @@ private fun AddMcpServerDialog(
                     onValueChange = { url = it },
                     label = { Text("URL") },
                     placeholder = { Text("https://example.com/mcp") },
-                    supportingText = {
-                        Text("HTTP or SSE endpoint. Servers that run as a local process are not " +
-                            "supported in the app sandbox - run them under Termux and point here " +
-                            "at their localhost port.")
-                    },
                     singleLine = true,
                     colors = hermesFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
+                )
+                InfoNote(
+                    "About the URL",
+                    "HTTP or SSE endpoint. Servers that run as a local process are not " +
+                        "supported in the app sandbox - run them under Termux and point here " +
+                        "at their localhost port.",
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     McpTransportType.entries.forEach { option ->

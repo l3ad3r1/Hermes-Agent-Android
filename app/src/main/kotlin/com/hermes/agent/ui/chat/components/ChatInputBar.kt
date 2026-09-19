@@ -101,6 +101,10 @@ fun ChatInputBar(
     reasoningEffort: String = "medium",
     onReasoningEffortChange: ((String) -> Unit)? = null,
     modelName: String = "",
+    /** False hides "Attach image/document" where the receiver has nowhere to send them (a PC bot takes text only). */
+    attachmentsEnabled: Boolean = true,
+    /** Overrides the "Ask Hermes" hint, for a chat that is with someone in particular. */
+    placeholder: String? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var text by remember(prefillText) { mutableStateOf(prefillText) }
@@ -208,7 +212,7 @@ fun ChatInputBar(
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (text.isEmpty()) {
                                 Text(
-                                    text = stringResource(R.string.chat_placeholder),
+                                    text = placeholder ?: stringResource(R.string.chat_placeholder),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -288,20 +292,22 @@ fun ChatInputBar(
                             expanded = quickActionsOpen,
                             onDismissRequest = { quickActionsOpen = false },
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Attach image") },
-                                onClick = {
-                                    quickActionsOpen = false
-                                    imagePickerLauncher.launch("image/*")
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Attach document") },
-                                onClick = {
-                                    quickActionsOpen = false
-                                    imagePickerLauncher.launch("*/*")
-                                },
-                            )
+                            if (attachmentsEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text("Attach image") },
+                                    onClick = {
+                                        quickActionsOpen = false
+                                        imagePickerLauncher.launch("image/*")
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Attach document") },
+                                    onClick = {
+                                        quickActionsOpen = false
+                                        imagePickerLauncher.launch("*/*")
+                                    },
+                                )
+                            }
                             listOf(
                                 "Plan my day" to "Help me plan my day",
                                 "Create a note" to "Create a note for me",

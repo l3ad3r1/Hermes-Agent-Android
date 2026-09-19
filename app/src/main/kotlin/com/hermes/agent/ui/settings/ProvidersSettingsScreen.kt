@@ -153,11 +153,7 @@ fun ProvidersSettingsScreen(
                 }
             }
 
-            Text(
-                "Provider keys are stored with Android Keystore encryption.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            InfoNote("About key storage", "Provider keys are stored with Android Keystore encryption.")
         }
     }
 

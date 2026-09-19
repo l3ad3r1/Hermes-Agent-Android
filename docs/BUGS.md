@@ -5,7 +5,7 @@ kept separate from the roadmap so regressions are tracked without presenting
 planned work as a bug. The granular register with repro steps and evidence is the
 `Known Issues` sheet of `Hermes-Test-Regimen.xlsx`.
 
-Last reviewed: **2026-09-08 (v1.0.3)**.
+Last reviewed: **2026-09-19 (v1.0.5)**.
 
 ## Open
 
@@ -22,6 +22,30 @@ Last reviewed: **2026-09-08 (v1.0.3)**.
 - **K04 — `RepeatedExecutionGuard` cannot detect repeats, by design.** Its
   fingerprint includes tool output, and create-style tools return a fresh id each
   call, so two identical creates never look identical to the guard.
+- **K30 — the gateway cannot list its bots without a patch.** The Chief of Bots
+  offers a new desktop's existing bots by asking `GET /api/profiles`, an endpoint
+  that upstream `hermes-agent` does not have. Without it the app falls back to
+  probing a few common names (`redditbot`, `research`, `coder`, `writer`,
+  `assistant`), so a bot with any other name is not offered and has to be added by
+  hand with **+**. Tracked with the rest of the 1.0.5 follow-ups in the release
+  issue.
+- **K31 — a bare "delete X" is not understood on the phone.** "Remove the bot
+  named scribe", "delete bot scribe" and "delete the scribe bot" are handled by the
+  app; "delete Scribe" is not recognised as a bot command, so it goes to the PC's
+  Chief, which answers that it has no such bot even when the phone does.
+- **K32 — the Chief's name is not synced.** Renaming the Chief on the phone writes
+  the name into the prompts it sends, but the PC's own profile keeps its display
+  name, so the two can disagree.
+- **K33 — the approval dialog for direct create/remove is unit-tested only.**
+  Creating or removing a phone bot from chat goes through the same confirmation as
+  the `manage_bots` tool. With "Auto-approve phone actions" on it is bypassed and
+  was exercised on a device; the Allow/Deny path was not.
+- **K34 — the Chief's charter promises tools the PC may not have.** It mentions
+  Google Drive, calendar, mail and Vercel; on a desktop where those connectors are
+  not set up it must say so plainly, and only its "never describe work you did not
+  do" line stops it claiming otherwise.
+- **K35 — no way to delete a bot chat thread.** The new history list opens and
+  starts threads but cannot remove one.
 
 ## Current limitations
 
@@ -57,6 +81,55 @@ Last reviewed: **2026-09-08 (v1.0.3)**.
 [issues #4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [#4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [issue #5]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/5
+
+## Fixed in 1.0.5
+
+Bots hub (new in this release, so these are found-and-fixed rather than
+regressions):
+
+- **The Chief invented bots and tools.** Asked to list bots it recited tool names
+  as bots, and on "create/remove a bot" it replied with a raw `todo` call or a
+  "list of available tools". Causes: keyword routing sent it to the productivity
+  agent; earlier bad replies were replayed to a 1B model as history; and the model
+  itself is unreliable at tool use. Fixed by forcing persona chats to the
+  conversational agent, dropping raw tool-call replies from history, giving a bot
+  management request an empty history, and having the app itself answer a list
+  request and carry out a clear "create/remove a bot named X" (still behind the
+  same confirmation).
+- **Bots crashed on open** after the threads change: the map of open threads was
+  declared below the `init` block that reads it, so on the real main thread it was
+  still null. Regression test added that constructs the ViewModel with eagerly
+  started coroutines.
+- **Chat vanished after switching bots.** A desktop bot's thread lived only in
+  memory; it is now stored on the phone and restored.
+- **The Chief's PC side failing left it silent.** An unreachable gateway now falls
+  back to the on-device model and says so.
+- **Charter stutter** ("You are Chief of Bots, the user's Chief of Bots") under the
+  default name.
+
+Connections and Settings:
+
+- **"Test connection" reported *Connected* for a URL that was never saved.** It now
+  saves the URL first, and pending URL/key edits are committed when leaving the
+  screen (a focused field never reported focus loss).
+- **Bots' "Open Connections" opened the wrong screen.**
+- **"Test connection" was cut off** beside a Reveal button. Token and key fields now
+  have an eye icon in the field and the button has its own row.
+- **Buttons sharing a row broke their labels a letter at a time** ("Skip" came out
+  sideways on the Reddit approvals; several Settings rows had the same problem).
+  Tighter padding and gaps, one-line labels, and wrapping where a row still cannot
+  fit.
+- **Long explanations crowded every Settings screen.** They are now behind an "i"
+  icon beside the title, hidden by default.
+
+Engine (`agent-core`):
+
+- **A 1B model's tool call that lost one or two closing braces was dropped.** The
+  parser closes what is still open and tries once more; an unterminated string is
+  still left to fail.
+- **The embedded Tailscale node did not survive a restart**, so the gateway's
+  tailnet name stopped resolving until *Start node* was tapped again. It restarts
+  if it was left on; a deliberate *Stop node* is remembered.
 
 ## Fixed in 0.11.x
 

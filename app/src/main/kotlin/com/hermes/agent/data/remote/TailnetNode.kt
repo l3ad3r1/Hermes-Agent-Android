@@ -35,6 +35,7 @@ class TailnetNode @Inject constructor(
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
+    private val prefs = context.getSharedPreferences("tailnet", Context.MODE_PRIVATE)
 
     @Volatile
     private var cached: Pair<String, OkHttpClient>? = null
@@ -43,11 +44,22 @@ class TailnetNode @Inject constructor(
     fun start(hostname: String = defaultHostname()) {
         val stateDir = java.io.File(context.filesDir, "tailnet").absolutePath
         Tsbridge.start(stateDir, hostname, AndroidInterfaces)
+        prefs.edit().putBoolean(KEY_AUTOSTART, true).apply()
     }
 
     fun stop() {
         cached = null
         Tsbridge.stop()
+        prefs.edit().putBoolean(KEY_AUTOSTART, false).apply()
+    }
+
+    /**
+     * Bring the node back up on app launch if the user left it running. The node lives in this
+     * process, so a restart (or crash) stops it, and the gateway's tailnet name then fails to
+     * resolve until someone taps Start node again. A deliberate Stop node is remembered.
+     */
+    fun startIfEnabled() {
+        if (prefs.getBoolean(KEY_AUTOSTART, false) && !status().running) start()
     }
 
     fun status(): TailnetStatus {
@@ -102,6 +114,7 @@ class TailnetNode @Inject constructor(
 
     private companion object {
         const val TAG = "TailnetNode"
+        const val KEY_AUTOSTART = "autostart"
     }
 }
 

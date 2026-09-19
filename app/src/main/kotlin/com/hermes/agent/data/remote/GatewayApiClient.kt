@@ -4,12 +4,16 @@ import com.hermes.agent.domain.settings.SettingsRepository
 import com.hermes.agent.util.DispatcherProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -81,15 +85,26 @@ class GatewayApiClient @Inject constructor(
      * When [sessionId] is provided, the gateway loads that session's active
      * transcript so the run has full conversation context — this is what
      * enables seamless handoff (the PC is the canonical store).
+     *
+     * [instructions] is applied by the gateway as an ephemeral system prompt for this run only:
+     * it is added to the agent's own and never saved, so it shapes a run without editing the PC.
      */
-    suspend fun startRun(input: String, sessionId: String?): String = withContext(dispatchers.io) {
-        val base = baseUrl()
+    suspend fun startRun(
+        input: String,
+        sessionId: String?,
+        profile: String? = null,
+        instructions: String? = null,
+    ): String = withContext(dispatchers.io) {
+        val base = baseUrl() + profilePrefix(profile)
         val key = apiKey()
         val body = buildString {
             append("{")
             append("\"input\":").append(json.encodeToString(JsonPrimitive.serializer(), JsonPrimitive(input)))
             if (sessionId != null) {
                 append(",\"session_id\":").append(json.encodeToString(JsonPrimitive.serializer(), JsonPrimitive(sessionId)))
+            }
+            if (!instructions.isNullOrBlank()) {
+                append(",\"instructions\":").append(json.encodeToString(JsonPrimitive.serializer(), JsonPrimitive(instructions)))
             }
             append("}")
         }
@@ -116,11 +131,19 @@ class GatewayApiClient @Inject constructor(
      * line is parsed into a [GatewayEvent]. The flow completes when the
      * stream ends (run completed/failed/cancelled) or the connection drops.
      */
-    fun streamRunEvents(runId: String): Flow<GatewayEvent> = flow {
-        val base = baseUrl()
+    fun streamRunEvents(runId: String, profile: String? = null): Flow<GatewayEvent> = flow {
+        val base = baseUrl() + profilePrefix(profile)
         val key = apiKey()
         val request = authBuilder("$base/v1/runs/$runId/events", key).build()
-        val response = client.newCall(request).execute()
+        // execute() throws on a dropped or timed-out connection; left uncaught that escaped the
+        // flow and crashed the app, so report it like any other lost stream.
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            Timber.tag("GatewayClient").w(e, "SSE connect failed")
+            emit(GatewayEvent.RunFailed("Connection lost: ${e.message ?: "could not open the event stream"}"))
+            return@flow
+        }
         if (!response.isSuccessful) {
             response.close()
             emit(GatewayEvent.RunFailed("events stream failed: ${response.code}"))
@@ -159,9 +182,17 @@ class GatewayApiClient @Inject constructor(
         }
     }.flowOn(dispatchers.io)
 
-    /** Resolve a pending approval for a run. */
-    suspend fun submitApproval(runId: String, approved: Boolean, requestId: String = "") = withContext(dispatchers.io) {
-        val base = baseUrl()
+    /**
+     * Resolve a pending approval for a run. A run belongs to the profile that started it, so an
+     * approval for any bot but the default has to go to that profile's own endpoint.
+     */
+    suspend fun submitApproval(
+        runId: String,
+        approved: Boolean,
+        requestId: String = "",
+        profile: String? = null,
+    ) = withContext(dispatchers.io) {
+        val base = baseUrl() + profilePrefix(profile)
         val key = apiKey()
         // The gateway expects {"choice": "once"|"deny"}; a bare
         // {"approved": <bool>} body is rejected with `invalid_approval_choice`
@@ -185,8 +216,8 @@ class GatewayApiClient @Inject constructor(
     }
 
     /** Interrupt a running agent. */
-    suspend fun stopRun(runId: String) = withContext(dispatchers.io) {
-        val base = baseUrl()
+    suspend fun stopRun(runId: String, profile: String? = null) = withContext(dispatchers.io) {
+        val base = baseUrl() + profilePrefix(profile)
         val key = apiKey()
         val request = authBuilder("$base/v1/runs/$runId/stop", key)
             .post("".toRequestBody(jsonMediaType))
@@ -343,8 +374,111 @@ class GatewayApiClient @Inject constructor(
             ?: throw IOException("$action job: could not parse response: ${body.take(200)}")
     }
 
+    /**
+     * The bots this gateway serves, from its `/api/profiles`, or null when it has no such
+     * endpoint (an older gateway) — the caller then has to ask by name with [profileExists].
+     */
+    suspend fun listProfiles(): List<RemoteProfile>? = withContext(dispatchers.io) {
+        val request = authBuilder("${baseUrl()}/api/profiles", apiKey()).build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string().orEmpty()
+        response.close()
+        if (response.code == 404) return@withContext null
+        if (!response.isSuccessful) throw IOException("listProfiles failed: ${response.code} ${body.take(200)}")
+        val data = json.parseToJsonElement(body).jsonObject["data"] as? JsonArray ?: return@withContext emptyList()
+        data.mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            fun str(key: String) = (obj[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
+            str("name").takeIf { it.isNotBlank() }
+                ?.let { RemoteProfile(it, str("display_name"), str("description")) }
+        }
+    }
+
+    /** Whether the gateway answers under `/p/<profile>/`, i.e. serves a bot of that name. */
+    suspend fun profileExists(profile: String): Boolean = withContext(dispatchers.io) {
+        val request = authBuilder("${baseUrl()}${profilePrefix(profile)}/health", apiKey()).build()
+        val response = client.newCall(request).execute()
+        val ok = response.isSuccessful
+        response.close()
+        ok
+    }
+
     private fun profilePrefix(profile: String?): String =
         if (profile.isNullOrBlank() || profile == "default") "" else "/p/$profile"
+
+    /**
+     * Fetch every one of [profiles]' jobs concurrently, pairing each with its own [Result] so
+     * one profile being unreachable doesn't block or blank out the others — used by both the
+     * Bots dashboard and the CRON screen's PC-bots roundup.
+     */
+    suspend fun listJobsByProfile(profiles: List<String>): List<Pair<String, Result<List<RemoteJob>>>> = coroutineScope {
+        profiles.map { profile ->
+            async { profile to runCatching { listJobs(profile.takeIf { it != BotProfileStore.DEFAULT }) } }
+        }.awaitAll()
+    }
+
+    // ── Reddit approvals API (anshkosh-reddit plugin) ──────────────────────
+    // The plugin's draft queue is shared, PC-wide state, always reached through the
+    // default profile — same as the Telegram bot that owns it today.
+
+    /** List drafts waiting for approval, with their critique and (if any) the critic's rewrite. */
+    suspend fun listRedditDrafts(): List<RedditDraft> = withContext(dispatchers.io) {
+        val request = authBuilder("${baseUrl()}/api/reddit/drafts", apiKey()).build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string().orEmpty()
+        response.close()
+        if (!response.isSuccessful) throw IOException("listRedditDrafts failed: ${response.code} ${body.take(200)}")
+        parseRedditDrafts(body)
+    }
+
+    /** Post [code] (or its critic rewrite, if [useRewrite]) in the PC's logged-in Chrome window. No LLM in between. */
+    suspend fun approveRedditDraft(code: String, useRewrite: Boolean): String = withContext(dispatchers.io) {
+        val body = buildJsonObject { put("rewrite", JsonPrimitive(useRewrite)) }.toString()
+        val request = authBuilder("${baseUrl()}/api/reddit/drafts/$code/approve", apiKey())
+            .post(body.toRequestBody(jsonMediaType))
+            .build()
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string().orEmpty()
+        response.close()
+        if (!response.isSuccessful) throw IOException("approve $code failed: ${response.code} ${responseBody.take(300)}")
+        redditResultText(responseBody)
+    }
+
+    /** Drop a pending draft without posting it. */
+    suspend fun skipRedditDraft(code: String): String = withContext(dispatchers.io) {
+        val request = authBuilder("${baseUrl()}/api/reddit/drafts/$code/skip", apiKey())
+            .post("{}".toRequestBody(jsonMediaType))
+            .build()
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string().orEmpty()
+        response.close()
+        if (!response.isSuccessful) throw IOException("skip $code failed: ${response.code} ${responseBody.take(300)}")
+        redditResultText(responseBody)
+    }
+
+    private fun redditResultText(body: String): String =
+        (json.parseToJsonElement(body).jsonObject["result"] as? JsonPrimitive)?.contentOrNull ?: body
+
+    private fun parseRedditDrafts(body: String): List<RedditDraft> {
+        val drafts = runCatching { json.parseToJsonElement(body).jsonObject["drafts"] }.getOrNull()
+            as? kotlinx.serialization.json.JsonArray ?: return emptyList()
+        return drafts.mapNotNull { (it as? JsonObject)?.let(::parseRedditDraft) }
+    }
+
+    private fun parseRedditDraft(obj: JsonObject): RedditDraft? {
+        fun str(key: String) = (obj[key] as? JsonPrimitive)?.contentOrNull
+        return RedditDraft(
+            code = str("code") ?: return null,
+            sub = str("sub") ?: "",
+            title = str("title") ?: "",
+            url = str("url") ?: "",
+            text = str("text") ?: "",
+            critic = str("critic"),
+            score = str("score")?.toIntOrNull(),
+            issues = str("issues"),
+            rewrite = str("rewrite"),
+        )
+    }
 
     // ── Parsing ───────────────────────────────────────────────────────────
 
@@ -527,6 +661,9 @@ class GatewayApiClient @Inject constructor(
 }
 
 /** A session on the PC gateway, mapped from the `/api/sessions` response. */
+/** A bot the gateway serves: its profile name, and the display name and description it was given. */
+data class RemoteProfile(val name: String, val displayName: String = "", val description: String = "")
+
 data class RemoteSession(
     val id: String,
     val title: String,
@@ -549,6 +686,22 @@ data class RemoteJob(
     val lastRunAt: String?,
     val lastStatus: String?,
     val lastError: String?,
+)
+
+/**
+ * A u/Anshkoshmod Reddit comment draft waiting for approval, mapped from `/api/reddit/drafts`.
+ * [critic]/[score]/[issues]/[rewrite] are null until the desktop's critique cron has run.
+ */
+data class RedditDraft(
+    val code: String,
+    val sub: String,
+    val title: String,
+    val url: String,
+    val text: String,
+    val critic: String?,
+    val score: Int?,
+    val issues: String?,
+    val rewrite: String?,
 )
 
 /** A message in a PC gateway session, mapped from `/api/sessions/{id}/messages`. */

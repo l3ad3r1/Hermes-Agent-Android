@@ -79,6 +79,9 @@ class HermesApp : Application(), Configuration.Provider {
     @Inject
     lateinit var presenceBeaconSchedulerProvider: Provider<com.hermes.agent.work.PresenceBeaconScheduler>
 
+    @Inject
+    lateinit var tailnetNodeProvider: Provider<com.hermes.agent.data.remote.TailnetNode>
+
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCreate() {
@@ -98,6 +101,12 @@ class HermesApp : Application(), Configuration.Provider {
         applicationScope.launch {
             runCatching { encryptedSettingsProvider.get().clearUnreadableSecrets() }
                 .onFailure { Timber.tag("Settings").w(it, "secret sweep unavailable") }
+        }
+
+        // The embedded tailnet node dies with the process; restart it if it was left on.
+        applicationScope.launch(Dispatchers.IO) {
+            runCatching { tailnetNodeProvider.get().startIfEnabled() }
+                .onFailure { Timber.tag("Tailnet").w(it, "tailnet auto-start failed") }
         }
 
         scheduleAmbientWorkers()
