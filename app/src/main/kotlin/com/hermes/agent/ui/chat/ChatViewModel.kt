@@ -52,6 +52,7 @@ class ChatViewModel @Inject constructor(
     private val todoStore: TodoStore,
     private val settingsRepository: SettingsRepository,
     private val reasoningStore: com.hermes.agent.data.chat.ReasoningStore,
+    private val branchStore: com.hermes.agent.data.chat.BranchStore,
     private val toolConfirmationService: com.hermes.agent.domain.tool.ToolConfirmationService,
     private val executionPlanRepository: ExecutionPlanRepository,
     private val ultraSkillInterceptor: com.hermes.agent.domain.agent.UltraSkillInterceptor,
@@ -66,6 +67,61 @@ class ChatViewModel @Inject constructor(
     }
 
     private val _ephemeral = MutableStateFlow(ChatEphemeralState())
+
+    private val _branchPoints = MutableStateFlow<List<com.hermes.agent.data.chat.BranchPoint>>(emptyList())
+
+    /** Where this chat went more than one way, keyed by the message the `‹ 2 / 3 ›` switcher sits on. */
+    val branches: StateFlow<Map<String, com.hermes.agent.data.chat.BranchInfo>> =
+        combine(conversationRepository.observeMessages(conversationId), _branchPoints) { messages, points ->
+            com.hermes.agent.data.chat.BranchLogic.switchers(points, messages)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    init {
+        viewModelScope.launch { _branchPoints.value = branchStore.load(conversationId) }
+    }
+
+    /**
+     * Editing or re-running a turn removes it and everything after it. Before that happens, keep
+     * what is about to go as a branch, so the earlier version of the conversation can be brought back.
+     */
+    private suspend fun keepBranchBefore(message: Message) {
+        val messages = uiState.value.messages
+        val index = messages.indexOfFirst { it.id == message.id }
+        if (index < 0) return
+        val parentId = if (index == 0) "" else messages[index - 1].id
+        val points = com.hermes.agent.data.chat.BranchLogic.fork(
+            _branchPoints.value,
+            parentId,
+            messages.drop(index).map(com.hermes.agent.data.chat.Snap::of),
+        )
+        _branchPoints.value = points
+        branchStore.save(conversationId, points)
+    }
+
+    /** Show another branch of this chat: the current one is set aside and the chosen one put in its place. */
+    fun switchBranch(info: com.hermes.agent.data.chat.BranchInfo, targetPosition: Int) {
+        if (_ephemeral.value.isSending) return
+        viewModelScope.launch {
+            val messages = uiState.value.messages
+            val parentIndex = if (info.parentId.isEmpty()) -1 else messages.indexOfFirst { it.id == info.parentId }
+            if (parentIndex < 0 && info.parentId.isNotEmpty()) return@launch
+            val liveTail = messages.drop(parentIndex + 1)
+            val switch = com.hermes.agent.data.chat.BranchLogic.switchTo(
+                _branchPoints.value, info.parentId, targetPosition - 1,
+                liveTail.map(com.hermes.agent.data.chat.Snap::of),
+            ) ?: return@launch
+            runCatching {
+                liveTail.firstOrNull()?.let { conversationRepository.rewindTo(conversationId, it) }
+                switch.install.forEach { conversationRepository.addMessage(conversationId, it.toMessage(conversationId)) }
+            }.onSuccess {
+                _branchPoints.value = switch.points
+                branchStore.save(conversationId, switch.points)
+            }.onFailure { t ->
+                Timber.tag("Chat").w(t, "could not switch branch")
+                _ephemeral.value = _ephemeral.value.copy(errorMessage = "Could not switch to that branch.")
+            }
+        }
+    }
 
     /** The saved reasoning behind each reply that has some, keyed by message id, for the "Thought for" chip. */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -176,6 +232,8 @@ class ChatViewModel @Inject constructor(
      */
     fun editMessage(message: Message) {
         viewModelScope.launch {
+            runCatching { keepBranchBefore(message) }
+                .onFailure { Timber.tag("Chat").w(it, "could not keep the earlier version as a branch") }
             runCatching { conversationRepository.rewindTo(conversationId, message) }
                 .onFailure { Timber.tag("Chat").w(it, "could not clear the turn being edited") }
             _inputPrefill.value = message.content
@@ -234,6 +292,8 @@ class ChatViewModel @Inject constructor(
             .removePrefix("[quick] ")
             .trim()
         viewModelScope.launch {
+            runCatching { keepBranchBefore(message) }
+                .onFailure { Timber.tag("Chat").w(it, "could not keep the earlier version as a branch") }
             runCatching { conversationRepository.rewindTo(conversationId, message) }
                 .onFailure { Timber.tag("Chat").w(it, "could not clear the turn being retried") }
             sendMessage("[$alias] $cleanContent")
