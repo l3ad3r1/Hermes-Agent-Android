@@ -72,6 +72,41 @@ val IbmPlexSans = FontFamily(
     ibmPlexSans(FontWeight.Bold),
 )
 
+/** Outfit — a rounded geometric sans (SIL OFL 1.1, see licenses/fonts/). */
+@OptIn(ExperimentalTextApi::class)
+val Outfit = FontFamily(
+    listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold).map { w ->
+        Font(
+            com.hermes.agent.R.font.outfit_variable,
+            w,
+            variationSettings = FontVariation.Settings(FontVariation.weight(w.weight)),
+        )
+    },
+)
+
+/**
+ * Every size is a term of one geometric sequence anchored at body = 16sp with ratio 1.2, so the
+ * hierarchy has a steady rhythm instead of hand-picked sizes: 11, 13, 16, 19, 23, 28, 33, 40, 48, 57.
+ * Line heights widen for reading text and tighten for large headings. Used with the colour presets.
+ */
+val GeometricTypography = Typography(
+    displayLarge = TextStyle(fontFamily = Geist, fontSize = 57.sp, lineHeight = 66.sp, letterSpacing = (-0.25).sp),
+    displayMedium = TextStyle(fontFamily = Geist, fontSize = 48.sp, lineHeight = 55.sp),
+    displaySmall = TextStyle(fontFamily = Geist, fontSize = 40.sp, lineHeight = 46.sp),
+    headlineLarge = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 33.sp, lineHeight = 41.sp),
+    headlineMedium = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 35.sp),
+    headlineSmall = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 23.sp, lineHeight = 29.sp),
+    titleLarge = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 23.sp, lineHeight = 30.sp),
+    titleMedium = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 19.sp, lineHeight = 25.sp),
+    titleSmall = TextStyle(fontFamily = Geist, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 21.sp),
+    bodyLarge = TextStyle(fontFamily = Geist, fontSize = 16.sp, lineHeight = 23.sp),
+    bodyMedium = TextStyle(fontFamily = Geist, fontSize = 13.sp, lineHeight = 19.sp),
+    bodySmall = TextStyle(fontFamily = Geist, fontSize = 11.sp, lineHeight = 16.sp),
+    labelLarge = TextStyle(fontFamily = Geist, fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 18.sp),
+    labelMedium = TextStyle(fontFamily = Geist, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 15.sp),
+    labelSmall = TextStyle(fontFamily = GeistMono, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 15.sp),
+)
+
 val HermesTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = Geist,
@@ -165,6 +200,7 @@ fun hermesTypography(
         "mono" -> FontFamily.Monospace
         "rubik" -> Rubik
         "ibm_plex" -> IbmPlexSans
+        "outfit" -> Outfit
         else -> Geist
     }
     val scale = scalePercent.coerceIn(85, 130) / 100f

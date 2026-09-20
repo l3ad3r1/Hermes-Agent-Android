@@ -175,6 +175,12 @@ class SettingsViewModel @Inject constructor(
     /** Null clears the override and returns to that style's own default colour. */
     fun setThemeAccentColor(argb: Int?) = HermesSettings.setThemeAccentColor(appContext, argb)
 
+    val colorPreset: StateFlow<String> = HermesSettings.colorPresetFlow(appContext)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.colorPreset(appContext))
+
+    /** An empty key turns the preset off and returns to the chosen Theme style. */
+    fun setColorPreset(key: String) = HermesSettings.setColorPreset(appContext, key)
+
     val fontFamily: StateFlow<String> = HermesSettings.fontFamilyFlow(appContext)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HermesSettings.FONT_GEIST)
 

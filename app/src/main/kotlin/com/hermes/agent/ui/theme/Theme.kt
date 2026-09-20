@@ -20,6 +20,7 @@ import com.hermes.agent.ui.theme.alt.ThemeStyle
 import com.hermes.agent.ui.theme.alt.resolveAltColorScheme
 import com.hermes.agent.ui.theme.alt.resolveAltShapes
 import com.hermes.agent.core.theme.hermesColorScheme
+import com.hermes.agent.core.theme.GeometricTypography
 import com.hermes.agent.core.theme.hermesTypography
 
 /** Persisted values are retained for backup compatibility; all now render OLED monochrome. */
@@ -37,12 +38,17 @@ fun HermesTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     themeStyle: ThemeStyle = ThemeStyle.DEFAULT,
     themeAccentColor: Int? = null,
+    colorPreset: SeedPreset? = null,
     fontFamilyName: String = "geist",
     fontScalePercent: Int = 100,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = resolveAltColorScheme(themeStyle, darkTheme, themeAccentColor?.let { Color(it) })
-        ?: hermesColorScheme(darkTheme)
+    val colorScheme = if (colorPreset != null) {
+        seedColorScheme(colorPreset, darkTheme)
+    } else {
+        resolveAltColorScheme(themeStyle, darkTheme, themeAccentColor?.let { Color(it) })
+            ?: hermesColorScheme(darkTheme)
+    }
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -58,13 +64,17 @@ fun HermesTheme(
 
     val context = LocalContext.current
     val fontScale = context.resources.configuration.fontScale
-    val selectedTypography = hermesTypography(fontFamilyName, fontScalePercent)
+    val selectedTypography = if (colorPreset != null) {
+        hermesTypography(fontFamilyName, fontScalePercent, base = GeometricTypography)
+    } else {
+        hermesTypography(fontFamilyName, fontScalePercent)
+    }
     val typography = if (fontScale > 1.2f) boostedTypography(selectedTypography) else selectedTypography
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = typography,
-        shapes = resolveAltShapes(themeStyle) ?: HermesShapes,
+        shapes = if (colorPreset != null) SeedShapes else resolveAltShapes(themeStyle) ?: HermesShapes,
     ) {
         HermesHighContrastWrapper(darkTheme = darkTheme, content = content)
     }

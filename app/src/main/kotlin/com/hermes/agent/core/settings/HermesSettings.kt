@@ -42,7 +42,9 @@ object HermesSettings {
     const val FONT_MONO = "mono"
     const val FONT_RUBIK = "rubik"
     const val FONT_IBM_PLEX = "ibm_plex"
-    val FONT_FAMILIES: Set<String> = setOf(FONT_GEIST, FONT_SYSTEM, FONT_SERIF, FONT_MONO, FONT_RUBIK, FONT_IBM_PLEX)
+    const val FONT_OUTFIT = "outfit"
+    const val KEY_COLOR_PRESET = "color_preset"
+    val FONT_FAMILIES: Set<String> = setOf(FONT_GEIST, FONT_SYSTEM, FONT_SERIF, FONT_MONO, FONT_RUBIK, FONT_IBM_PLEX, FONT_OUTFIT)
     const val DEFAULT_FONT_SCALE_PERCENT = 100
     const val MIN_FONT_SCALE_PERCENT = 85
     const val MAX_FONT_SCALE_PERCENT = 130
@@ -103,6 +105,16 @@ object HermesSettings {
 
     fun themeAccentColorFlow(context: Context): Flow<Int?> = prefFlow(context) { p ->
         if (p.contains(KEY_THEME_ACCENT_COLOR)) p.getInt(KEY_THEME_ACCENT_COLOR, 0) else null
+    }
+
+    /** Storage key of the seed-colour preset ("midnight", "forest"...), or "" for none. */
+    fun colorPreset(context: Context): String = prefs(context).getString(KEY_COLOR_PRESET, "") ?: ""
+
+    fun setColorPreset(context: Context, key: String) =
+        prefs(context).edit().putString(KEY_COLOR_PRESET, key).apply()
+
+    fun colorPresetFlow(context: Context): Flow<String> = prefFlow(context) { p ->
+        p.getString(KEY_COLOR_PRESET, "") ?: ""
     }
 
     fun fontFamily(context: Context): String =

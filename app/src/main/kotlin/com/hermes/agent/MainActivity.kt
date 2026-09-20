@@ -72,6 +72,8 @@ class MainActivity : FragmentActivity() {
                 .collectAsState(initial = HermesSettings.themeStyle(this))
             val themeAccentColor by HermesSettings.themeAccentColorFlow(this)
                 .collectAsState(initial = HermesSettings.themeAccentColor(this))
+            val colorPreset by HermesSettings.colorPresetFlow(this)
+                .collectAsState(initial = HermesSettings.colorPreset(this))
             val fontFamily by HermesSettings.fontFamilyFlow(this)
                 .collectAsState(initial = HermesSettings.fontFamily(this))
             val fontScalePercent by HermesSettings.fontScalePercentFlow(this)
@@ -88,6 +90,7 @@ class MainActivity : FragmentActivity() {
                 },
                 themeStyle = com.hermes.agent.ui.theme.alt.ThemeStyle.fromStorageKey(themeStyle),
                 themeAccentColor = themeAccentColor,
+                colorPreset = com.hermes.agent.ui.theme.SeedPreset.fromStorageKey(colorPreset),
                 fontFamilyName = fontFamily,
                 fontScalePercent = fontScalePercent,
             ) {

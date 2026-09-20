@@ -177,25 +177,22 @@ fun ChatInputBar(
             }
         }
 
-        // The rounded box holds the text field and the send button; the
-        // remaining controls (+, mic, model, effort) sit in a row beneath it so
-        // the typing area keeps most of the width on a narrow screen (S24U).
+        // One rounded container holds everything: the text field across the top, and beneath it
+        // the actions (attach, mic, model, effort) with send at the far end, so the whole
+        // composer reads as a single floating pill and the typing area keeps the full width.
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 0.dp),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            shape = RoundedCornerShape(32.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
-            Row(
-                modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
+            Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 8.dp)) {
                 BasicTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
                         .heightIn(min = 40.dp, max = 148.dp)
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
@@ -222,65 +219,11 @@ fun ChatInputBar(
                     },
                 )
 
-                Spacer(Modifier.size(4.dp))
 
-                // Send / stop — colour shifts with state, the shape and
-                // keyboard-return glyph stay constant. Stop is red; see
-                // HermesPalette.Stop.
-                //
-                // This button used to start voice chat whenever the field was
-                // empty, so a stray tap on what reads as Enter dropped the user
-                // into a talking session. Voice chat lives on the microphone
-                // now; with nothing to send this does nothing.
-                val hasText = text.isNotBlank()
-                val canSend = hasText || attachedImageUri != null
-                val actionColor = when {
-                    isSending -> HermesPalette.Stop
-                    canSend -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.surfaceVariant
-                }
-                Surface(
-                    onClick = when {
-                        isSending -> onCancel
-                        canSend -> ::submit
-                        else -> ({})
-                    },
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    color = actionColor,
-                    contentColor = when {
-                        isSending -> HermesPalette.OnStop
-                        canSend -> MaterialTheme.colorScheme.onPrimary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isSending) {
-                                Icons.Outlined.Stop
-                            } else {
-                                Icons.AutoMirrored.Outlined.KeyboardReturn
-                            },
-                            contentDescription = if (isSending) {
-                                stringResource(R.string.a11y_stop_generating)
-                            } else {
-                                stringResource(R.string.a11y_send_button)
-                            },
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-            }
-        }
-
-        // Action row — sits below the input box so the typing area keeps the
-        // full width of the composer.
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 18.dp, end = 16.dp, top = 2.dp, bottom = 6.dp),
-        ) {
             Box {
                         IconButton(
                             onClick = { quickActionsOpen = true },
@@ -441,6 +384,57 @@ fun ChatInputBar(
                             }
                         }
                     }
+
+                    Spacer(Modifier.size(6.dp))
+
+                // Send / stop — colour shifts with state, the shape and
+                // keyboard-return glyph stay constant. Stop is red; see
+                // HermesPalette.Stop.
+                //
+                // This button used to start voice chat whenever the field was
+                // empty, so a stray tap on what reads as Enter dropped the user
+                // into a talking session. Voice chat lives on the microphone
+                // now; with nothing to send this does nothing.
+                val hasText = text.isNotBlank()
+                val canSend = hasText || attachedImageUri != null
+                val actionColor = when {
+                    isSending -> HermesPalette.Stop
+                    canSend -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.surfaceVariant
+                }
+                Surface(
+                    onClick = when {
+                        isSending -> onCancel
+                        canSend -> ::submit
+                        else -> ({})
+                    },
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = actionColor,
+                    contentColor = when {
+                        isSending -> HermesPalette.OnStop
+                        canSend -> MaterialTheme.colorScheme.onPrimary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isSending) {
+                                Icons.Outlined.Stop
+                            } else {
+                                Icons.AutoMirrored.Outlined.KeyboardReturn
+                            },
+                            contentDescription = if (isSending) {
+                                stringResource(R.string.a11y_stop_generating)
+                            } else {
+                                stringResource(R.string.a11y_send_button)
+                            },
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+                }
             }
         }
     }
+}
