@@ -99,6 +99,10 @@ fun AdvancedSettingsScreen(
 
             SectionHeader(text = "Full Backup")
             FullBackupSection()
+            AutoBackupSection()
+
+            SectionHeader(text = "Import chats")
+            ChatImportSection()
 
             SectionHeader(text = "Export & Import (chosen content)")
             JsonBackupSection(

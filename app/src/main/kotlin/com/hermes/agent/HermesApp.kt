@@ -89,6 +89,9 @@ class HermesApp : Application(), Configuration.Provider {
     @Inject
     lateinit var cronSchedulerProvider: Provider<com.hermes.agent.work.CronScheduler>
 
+    @Inject
+    lateinit var autoBackupStoreProvider: Provider<com.hermes.agent.data.export.AutoBackupStore>
+
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCreate() {
@@ -105,6 +108,7 @@ class HermesApp : Application(), Configuration.Provider {
         // Capture logs to a file (all build types) so the user can pull them
         // from Settings → Logs; keep the console DebugTree in debug builds.
         Timber.plant(FileLogTree(logManager))
+        com.hermes.agent.data.diagnostics.CrashReporter.install(this, BuildConfig.VERSION_NAME)
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
@@ -132,6 +136,14 @@ class HermesApp : Application(), Configuration.Provider {
             runCatching {
                 cronSchedulerProvider.get().reconcile(cronRepositoryProvider.get().observe().first())
             }.onFailure { Timber.tag("Cron").w(it, "could not re-schedule cron jobs") }
+        }
+
+        // Same for scheduled backups: after a reinstall the settings may be gone, and a job that
+        // was scheduled must not be duplicated or restarted, so the existing one is kept.
+        applicationScope.launch {
+            runCatching {
+                com.hermes.agent.data.export.AutoBackupScheduler.apply(this@HermesApp, autoBackupStoreProvider.get(), replace = false)
+            }.onFailure { Timber.tag("AutoBackup").w(it, "could not schedule automatic backups") }
         }
 
         // The Gist backup is gone, but an install that used it still holds the
