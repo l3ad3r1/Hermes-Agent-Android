@@ -160,7 +160,10 @@ fun ChatScreen(
             topBar = {
                 ReferenceChatTopBar(
                     title = uiState.title,
-                    subtitle = shortModelName(uiState.activeModel),
+                    subtitle = listOf(
+                        shortModelName(uiState.activeModel),
+                        ContextMeter.label(uiState.estimatedTokens, uiState.activeModel),
+                    ).filter { it.isNotBlank() }.joinToString("  ·  "),
                     onOpenChats = onBack,
                     onNewChat = onNewChat,
                     onOpenPlan = if (uiState.currentPlan != null) {
