@@ -95,6 +95,7 @@ class ChatViewModelTest {
         clarificationBus = ClarificationBus(),
         todoStore = TodoStore(),
         settingsRepository = settingsRepository,
+        reasoningStore = mockk<com.hermes.agent.data.chat.ReasoningStore>(relaxed = true),
         toolConfirmationService = mockk<ToolConfirmationService>(relaxed = true),
         executionPlanRepository = plans,
         ultraSkillInterceptor = mockk<com.hermes.agent.domain.agent.UltraSkillInterceptor>(relaxed = true).also {

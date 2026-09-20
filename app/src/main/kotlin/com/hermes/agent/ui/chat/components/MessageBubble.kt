@@ -88,6 +88,7 @@ fun MessageBubble(
     onRetryWithAlias: ((Message, String) -> Unit)? = null,
     onRewindTo: ((Message) -> Unit)? = null,
     onForkFrom: ((Message) -> Unit)? = null,
+    reasoning: com.hermes.agent.data.chat.StoredReasoning? = null,
 ) {
     val clipboard = LocalClipboardManager.current
     val haptics = LocalHapticFeedback.current
@@ -180,6 +181,10 @@ fun MessageBubble(
                 state = evidence,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
+        }
+
+        if (!isUser && reasoning != null) {
+            ThoughtChip(reasoning)
         }
 
         Box(

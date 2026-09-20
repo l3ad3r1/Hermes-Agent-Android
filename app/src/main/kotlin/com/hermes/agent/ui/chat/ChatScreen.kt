@@ -99,6 +99,7 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val reasoning by viewModel.reasoning.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var planDrawerOpen by remember { mutableStateOf(false) }
@@ -242,6 +243,7 @@ fun ChatScreen(
                                         when (item) {
                                             is ChatListItem.MessageItem -> MessageBubble(
                                                 message = item.message,
+                                                reasoning = reasoning[item.message.id],
                                                 onEditMessage = viewModel::editMessage,
                                                 onRetryWithAlias = viewModel::retryWithAlias,
                                                 onRewindTo = viewModel::rewindTo,
