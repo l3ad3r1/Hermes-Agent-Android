@@ -65,8 +65,8 @@ class ChatImportViewModel @Inject constructor(
                         ImportMode.SKIP_EXISTING,
                     )
                     buildString {
-                        append("Imported ${report.added} ${parsed.source.label} chats")
-                        if (report.skipped > 0) append(", ${report.skipped} were already here")
+                        append("Imported ${report.added} ${parsed.source.label} chat${if (report.added == 1) "" else "s"}")
+                        if (report.skipped > 0) append(", ${report.skipped} already here")
                         append(". Only the text of your messages and the replies comes across, not images or files.")
                     }
                 }
