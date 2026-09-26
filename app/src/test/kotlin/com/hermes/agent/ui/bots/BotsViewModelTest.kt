@@ -664,6 +664,70 @@ class BotsViewModelTest {
         coVerify { gateway.startRun(any(), sessionId = match { it.startsWith("phone-bot-default-") }, profile = any(), instructions = any()) }
     }
 
+    private fun conversation(id: String, updatedAt: Long) =
+        com.hermes.agent.domain.model.Conversation(id = id, title = id, createdAt = 0L, updatedAt = updatedAt)
+
+    @Test
+    fun `deleting an earlier thread removes it and leaves the open one alone`() = runTest(dispatcher) {
+        val later = "${ChiefOfBots.THREAD}#b"
+        every { conversationRepository.observeConversations() } returns flowOf(
+            listOf(conversation(ChiefOfBots.THREAD, 2), conversation(later, 1)),
+        )
+        every { conversationRepository.observeMessages(any()) } returns flowOf(stored(ChiefOfBots.THREAD, "hi", "hello"))
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        vm.deleteThread(later)
+        advanceUntilIdle()
+
+        coVerify { conversationRepository.deleteConversation(later) }
+        assertEquals(ChiefOfBots.THREAD, vm.state.value.threads.first { it.current }.id)
+    }
+
+    @Test
+    fun `deleting the open thread moves to the newest one left`() = runTest(dispatcher) {
+        val later = "${ChiefOfBots.THREAD}#b"
+        every { conversationRepository.observeConversations() } returns flowOf(
+            listOf(conversation(ChiefOfBots.THREAD, 2), conversation(later, 1)),
+        )
+        every { conversationRepository.observeMessages(any()) } returns flowOf(emptyList())
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        vm.deleteThread(ChiefOfBots.THREAD)
+        advanceUntilIdle()
+
+        coVerify { conversationRepository.deleteConversation(ChiefOfBots.THREAD) }
+        assertEquals(later, vm.state.value.threadIds[ChiefOfBots.PROFILE])
+    }
+
+    @Test
+    fun `deleting the only thread opens a fresh one rather than reusing its id`() = runTest(dispatcher) {
+        every { conversationRepository.observeConversations() } returns flowOf(listOf(conversation(ChiefOfBots.THREAD, 1)))
+        every { conversationRepository.observeMessages(any()) } returns flowOf(emptyList())
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        vm.deleteThread(ChiefOfBots.THREAD)
+        advanceUntilIdle()
+
+        val fresh = vm.state.value.threadIds.getValue(ChiefOfBots.PROFILE)
+        assertTrue(fresh.startsWith("${ChiefOfBots.THREAD}#"))
+        coVerify { conversationRepository.ensureConversation(fresh, "New chat") }
+    }
+
+    @Test
+    fun `a thread of another bot cannot be deleted here`() = runTest(dispatcher) {
+        every { conversationRepository.observeMessages(any()) } returns flowOf(emptyList())
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        vm.deleteThread("desktopbot_redditbot#abc")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { conversationRepository.deleteConversation(any()) }
+    }
+
     // ── offering the desktop's bots ──────────────────────────────────────────────────────────
 
     private val url = "http://pc.tailnet.ts.net:8642"

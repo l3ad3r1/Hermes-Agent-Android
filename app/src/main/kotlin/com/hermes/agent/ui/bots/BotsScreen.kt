@@ -30,6 +30,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
@@ -434,6 +435,33 @@ class BotsViewModel @Inject constructor(
         _state.update { it.copy(threadIds = threadIds.toMap(), stored = emptyList(), pending = null, error = null) }
     }
 
+    /**
+     * Delete one of the selected bot's threads from this phone (K35). Deleting the open one moves
+     * to the newest thread left, or to a fresh one: a PC bot's session is keyed on the thread id,
+     * so reusing the deleted id would bring its history back from the PC.
+     */
+    fun deleteThread(id: String) {
+        val s = _state.value
+        val base = baseConversationId(s.selected)
+        if (s.sending || !BotThreads.belongsTo(id, base)) return
+        val fresh = if (id == conversationIdFor(s.selected)) {
+            stopVoiceChat()
+            val next = s.threads.firstOrNull { it.id != id }?.id
+            val moveTo = next ?: BotThreads.newId(base)
+            if (moveTo == base) threadIds.remove(s.selected) else threadIds[s.selected] = moveTo
+            _state.update { it.copy(threadIds = threadIds.toMap(), stored = emptyList(), pending = null, error = null) }
+            moveTo.takeIf { next == null }
+        } else {
+            null
+        }
+        viewModelScope.launch {
+            runCatching {
+                conversationRepository.deleteConversation(id)
+                fresh?.let { conversationRepository.ensureConversation(it, NEW_THREAD_TITLE) }
+            }.onFailure { e -> _state.update { it.copy(error = "Couldn't delete that chat: ${e.message}") } }
+        }
+    }
+
     fun addDesktopBot(name: String) {
         if (!profileStore.add(name)) {
             _state.update { it.copy(error = "'$name' is not a usable bot name.") }
@@ -615,11 +643,13 @@ class BotsViewModel @Inject constructor(
         val s = _state.value
         // A yes or no to "want me to add the PC's bots?", which is the app's to act on, not a model's.
         if (attachmentUri.isNullOrBlank()) answerOffer(message)?.let { return it }
+        val phoneBots = localBotStore.bots.value.map { it.name }
         val route = ChiefOfBots.route(
             message,
             hasAttachment = !attachmentUri.isNullOrBlank(),
             // Not yet checked counts as reachable: try the PC, and fall back if it is not.
             pcOnline = s.configured && s.chiefPcOnline != false,
+            phoneBots = phoneBots,
         )
         // Only asking to see the bots: the app holds the lists, so it answers, with no model to get it wrong.
         if (route == ChiefOfBots.Route.PHONE && attachmentUri.isNullOrBlank() && ChiefOfBots.isBotListRequest(message)) {
@@ -632,7 +662,7 @@ class BotsViewModel @Inject constructor(
         }
         // A clear "create a bot named X" / "remove the bot named X": the app does it itself.
         if (route == ChiefOfBots.Route.PHONE && attachmentUri.isNullOrBlank()) {
-            ChiefOfBots.parseBotCommand(message)?.let { return runBotCommand(message, it) }
+            ChiefOfBots.parseBotCommand(message, phoneBots)?.let { return runBotCommand(message, it) }
         }
         if (route == ChiefOfBots.Route.PC) {
             try {
@@ -1422,6 +1452,7 @@ fun BotsScreen(
                             threads = state.threads,
                             onNewThread = viewModel::newThread,
                             onOpenThread = viewModel::openThread,
+                            onDeleteThread = viewModel::deleteThread,
                         )
                         BotDetailTab.JOBS -> JobsTab(
                             jobs = state.jobs,
@@ -1753,6 +1784,7 @@ private fun ChatTab(
     threads: List<BotThread>,
     onNewThread: () -> Unit,
     onOpenThread: (String) -> Unit,
+    onDeleteThread: (String) -> Unit,
 ) {
     var showHistory by remember { mutableStateOf(false) }
     // The microphone must not stay open behind another tab.
@@ -1786,6 +1818,7 @@ private fun ChatTab(
             ThreadHistoryDialog(
                 threads = threads,
                 onOpen = { showHistory = false; onOpenThread(it) },
+                onDelete = onDeleteThread,
                 onDismiss = { showHistory = false },
             )
         }
@@ -1838,8 +1871,23 @@ private fun threadLabel(thread: BotThread): String = when {
 }
 
 @Composable
-private fun ThreadHistoryDialog(threads: List<BotThread>, onOpen: (String) -> Unit, onDismiss: () -> Unit) {
+private fun ThreadHistoryDialog(
+    threads: List<BotThread>,
+    onOpen: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val format = remember { java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT) }
+    var confirming by remember { mutableStateOf<BotThread?>(null) }
+    confirming?.let { thread ->
+        AlertDialog(
+            onDismissRequest = { confirming = null },
+            title = { Text("Delete this chat?") },
+            text = { Text("“${threadLabel(thread)}” will be removed from this phone. This can't be undone.") },
+            confirmButton = { TextButton(onClick = { onDelete(thread.id); confirming = null }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { confirming = null }) { Text("Cancel") } },
+        )
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Chat history") },
@@ -1849,23 +1897,28 @@ private fun ThreadHistoryDialog(threads: List<BotThread>, onOpen: (String) -> Un
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     items(threads, key = { it.id }) { thread ->
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { onOpen(thread.id) }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
-                        ) {
-                            Text(
-                                threadLabel(thread),
-                                fontWeight = if (thread.current) FontWeight.Bold else FontWeight.Normal,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                format.format(java.util.Date(thread.updatedAt)) + if (thread.current) " \u00b7 open now" else "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(
+                                Modifier
+                                    .weight(1f)
+                                    .clickable { onOpen(thread.id) }
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                            ) {
+                                Text(
+                                    threadLabel(thread),
+                                    fontWeight = if (thread.current) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    format.format(java.util.Date(thread.updatedAt)) + if (thread.current) " \u00b7 open now" else "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            IconButton(onClick = { confirming = thread }) {
+                                Icon(Icons.Outlined.Delete, contentDescription = "Delete ${threadLabel(thread)}")
+                            }
                         }
                     }
                 }

@@ -146,9 +146,15 @@ object ChiefOfBots {
      * creating, listing and removing of phone bots. Otherwise the PC answers — it has the tools —
      * unless it cannot be reached, in which case the phone does, so the Chief always answers.
      */
-    fun route(text: String, hasAttachment: Boolean, pcOnline: Boolean): Route = when {
+    fun route(
+        text: String,
+        hasAttachment: Boolean,
+        pcOnline: Boolean,
+        phoneBots: List<String> = emptyList(),
+    ): Route = when {
         hasAttachment -> Route.PHONE
         looksLikeBotManagement(text) || isDiscoverRequest(text) -> Route.PHONE
+        bareRemoveOf(text, phoneBots) != null -> Route.PHONE
         !pcOnline -> Route.PHONE
         else -> Route.PC
     }
@@ -189,8 +195,11 @@ object ChiefOfBots {
      * recited a "list of available tools". Creating and removing are the two things that must
      * work, so the app does them itself when the request is unambiguous — a name is given, and
      * nothing else is asked for in the same sentence — and leaves anything looser to the model.
+     *
+     * A bare "delete Scribe", without the word "bot", counts only when Scribe is one of
+     * [phoneBots] (K31): otherwise it would go to the PC's Chief, which has no such bot.
      */
-    fun parseBotCommand(text: String): BotCommand? {
+    fun parseBotCommand(text: String, phoneBots: List<String> = emptyList()): BotCommand? {
         val cleaned = text.trim()
         if (LISTING.any { it.containsMatchIn(cleaned) }) return null
         if (CHANGING.sumOf { it.findAll(cleaned).count() } > 1) return null
@@ -203,7 +212,15 @@ object ChiefOfBots {
         REMOVE.firstNotNullOfOrNull { it.find(cleaned) }?.let { m ->
             return BotCommand.Remove(cleanName(m.groupValues[1]))
         }
-        return null
+        return bareRemoveOf(cleaned, phoneBots)
+    }
+
+    /** "delete Scribe" where Scribe is one of [phoneBots], named as the phone stores it; else null. */
+    private fun bareRemoveOf(text: String, phoneBots: List<String>): BotCommand.Remove? {
+        if (phoneBots.isEmpty()) return null
+        val m = BARE_REMOVE.find(text.trim()) ?: return null
+        val said = cleanName(m.groupValues[1])
+        return phoneBots.firstOrNull { it.equals(said, ignoreCase = true) }?.let { BotCommand.Remove(it) }
     }
 
     /**
@@ -229,6 +246,9 @@ object ChiefOfBots {
         // delete the poet bot
         Regex("""\b(?:remove|delete|get rid of)\s+(?:the\s+|my\s+)?$NAME\s+bot$END""", RegexOption.IGNORE_CASE),
     )
+
+    // delete scribe — the whole message, so "delete the draft Scribe wrote" is not a removal.
+    private val BARE_REMOVE = Regex("""^(?:please\s+)?(?:remove|delete|get rid of)\s+(?:the\s+|my\s+)?$NAME$END""", RegexOption.IGNORE_CASE)
 
     private val YES = Regex(
         """(?:yes|yeah|yep|yup|sure|ok|okay|please|please do|do it|go ahead|add (?:them|all|both|everything)(?: please)?|yes\W+(?:please|add (?:them|all)))[\s.!]*""",
