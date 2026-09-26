@@ -102,6 +102,13 @@ class ChiefOfBotsTest {
     }
 
     @Test
+    fun `the charter does not promise connectors the computer may not have`() {
+        // K34: a desktop without Drive, mail, calendar or Vercel set up must say so, not pretend.
+        assertTrue(charter.contains("Only the connectors set up on this computer are yours"))
+        assertTrue(charter.contains("say which one is missing"))
+    }
+
+    @Test
     fun `email is sent only when the user asks`() {
         assertTrue(charter.contains("Send only when the user tells you to send"))
         assertTrue(charter.contains("Never send, post, pay, delete or deploy unless the user asked"))
@@ -225,6 +232,27 @@ class ChiefOfBotsTest {
     // ── requests the app carries out itself ──────────────────────────────────────────────────
 
     private fun parse(text: String) = ChiefOfBots.parseBotCommand(text)
+
+    @Test
+    fun `a bare delete of a phone bot's name is a removal handled on the phone`() {
+        // K31: "delete Scribe" used to go to the PC's Chief, which has no bot called Scribe.
+        val phoneBots = listOf("Scribe", "Night Owl")
+        assertEquals(ChiefOfBots.BotCommand.Remove("Scribe"), ChiefOfBots.parseBotCommand("delete scribe", phoneBots))
+        assertEquals(ChiefOfBots.BotCommand.Remove("Night Owl"), ChiefOfBots.parseBotCommand("Remove Night Owl.", phoneBots))
+        assertEquals(Route.PHONE, ChiefOfBots.route("delete Scribe", false, true, phoneBots))
+    }
+
+    @Test
+    fun `a bare delete of anything else is left to the PC`() {
+        val phoneBots = listOf("Scribe")
+        listOf("delete the draft", "delete Scribe's last note", "delete the draft Scribe wrote", "delete Poet")
+            .forEach {
+                assertEquals(it, null, ChiefOfBots.parseBotCommand(it, phoneBots))
+                assertEquals(it, Route.PC, ChiefOfBots.route(it, false, true, phoneBots))
+            }
+        // With no phone bots, a bare name is never a removal.
+        assertEquals(null, ChiefOfBots.parseBotCommand("delete scribe"))
+    }
 
     @Test
     fun `a clear create request is read with its name and what it is for`() {

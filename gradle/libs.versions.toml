@@ -11,6 +11,7 @@ lifecycle = "2.8.6"
 activityCompose = "1.9.2"
 navigationCompose = "2.8.1"
 composeBom = "2024.09.02"
+materialKolor = "4.1.1"
 hiltNavigationCompose = "1.2.0"
 datastorePreferences = "1.1.1"
 workRuntimeKtx = "2.10.0"
@@ -59,6 +60,7 @@ robolectric = "4.13"
 archCoreTesting = "2.2.0"
 
 [libraries]
+material-color-utilities = { group = "com.materialkolor", name = "material-color-utilities", version.ref = "materialKolor" }
 # Browser
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 

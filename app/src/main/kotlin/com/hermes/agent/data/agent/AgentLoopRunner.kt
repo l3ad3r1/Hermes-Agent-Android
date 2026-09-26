@@ -31,6 +31,8 @@ sealed interface AgentLoopOutcome {
     data class Completed(
         val reply: String,
         override val toolsInvoked: List<String>,
+        val reasoning: String = "",
+        val reasoningMillis: Long = 0L,
     ) : AgentLoopOutcome
 
     data class Failed(
@@ -61,6 +63,7 @@ class AgentLoopRunner @Inject constructor(
         // no tools at all, so a turn that had already created a task looked to
         // every caller like nothing had happened.
         val toolsInvoked = mutableListOf<String>()
+        val trace = ReasoningTrace()
         return withTimeoutOrNull(MAX_LOOP_DURATION_MS) {
             runWithinBudget(
                 provider,
@@ -71,6 +74,7 @@ class AgentLoopRunner @Inject constructor(
                 confirmationGate,
                 onToolResult,
                 toolsInvoked,
+                trace,
             )
         } ?: AgentLoopOutcome.Failed(
             AgentLoopFailureReason.TIMED_OUT,
@@ -88,6 +92,7 @@ class AgentLoopRunner @Inject constructor(
         confirmationGate: ToolCallExecutor.ConfirmationGate?,
         onToolResult: suspend (ToolCall, ToolResult) -> Unit,
         toolsInvoked: MutableList<String>,
+        trace: ReasoningTrace,
     ): AgentLoopOutcome {
         var messages = initialMessages
         val guardSession = executionGuard.openSession()
@@ -100,9 +105,13 @@ class AgentLoopRunner @Inject constructor(
         val recoveredResults = mutableMapOf<String, ToolResult>()
 
         repeat(MAX_TOOL_ROUNDS) { round ->
+            val startedAt = System.nanoTime()
             val response = provider.completeWithTools(messages, tools)
+            trace.record(response.reasoning, (System.nanoTime() - startedAt) / 1_000_000)
             if (response.toolCalls.isEmpty()) {
-                return AgentLoopOutcome.Completed(response.content, toolsInvoked.toList())
+                return AgentLoopOutcome.Completed(
+                    response.content, toolsInvoked.toList(), trace.text(), trace.millis,
+                )
             }
 
             messages = messages + LlmMessage(

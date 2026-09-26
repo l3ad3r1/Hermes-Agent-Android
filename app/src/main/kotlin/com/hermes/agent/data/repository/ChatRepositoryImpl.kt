@@ -43,6 +43,7 @@ class ChatRepositoryImpl @Inject constructor(
     private val orchestrator: Orchestrator,
     private val compressor: com.hermes.agent.data.llm.ConversationCompressor,
     private val dispatchers: DispatcherProvider,
+    private val reasoningStore: com.hermes.agent.data.chat.ReasoningStore,
 ) : ChatRepository {
 
     // Summarization must outlive the ViewModel that requests it: onCleared()
@@ -249,6 +250,7 @@ class ChatRepositoryImpl @Inject constructor(
                             isOnDevice = event.isOnDevice,
                         )
                         conversationRepository.addMessage(conversationId, assistantMessage)
+                        reasoningStore.save(assistantMessage.id, event.reasoning, event.reasoningMillis)
                     }
                     is OrchestratorEvent.Failed -> {
                         Timber.tag("ChatRepo").w("orchestration failed: %s", event.message)

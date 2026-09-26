@@ -60,13 +60,14 @@ object FullBackupFormat {
     val FILES_SKIPPED = setOf(
         "datastore", // written through the settings API instead, so secrets can be re-sealed
         "hermes.log", // a diagnostic log, not state
+        "crash", // an unsent crash report, not state
         "profileInstalled", // a marker Android writes
         "models", // downloaded models: gigabytes, and downloaded again from the catalog
         PENDING_DIR, // a restore in progress
     )
 
     /** Preference files that belong to Android or a library rather than to Hermes. */
-    private val PREFS_SKIPPED_PREFIXES = listOf("androidx.", "com.google", "WebView", "android.app", "full_backup")
+    private val PREFS_SKIPPED_PREFIXES = listOf("androidx.", "com.google", "WebView", "android.app", "full_backup", "auto_backup")
 
     fun isHermesPrefs(name: String): Boolean = PREFS_SKIPPED_PREFIXES.none { name.startsWith(it) }
 

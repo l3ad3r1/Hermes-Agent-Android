@@ -30,6 +30,9 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.statusBarsPadding
+import com.hermes.agent.ui.chat.components.shortModelName
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Today
@@ -96,6 +99,8 @@ fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val reasoning by viewModel.reasoning.collectAsStateWithLifecycle()
+    val branches by viewModel.branches.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     var planDrawerOpen by remember { mutableStateOf(false) }
@@ -157,6 +162,10 @@ fun ChatScreen(
             topBar = {
                 ReferenceChatTopBar(
                     title = uiState.title,
+                    subtitle = listOf(
+                        shortModelName(uiState.activeModel),
+                        ContextMeter.label(uiState.estimatedTokens, uiState.activeModel),
+                    ).filter { it.isNotBlank() }.joinToString("  ·  "),
                     onOpenChats = onBack,
                     onNewChat = onNewChat,
                     onOpenPlan = if (uiState.currentPlan != null) {
@@ -235,6 +244,9 @@ fun ChatScreen(
                                         when (item) {
                                             is ChatListItem.MessageItem -> MessageBubble(
                                                 message = item.message,
+                                                reasoning = reasoning[item.message.id],
+                                                branch = branches[item.message.id],
+                                                onSwitchBranch = viewModel::switchBranch,
                                                 onEditMessage = viewModel::editMessage,
                                                 onRetryWithAlias = viewModel::retryWithAlias,
                                                 onRewindTo = viewModel::rewindTo,
@@ -288,9 +300,15 @@ fun ChatScreen(
     }
 }
 
+/**
+ * Two floating pills instead of a flat bar: the conversation (menu, title, and the active model
+ * beneath it) on the left, and the actions (terminal, new chat) on the right. Tapping the left
+ * pill opens the plan when there is one, otherwise the chat list.
+ */
 @Composable
 private fun ReferenceChatTopBar(
     title: String,
+    subtitle: String,
     onOpenChats: () -> Unit,
     onNewChat: () -> Unit,
     onOpenPlan: (() -> Unit)?,
@@ -300,40 +318,67 @@ private fun ReferenceChatTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Left — the conversation title (auto-named from the opening message).
-        // Tapping it opens the execution plan when there is one, otherwise the
-        // chat list.
-        Text(
-            text = title.ifBlank { "New conversation" },
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(onClick = onOpenPlan ?: onOpenChats)
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-        )
-        // Right — terminal toggle, then start-new-chat.
-        TopBarActionIcon(
-            icon = Icons.Outlined.Terminal,
-            description = "Terminal",
-            active = terminalActive,
-            onClick = onToggleTerminal,
-        )
-        Spacer(Modifier.size(8.dp))
-        TopBarActionIcon(
-            icon = Icons.Outlined.Add,
-            description = "Start new chat",
-            active = false,
-            onClick = onNewChat,
-        )
+        Surface(
+            onClick = onOpenPlan ?: onOpenChats,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(36.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onOpenChats, modifier = Modifier.size(40.dp)) {
+                    Icon(Icons.Outlined.Menu, contentDescription = "Chats")
+                }
+                Spacer(Modifier.size(4.dp))
+                Column {
+                    Text(
+                        text = title.ifBlank { "New conversation" },
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                    if (subtitle.isNotBlank()) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.size(10.dp))
+        Surface(
+            shape = RoundedCornerShape(36.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TopBarActionIcon(
+                    icon = Icons.Outlined.Terminal,
+                    description = "Terminal",
+                    active = terminalActive,
+                    onClick = onToggleTerminal,
+                )
+                TopBarActionIcon(
+                    icon = Icons.Outlined.Add,
+                    description = "Start new chat",
+                    active = false,
+                    onClick = onNewChat,
+                )
+            }
+        }
     }
 }
 
@@ -346,13 +391,13 @@ private fun TopBarActionIcon(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(44.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.size(40.dp),
+        shape = CircleShape,
+        color = if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
         contentColor = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = description, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = description, modifier = Modifier.size(22.dp))
         }
     }
 }

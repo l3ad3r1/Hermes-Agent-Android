@@ -26,6 +26,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -177,12 +179,30 @@ data class NavItem(
 @Composable
 fun SettingsGroup(title: String, items: List<NavItem>) {
     if (items.isEmpty()) return
-    SectionHeader(title)
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column {
-            items.forEachIndexed { index, item ->
-                if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                NavRow(item.icon, item.title, item.subtitle, item.onClick)
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+    )
+    // Each row is its own slab, stacked with a hairline gap: the group's outer corners are big and
+    // the seams between rows small, so it reads as one rounded block cut into pieces.
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        items.forEachIndexed { index, item ->
+            val big = 24.dp
+            val small = 6.dp
+            Surface(
+                onClick = item.onClick,
+                shape = RoundedCornerShape(
+                    topStart = if (index == 0) big else small,
+                    topEnd = if (index == 0) big else small,
+                    bottomStart = if (index == items.lastIndex) big else small,
+                    bottomEnd = if (index == items.lastIndex) big else small,
+                ),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                NavRow(item.icon, item.title, item.subtitle, item.onClick, clickable = false)
             }
         }
     }
@@ -238,11 +258,13 @@ fun NavRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    /** False when the caller already wraps the row in something clickable. */
+    clickable: Boolean = true,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(if (clickable) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),

@@ -53,6 +53,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.core.settings.HermesSettings
 import com.hermes.agent.core.theme.IbmPlexSans
+import com.hermes.agent.core.theme.Outfit
+import com.hermes.agent.ui.theme.SeedPreset
 import com.hermes.agent.core.theme.Rubik
 import kotlin.math.roundToInt
 
@@ -87,6 +89,7 @@ fun AppearanceSettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val themeStyle by viewModel.themeStyle.collectAsStateWithLifecycle()
     val themeAccentColor by viewModel.themeAccentColor.collectAsStateWithLifecycle()
+    val colorPreset by viewModel.colorPreset.collectAsStateWithLifecycle()
     val fontFamily by viewModel.fontFamily.collectAsStateWithLifecycle()
     val fontScalePercent by viewModel.fontScalePercent.collectAsStateWithLifecycle()
     val darkMode = themeMode != HermesSettings.THEME_LIGHT
@@ -121,6 +124,28 @@ fun AppearanceSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            AppearanceCard {
+                Text("Colour preset", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Tints every surface from one colour. Overrides the theme below while on.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    val none = colorPreset.isEmpty() || SeedPreset.fromStorageKey(colorPreset) == null
+                    PresetChip("None", null, none) { viewModel.setColorPreset("") }
+                    for (preset in SeedPreset.entries) {
+                        PresetChip(preset.label, preset.seed, preset.storageKey == colorPreset) {
+                            viewModel.setColorPreset(preset.storageKey)
+                        }
+                    }
+                }
+            }
+
             AppearanceCard {
                 Text("Theme", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -264,6 +289,7 @@ fun AppearanceSettingsScreen(
                         FontOption(HermesSettings.FONT_MONO, "Monospace", FontFamily.Monospace),
                         FontOption(HermesSettings.FONT_RUBIK, "Rubik", Rubik),
                         FontOption(HermesSettings.FONT_IBM_PLEX, "IBM Plex Sans", IbmPlexSans),
+                        FontOption(HermesSettings.FONT_OUTFIT, "Outfit", Outfit),
                     ).forEach { option ->
                         FontListRow(
                             label = option.label,
@@ -481,5 +507,31 @@ private fun ThemeStyleRow(
                 Icon(Icons.Default.Check, contentDescription = "Selected", modifier = Modifier.size(20.dp))
             }
         }
+    }
+}
+
+/** One preset: a colour disc and its name, ringed when chosen. A null seed is the "no preset" chip. */
+@Composable
+private fun PresetChip(label: String, seed: Color?, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier.clip(MaterialTheme.shapes.medium).clickable(onClick = onClick).padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(seed ?: MaterialTheme.colorScheme.surfaceVariant)
+                .border(
+                    width = if (selected) 3.dp else 1.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) Icon(Icons.Filled.Check, contentDescription = "Selected", tint = if (seed == null) MaterialTheme.colorScheme.onSurface else Color.White)
+        }
+        Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }

@@ -29,12 +29,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,26 +91,19 @@ fun SessionBrowserScreen(
     var pendingDelete by remember { mutableStateOf<SessionWithMessageCount?>(null) }
 
     Scaffold(
-        topBar = {
-            SlimTopBar(title = "Chats")
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNewSession,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.chat_new_conversation))
-            }
-        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            // Persistent search bar — always visible so you can search chats any time.
-            OutlinedTextField(
+            Text(
+                text = "Conversations",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.statusBarsPadding().padding(start = 24.dp, end = 16.dp, top = 20.dp, bottom = 8.dp),
+            )
+            // Persistent search pill — always visible so you can search chats any time.
+            TextField(
                 value = searchQuery,
                 onValueChange = { query ->
                     searchQuery = query
@@ -116,6 +114,13 @@ fun SessionBrowserScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text("Search chats (by phrase or keyword)…") },
                 singleLine = true,
+                shape = RoundedCornerShape(32.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                ),
                 leadingIcon = {
                     Icon(Icons.Outlined.Search, contentDescription = null)
                 },
@@ -130,6 +135,16 @@ fun SessionBrowserScreen(
                     }
                 },
             )
+
+            Button(
+                onClick = onNewSession,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).height(52.dp),
+                shape = RoundedCornerShape(26.dp),
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.chat_new_conversation))
+            }
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when (val state = uiState) {
@@ -240,10 +255,11 @@ private fun SessionRow(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
     ) {
         Column(

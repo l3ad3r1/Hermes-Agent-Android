@@ -9,16 +9,6 @@ Last reviewed: **2026-09-20 (v1.0.8)**.
 
 ## Open
 
-- **K21 — a turn cancelled by `ChatViewModel` being cleared is lost silently.**
-  `sendMessage` launches the orchestrator in `viewModelScope`, so navigating away
-  mid-turn cancels it. The user message is already persisted; no reply and no
-  error arrives, and the thread just looks unanswered. Tracked as
-  [issue #13](https://github.com/l3ad3r1/Hermes-Agent-Android/issues/13).
-- **K18 — Shizuku is unusable on Android 16.** Shizuku 13.5.4 crashes with
-  `AbstractMethodError` when its service is started via ADB on API 36 (upstream
-  defect). The privileged-shell path stays unavailable on that platform; the
-  Companion-apps card still offers the F-Droid install for older devices.
-  Tracked as [issue #14](https://github.com/l3ad3r1/Hermes-Agent-Android/issues/14).
 - **K04 — `RepeatedExecutionGuard` cannot detect repeats, by design.** Its
   fingerprint includes tool output, and create-style tools return a fresh id each
   call, so two identical creates never look identical to the guard.
@@ -31,10 +21,6 @@ Last reviewed: **2026-09-20 (v1.0.8)**.
   `assistant`), so a bot with any other name is not offered and has to be added by
   hand with **+**. Tracked with the rest of the 1.0.5 follow-ups in
   [issue #18](https://github.com/l3ad3r1/Hermes-Agent-Android/issues/18).
-- **K31 — a bare "delete X" is not understood on the phone.** "Remove the bot
-  named scribe", "delete bot scribe" and "delete the scribe bot" are handled by the
-  app; "delete Scribe" is not recognised as a bot command, so it goes to the PC's
-  Chief, which answers that it has no such bot even when the phone does.
 - **K32 — the Chief's name is not synced.** Renaming the Chief on the phone writes
   the name into the prompts it sends, but the PC's own profile keeps its display
   name, so the two can disagree.
@@ -42,12 +28,6 @@ Last reviewed: **2026-09-20 (v1.0.8)**.
   Creating or removing a phone bot from chat goes through the same confirmation as
   the `manage_bots` tool. With "Auto-approve phone actions" on it is bypassed and
   was exercised on a device; the Allow/Deny path was not.
-- **K34 — the Chief's charter promises tools the PC may not have.** It mentions
-  Google Drive, calendar, mail and Vercel; on a desktop where those connectors are
-  not set up it must say so plainly, and only its "never describe work you did not
-  do" line stops it claiming otherwise.
-- **K35 — no way to delete a bot chat thread.** The new history list opens and
-  starts threads but cannot remove one.
 - **K36 — backups do not carry attachments.** A message's attachment is a content URI
   that only means something on the device that made it, and the file behind it is not in
   the backup, so it is left out rather than restored as a dead link. The text of the
@@ -76,6 +56,11 @@ Last reviewed: **2026-09-20 (v1.0.8)**.
 - Screen automation and app launching require the accessibility service and stay
   interactive even in trusted background mode.
 - Shell and Termux commands always require biometric or device-PIN approval.
+- **Shizuku is unusable on Android 16 (K18).** Shizuku 13.5.4 crashes with
+  `AbstractMethodError` when its service is started via ADB on API 36, an upstream
+  defect. The privileged-shell path stays unavailable there and the shell tool uses
+  the unprivileged Termux path; the Companion-apps card still offers the F-Droid
+  install for older devices ([issue #14]).
 - Certificate pinning is not applied because the cloud endpoint is user-
   configurable; TLS is still enforced ([issue #5]).
 - **Embeddings work, but the model is not shipped.** `MiniLmEmbeddingService`
@@ -99,6 +84,21 @@ Last reviewed: **2026-09-20 (v1.0.8)**.
 [issues #4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [#4]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/4
 [issue #5]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/5
+[issue #14]: https://github.com/l3ad3r1/Hermes-Agent-Android/issues/14
+
+## Fixed, not yet released
+
+- **K21 — a turn cut off by leaving the chat was lost silently**
+  ([issue #13](https://github.com/l3ad3r1/Hermes-Agent-Android/issues/13)). A
+  cancelled turn now always leaves an assistant message: the partial reply, or an
+  "interrupted, send again to retry" notice. Now covered by a regression test.
+- **K31 — "delete Scribe" went to the PC.** A whole-message "delete X" where X is
+  one of the phone's bots is now removed on the phone, with the same confirmation.
+- **K34 — the Chief's charter promised tools the PC may not have.** It now says
+  only the connectors set up on that computer are its own, and to name a missing one.
+- **K35 — bot chat threads could not be deleted.** The history list has a delete
+  action. Deleting the open thread moves to the newest one left, or to a fresh
+  thread, so a PC session keyed on the old thread is not resumed.
 
 ## Added in 1.0.8
 

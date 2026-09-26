@@ -256,6 +256,7 @@ dependencies {
     implementation(project(":core:settings"))
     implementation(project(":core:plugin"))
     implementation(project(":core:theme"))
+    implementation(libs.material.color.utilities)
     implementation(project(":core:domain"))
     implementation(project(":core:util"))
     // --- AndroidX core ---

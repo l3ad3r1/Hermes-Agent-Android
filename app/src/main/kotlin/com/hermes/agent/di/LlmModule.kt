@@ -167,6 +167,7 @@ object RemoteRepositoryProviderModule {
         orchestratorImpl: com.hermes.agent.data.agent.OrchestratorImpl,
         compressor: com.hermes.agent.data.llm.ConversationCompressor,
         dispatchers: DispatcherProvider,
+        reasoningStore: com.hermes.agent.data.chat.ReasoningStore,
     ): ChatRepository = ChatRepositoryImpl(
         conversationRepository,
         memoryRepository,
@@ -174,5 +175,6 @@ object RemoteRepositoryProviderModule {
         orchestratorImpl,
         compressor,
         dispatchers,
+        reasoningStore,
     )
 }

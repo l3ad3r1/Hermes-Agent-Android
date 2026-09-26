@@ -83,6 +83,8 @@ class VoiceChatTest {
             clarificationBus = ClarificationBus(),
             todoStore = TodoStore(),
             settingsRepository = settings,
+            reasoningStore = mockk<com.hermes.agent.data.chat.ReasoningStore>(relaxed = true),
+            branchStore = mockk<com.hermes.agent.data.chat.BranchStore>(relaxed = true),
             toolConfirmationService = mockk<ToolConfirmationService>(relaxed = true),
             executionPlanRepository = plans,
             ultraSkillInterceptor = mockk<com.hermes.agent.domain.agent.UltraSkillInterceptor>(relaxed = true).also {

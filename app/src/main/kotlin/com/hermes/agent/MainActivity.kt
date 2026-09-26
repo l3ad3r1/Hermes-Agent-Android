@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Alignment
+import android.content.Intent
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.fragment.app.FragmentActivity
 import com.hermes.agent.domain.settings.SettingsRepository
+import com.hermes.agent.ui.CrashReportDialog
 import com.hermes.agent.ui.chat.PendingChatIntent
 import com.hermes.agent.ui.navigation.HermesNavGraph
 import com.hermes.agent.ui.onboarding.OnboardingScreen
@@ -72,11 +75,14 @@ class MainActivity : FragmentActivity() {
                 .collectAsState(initial = HermesSettings.themeStyle(this))
             val themeAccentColor by HermesSettings.themeAccentColorFlow(this)
                 .collectAsState(initial = HermesSettings.themeAccentColor(this))
+            val colorPreset by HermesSettings.colorPresetFlow(this)
+                .collectAsState(initial = HermesSettings.colorPreset(this))
             val fontFamily by HermesSettings.fontFamilyFlow(this)
                 .collectAsState(initial = HermesSettings.fontFamily(this))
             val fontScalePercent by HermesSettings.fontScalePercentFlow(this)
                 .collectAsState(initial = HermesSettings.fontScalePercent(this))
 
+            var crashReport by remember { mutableStateOf(com.hermes.agent.data.diagnostics.CrashReporter.pending(this)) }
             HermesTheme(
                 // 'System' has to actually follow the system. Testing only against
                 // THEME_LIGHT made THEME_SYSTEM -- the default -- resolve to dark
@@ -88,9 +94,33 @@ class MainActivity : FragmentActivity() {
                 },
                 themeStyle = com.hermes.agent.ui.theme.alt.ThemeStyle.fromStorageKey(themeStyle),
                 themeAccentColor = themeAccentColor,
+                colorPreset = com.hermes.agent.ui.theme.SeedPreset.fromStorageKey(colorPreset),
                 fontFamilyName = fontFamily,
                 fontScalePercent = fontScalePercent,
             ) {
+                crashReport?.let { report ->
+                    CrashReportDialog(
+                        report = report,
+                        onShare = {
+                            startActivity(
+                                Intent.createChooser(
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "Hermes crash report")
+                                        putExtra(Intent.EXTRA_TEXT, report)
+                                    },
+                                    "Share crash report",
+                                ),
+                            )
+                            com.hermes.agent.data.diagnostics.CrashReporter.discard(this)
+                            crashReport = null
+                        },
+                        onDismiss = {
+                            com.hermes.agent.data.diagnostics.CrashReporter.discard(this)
+                            crashReport = null
+                        },
+                    )
+                }
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val state by onboardingState.collectAsState()
                     when (state) {

@@ -88,6 +88,9 @@ fun MessageBubble(
     onRetryWithAlias: ((Message, String) -> Unit)? = null,
     onRewindTo: ((Message) -> Unit)? = null,
     onForkFrom: ((Message) -> Unit)? = null,
+    reasoning: com.hermes.agent.data.chat.StoredReasoning? = null,
+    branch: com.hermes.agent.data.chat.BranchInfo? = null,
+    onSwitchBranch: ((com.hermes.agent.data.chat.BranchInfo, Int) -> Unit)? = null,
 ) {
     val clipboard = LocalClipboardManager.current
     val haptics = LocalHapticFeedback.current
@@ -180,6 +183,14 @@ fun MessageBubble(
                 state = evidence,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
+        }
+
+        if (branch != null && onSwitchBranch != null) {
+            BranchSwitcher(branch, onSwitchBranch)
+        }
+
+        if (!isUser && reasoning != null) {
+            ThoughtChip(reasoning)
         }
 
         Box(
