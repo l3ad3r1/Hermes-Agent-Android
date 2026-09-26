@@ -102,6 +102,13 @@ class ChiefOfBotsTest {
     }
 
     @Test
+    fun `the charter does not promise connectors the computer may not have`() {
+        // K34: a desktop without Drive, mail, calendar or Vercel set up must say so, not pretend.
+        assertTrue(charter.contains("Only the connectors set up on this computer are yours"))
+        assertTrue(charter.contains("say which one is missing"))
+    }
+
+    @Test
     fun `email is sent only when the user asks`() {
         assertTrue(charter.contains("Send only when the user tells you to send"))
         assertTrue(charter.contains("Never send, post, pay, delete or deploy unless the user asked"))
