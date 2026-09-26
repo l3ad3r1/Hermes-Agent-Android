@@ -14,8 +14,8 @@ import com.materialkolor.scheme.SchemeTonalSpot
  * A whole Material 3 palette grown from one seed colour, so every surface, container, button and
  * outline is tinted to match instead of Hermes's plain monochrome.
  *
- * The idea, the eight seed colours and the tonal-spot scheme are how Agora
- * (github.com/newo-ether/Agora, MIT) themes its UI; this is our own implementation of it.
+ * This is the Material theme: eight seed colours, each expanded with the Material 3 tonal-spot
+ * scheme.
  */
 enum class SeedPreset(val storageKey: String, val label: String, val seed: Color) {
     MIDNIGHT("midnight", "Midnight", Color(0xFF1A237E)),

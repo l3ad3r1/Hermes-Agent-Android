@@ -17,9 +17,6 @@ import java.util.Locale
  *
  * A stack trace can quote the message of the exception that was thrown, so the user is shown the
  * full text before deciding, not a summary of it.
- *
- * The idea, keeping the report local and sending only on confirmation, follows Agora
- * (github.com/newo-ether/Agora, MIT).
  */
 object CrashReporter {
 
