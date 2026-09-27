@@ -58,6 +58,8 @@ sealed class ModelProbeUiState {
     data class Done(
         val model: String,
         val results: List<com.hermes.agent.data.llm.ModelCapabilityProbe.CheckResult>,
+        /** Tool reliability now used for routing this model; null when the run was inconclusive. */
+        val routedToolReliability: Double? = null,
     ) : ModelProbeUiState()
 }
 
@@ -655,7 +657,21 @@ class SettingsViewModel @Inject constructor(
             val profile = saved.copy(apiKey = apiKey.trim(), baseUrl = baseUrl.trim())
             _providerModelProbe.value = _providerModelProbe.value + (providerId to ModelProbeUiState.Running)
             val results = modelProbe.run(profile)
-            _providerModelProbe.value = _providerModelProbe.value + (providerId to ModelProbeUiState.Done(profile.model, results))
+            // Routing trusts the measurement for this exact model, so a model that cannot
+            // call tools stops getting tool-heavy turns. Skipped if the model was changed
+            // while the test ran.
+            val measured = com.hermes.agent.data.llm.ModelCapabilityProbe.toolReliability(results, saved.toolReliability)
+            if (measured != null) {
+                updateProvider(providerId) { current ->
+                    if (current.model == profile.model) {
+                        current.copy(measuredToolReliability = measured, measuredModel = profile.model)
+                    } else {
+                        current
+                    }
+                }
+            }
+            _providerModelProbe.value = _providerModelProbe.value +
+                (providerId to ModelProbeUiState.Done(profile.model, results, measured))
         }
     }
 

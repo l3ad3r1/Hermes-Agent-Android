@@ -148,4 +148,67 @@ class SettingsViewModelCloudModelsTest {
             localManager.startDownload()
         }
     }
+
+    @Test
+    fun `a Test model run that shows no tool calling lowers routing for that model`() = runTest(dispatcher) {
+        val chatOnly = com.hermes.agent.domain.settings.CloudProviderProfile(
+            id = "custom_local", name = "Local", baseUrl = "http://10.0.0.5:1234/v1", model = "chat-only",
+            apiKey = "", quality = 0.7, cost = 0.0, latency = 0.7, toolReliability = 0.85,
+        )
+        val settingsFlow = MutableStateFlow(UserSettings(cloudProviderProfiles = listOf(chatOnly)))
+        val settingsRepository = mockk<SettingsRepository>(relaxed = true) {
+            every { observe() } returns settingsFlow
+            coEvery { current() } answers { settingsFlow.value }
+            coEvery { setCloudProviderProfiles(any()) } answers {
+                settingsFlow.value = settingsFlow.value.copy(cloudProviderProfiles = firstArg())
+            }
+        }
+        val localManager = mockk<LocalLlmManager>(relaxed = true) {
+            every { isDownloading } returns MutableStateFlow(false)
+            every { downloadProgress } returns MutableStateFlow(0f)
+            every { downloadError } returns MutableStateFlow("")
+            coEvery { isModelDownloaded() } returns false
+        }
+        val probe = mockk<com.hermes.agent.data.llm.ModelCapabilityProbe> {
+            coEvery { run(any<com.hermes.agent.domain.settings.CloudProviderProfile>()) } returns listOf(
+                com.hermes.agent.data.llm.ModelCapabilityProbe.CheckResult(com.hermes.agent.data.llm.ModelCapabilityProbe.Check.REPLY, true, "OK"),
+                com.hermes.agent.data.llm.ModelCapabilityProbe.CheckResult(com.hermes.agent.data.llm.ModelCapabilityProbe.Check.TOOL_CALL, false, "Answered in text"),
+                com.hermes.agent.data.llm.ModelCapabilityProbe.CheckResult(com.hermes.agent.data.llm.ModelCapabilityProbe.Check.TOOL_RESULT, true, "OK"),
+            )
+        }
+        val viewModel = SettingsViewModel(
+            appContext = mockk<Context>(relaxed = true),
+            settingsRepository = settingsRepository,
+            keystore = mockk<KeystoreManager>(relaxed = true),
+            otaUpdateChecker = mockk<OtaUpdateChecker>(relaxed = true),
+            otaInstaller = mockk<OtaInstaller>(relaxed = true),
+            sessionExporter = mockk<SessionExporter>(relaxed = true),
+            jsonBackupManager = mockk<com.hermes.agent.data.export.JsonBackupManager>(relaxed = true),
+            botsBackup = mockk<com.hermes.agent.data.export.BotsBackup>(relaxed = true),
+            credentialVault = mockk<com.hermes.agent.data.security.CredentialVault>(relaxed = true),
+            cloudModelCatalog = mockk(relaxed = true),
+            localLlmManager = localManager,
+            privilegedShellBackend = mockk<com.hermes.agent.domain.device.PrivilegedShellBackend>(relaxed = true),
+            privilegedShellRetryGate = com.hermes.agent.data.device.PrivilegedShellRetryGate(),
+            oauthManager = mockk<com.hermes.agent.data.oauth.OAuthManager>(relaxed = true),
+            oauthCallbackReceiver = com.hermes.agent.data.oauth.OAuthCallbackReceiver(),
+            modelProbe = probe,
+            heartbeatScheduler = mockk<com.hermes.agent.work.HeartbeatScheduler>(relaxed = true),
+            presenceBeaconScheduler = mockk<com.hermes.agent.work.PresenceBeaconScheduler>(relaxed = true),
+            presenceManager = mockk<com.hermes.agent.data.presence.PresenceManager>(relaxed = true),
+            tailnet = mockk<com.hermes.agent.data.remote.TailnetNode>(relaxed = true),
+        )
+        advanceUntilIdle()
+
+        viewModel.testProviderModel("custom_local", apiKey = "", baseUrl = chatOnly.baseUrl)
+        advanceUntilIdle()
+
+        val saved = settingsFlow.value.cloudProviderProfiles.single()
+        assertEquals(0.2, saved.measuredToolReliability!!, 0.0)
+        assertEquals("chat-only", saved.measuredModel)
+        assertEquals(0.2, saved.effectiveToolReliability, 0.0)
+        val done = viewModel.providerModelProbe.value["custom_local"] as ModelProbeUiState.Done
+        assertEquals(0.2, done.routedToolReliability!!, 0.0)
+    }
+
 }

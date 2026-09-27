@@ -492,7 +492,24 @@ private fun ModelProbeSection(
         val toolCheck = state.results.firstOrNull {
             it.check == com.hermes.agent.data.llm.ModelCapabilityProbe.Check.TOOL_CALL
         }
-        if (toolCheck?.passed == false) {
+        state.routedToolReliability?.let { reliability ->
+            Text(
+                if (reliability >= com.hermes.agent.data.llm.ModelCapabilityProbe.RELIABLE_TOOLS) {
+                    "Routing: cleared for tool-heavy requests."
+                } else {
+                    "Routing: tool-heavy requests will go to another model when one is available."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (toolCheck?.passed == false && toolCheck.inconclusive) {
+            Text(
+                "The tool checks got no answer, so routing is unchanged. Try again when the provider responds.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (toolCheck?.passed == false) {
             Text(
                 "This model did not call the test tool. It can chat, but actions such as " +
                     "setting alarms or searching the web may not work with it.",
