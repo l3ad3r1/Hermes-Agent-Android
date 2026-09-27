@@ -124,7 +124,7 @@ class AgentLoopRunner @Inject constructor(
             for (call in response.toolCalls) {
                 toolsInvoked += call.name
                 val requiresConfirmation =
-                    toolRegistry.byName(call.name)?.descriptor?.requiresConfirmation ?: false
+                    toolRegistry.byName(call.name)?.requiresConfirmation(call.arguments) ?: false
                 val decision = executionPolicy.evaluate(origin, call.name, requiresConfirmation)
                 val mustConfirm = decision is ToolExecutionDecision.Confirm
                 onToolRequested(call, mustConfirm)

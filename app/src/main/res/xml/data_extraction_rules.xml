@@ -6,11 +6,15 @@
         <exclude domain="sharedpref" path="." />
         <exclude domain="file" path="datastore/" />
         <exclude domain="file" path="models/" />
+        <!-- Tailscale node keys identify this device; a copy would clone the node. -->
+        <exclude domain="file" path="tailnet/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="database" path="." />
         <exclude domain="sharedpref" path="." />
         <exclude domain="file" path="datastore/" />
         <exclude domain="file" path="models/" />
+        <!-- Tailscale node keys identify this device; a copy would clone the node. -->
+        <exclude domain="file" path="tailnet/" />
     </device-transfer>
 </data-extraction-rules>

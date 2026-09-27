@@ -1,5 +1,16 @@
 # Hermes Agent — Progress
 
+## 2026-09-27 — code-review fixes (1–36)
+
+Fixed all high and medium findings from `../code-review-2026-09-27.md`, including
+Antigravity's first pass, which was re-checked and corrected where it regressed
+(credential prefix, doubled user turn, special-token parsing, notification reply,
+alarm stopSelf). Other changes: MCP SSE/session transport, per-call confirmation for background delegation
+and scheduler, restored modules come back disabled, tailnet keys stay on
+device, native prompt cap keeps both ends, Tasker results returned.
+
+**VERIFIED:** assembleDebug, app unit tests, agent-core module tests. **UNVERIFIED:** on device.
+
 ## 2026-09-27 — backports from Jeeves
 
 - Learned operating notes (Settings → Agent operating notes) now reach the model:

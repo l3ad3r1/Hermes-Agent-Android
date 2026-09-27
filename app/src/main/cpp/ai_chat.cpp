@@ -439,6 +439,9 @@ static void shift_context(Slot &slot, Lane &lane) {
     llama_memory_seq_add(llama_get_memory(slot.context), lane.id,
                          lane.system_prompt_position + n_discard, lane.current_position, -n_discard);
     lane.current_position -= n_discard;
+    // The n_predict budget moves with the tokens. Left where it was, a stop
+    // position past the lane size could never be reached, so generation ran on.
+    if (lane.stop_generation_position > 0) lane.stop_generation_position -= n_discard;
     // Mirror the same discard so the cache and its mirror stay in lockstep. A
     // shift that cannot be mirrored exactly drops reuse rather than risk serving
     // a prefix that no longer describes what is resident.
@@ -598,12 +601,15 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
     // on a phone-class CPU a few thousand tokens takes long enough that ART's
     // GC SuspendAll watchdog aborts the process mid-turn. The Kotlin side already
     // trims the prompt; this is the last line of defence for any path that
-    // slips a large one through. Keep the head — it carries the persona and the
-    // "how to answer" close.
+    // slips a large one through. Keep both ends and drop the middle: the head
+    // carries the persona, the tail carries the newest history, the "how to
+    // reply" close and the template's end-of-system marker.
     if ((int) system_tokens.size() > MAX_SYSTEM_PREFILL_TOKENS) {
         LOGw("%s: Capping system prefill from %d to %d tokens",
              __func__, (int) system_tokens.size(), MAX_SYSTEM_PREFILL_TOKENS);
-        system_tokens.resize(MAX_SYSTEM_PREFILL_TOKENS);
+        const int head = MAX_SYSTEM_PREFILL_TOKENS / 3;
+        const int tail = MAX_SYSTEM_PREFILL_TOKENS - head;
+        system_tokens.erase(system_tokens.begin() + head, system_tokens.end() - tail);
     }
 
     // Reuse the longest prefix of the resident cache that still matches this

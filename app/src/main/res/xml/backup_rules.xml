@@ -6,4 +6,5 @@
     <exclude domain="sharedpref" path="." />
     <exclude domain="file" path="datastore/" />
     <exclude domain="file" path="models/" />
+    <exclude domain="file" path="tailnet/" />
 </full-backup-content>

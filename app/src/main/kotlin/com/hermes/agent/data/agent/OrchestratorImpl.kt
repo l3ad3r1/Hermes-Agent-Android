@@ -152,14 +152,14 @@ class OrchestratorImpl @Inject constructor(
                 val decision = toolExecutionPolicy.evaluate(
                     origin,
                     deterministic.call.name,
-                    tool.descriptor.requiresConfirmation,
+                    tool.requiresConfirmation(deterministic.call.arguments),
                 )
                 val mustConfirm = decision is ToolExecutionDecision.Confirm
                 Timber.tag("DeterministicPhone").i(
                     "Matched tool=%s decision=%s requiresConfirmation=%s",
                     deterministic.call.name,
                     decision::class.simpleName,
-                    tool.descriptor.requiresConfirmation,
+                    tool.requiresConfirmation(deterministic.call.arguments),
                 )
                 send(OrchestratorEvent.ToolCallRequested(deterministic.call, mustConfirm))
                 when {

@@ -67,14 +67,14 @@ class TaskerPluginReceiver : BroadcastReceiver() {
                     putString(TaskerBundleHelper.VAR_HERMES_RESULT, finalResponse)
                     putInt(TaskerBundleHelper.VAR_HERMES_EXIT_CODE, exitCode)
                 }
-                runCatching { setResultExtras(resultExtras) }
+                pendingResult?.setResultExtras(resultExtras)
             } catch (t: Throwable) {
                 Timber.e(t, "TaskerPluginReceiver: Error executing task")
                 val resultExtras = Bundle().apply {
                     putString(TaskerBundleHelper.VAR_HERMES_RESULT, "Error: ${t.message}")
                     putInt(TaskerBundleHelper.VAR_HERMES_EXIT_CODE, 1)
                 }
-                runCatching { setResultExtras(resultExtras) }
+                pendingResult?.setResultExtras(resultExtras)
             } finally {
                 pendingResult?.finish()
             }
