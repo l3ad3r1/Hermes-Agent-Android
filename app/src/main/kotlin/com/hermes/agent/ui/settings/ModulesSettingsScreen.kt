@@ -196,7 +196,7 @@ fun ModulesSettingsScreen(
                         Text("• None. It can only compute and return text.")
                     } else {
                         pending.manifest.permissions.forEach { permission ->
-                            Text("• ${ScriptPluginPermissions.describe(permission)}")
+                            Text("• ${ScriptPluginPermissions.describe(permission, pending.manifest.hosts)}")
                         }
                     }
                 }

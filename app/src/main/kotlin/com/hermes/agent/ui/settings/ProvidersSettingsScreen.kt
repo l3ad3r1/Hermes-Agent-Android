@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -61,6 +62,7 @@ fun ProvidersSettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val modelDiscovery by viewModel.providerModelDiscovery.collectAsStateWithLifecycle()
+    val modelProbe by viewModel.providerModelProbe.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -147,6 +149,8 @@ fun ProvidersSettingsScreen(
                         onBaseUrlChange = { viewModel.setProviderBaseUrl(profile.id, it) },
                         onModelChange = { viewModel.setProviderModel(profile.id, it) },
                         onRefreshModels = { viewModel.refreshProviderModels(profile.id) },
+                        probeState = modelProbe[profile.id],
+                        onTestModel = { key, url -> viewModel.testProviderModel(profile.id, key, url) },
                         onRemove = { viewModel.removeProvider(profile.id) },
                         onStartOAuth = { ctx -> viewModel.startOAuthFlow(profile.id, ctx) },
                     )
@@ -323,6 +327,8 @@ private fun ProviderCredentialCard(
     onBaseUrlChange: (String) -> Unit,
     onModelChange: (String) -> Unit,
     onRefreshModels: () -> Unit,
+    probeState: ModelProbeUiState?,
+    onTestModel: (apiKey: String, baseUrl: String) -> Unit,
     onRemove: () -> Unit,
     onStartOAuth: (android.content.Context) -> Unit = {},
 ) {
@@ -420,6 +426,78 @@ private fun ProviderCredentialCard(
                             onBaseUrlChange(baseUrl)
                         }
                     },
+            )
+
+            ModelProbeSection(
+                model = profile.model,
+                state = probeState,
+                enabled = profile.model.isNotBlank() && baseUrl.isNotBlank(),
+                onTest = { onTestModel(apiKey, baseUrl) },
+            )
+        }
+    }
+}
+
+/**
+ * "Test model": checks the selected model can reply, stream, call a tool, use the
+ * result and follow a conversation, so a model that only chats is caught here
+ * rather than by a tool call that never comes.
+ */
+@Composable
+private fun ModelProbeSection(
+    model: String,
+    state: ModelProbeUiState?,
+    enabled: Boolean,
+    onTest: () -> Unit,
+) {
+    val running = state is ModelProbeUiState.Running
+    OutlinedButton(
+        onClick = onTest,
+        enabled = enabled && !running,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (running) {
+            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Testing $model…")
+        } else {
+            Text("Test model")
+        }
+    }
+    if (state is ModelProbeUiState.Done) {
+        val passed = state.results.count { it.passed }
+        Text(
+            "${state.model}: $passed of ${state.results.size} checks passed",
+            style = MaterialTheme.typography.labelLarge,
+        )
+        state.results.forEach { result ->
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (result.passed) "✓" else "✗",
+                    color = if (result.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    modifier = Modifier.width(20.dp),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(result.check.label, style = MaterialTheme.typography.bodyMedium)
+                    if (!result.passed) {
+                        Text(
+                            result.detail,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+        val toolCheck = state.results.firstOrNull {
+            it.check == com.hermes.agent.data.llm.ModelCapabilityProbe.Check.TOOL_CALL
+        }
+        if (toolCheck?.passed == false) {
+            Text(
+                "This model did not call the test tool. It can chat, but actions such as " +
+                    "setting alarms or searching the web may not work with it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }

@@ -52,6 +52,15 @@ sealed class UpdateUiState {
     data class Error(val message: String) : UpdateUiState()
 }
 
+/** A provider's "Test model" run: in progress, or its results for [model]. */
+sealed class ModelProbeUiState {
+    data object Running : ModelProbeUiState()
+    data class Done(
+        val model: String,
+        val results: List<com.hermes.agent.data.llm.ModelCapabilityProbe.CheckResult>,
+    ) : ModelProbeUiState()
+}
+
 sealed class ModelDiscoveryUiState {
     object Idle : ModelDiscoveryUiState()
     object Loading : ModelDiscoveryUiState()
@@ -96,6 +105,7 @@ class SettingsViewModel @Inject constructor(
     private val privilegedShellRetryGate: com.hermes.agent.data.device.PrivilegedShellRetryGate,
     private val oauthManager: com.hermes.agent.data.oauth.OAuthManager,
     private val oauthCallbackReceiver: com.hermes.agent.data.oauth.OAuthCallbackReceiver,
+    private val modelProbe: com.hermes.agent.data.llm.ModelCapabilityProbe,
 ) : ViewModel() {
 
     private val _placeFeedback = MutableStateFlow<String?>(null)
@@ -626,6 +636,26 @@ class SettingsViewModel @Inject constructor(
             } else {
                 setProviderDiscovery(providerId, state)
             }
+        }
+    }
+
+    private val _providerModelProbe = MutableStateFlow<Map<String, ModelProbeUiState>>(emptyMap())
+    val providerModelProbe: StateFlow<Map<String, ModelProbeUiState>> = _providerModelProbe.asStateFlow()
+
+    /**
+     * Checks what the provider's model can do: reply, stream, call a tool, use the
+     * result, follow a conversation. Uses the key and URL as typed, so an edit
+     * still waiting to be saved is what gets tested.
+     */
+    fun testProviderModel(providerId: String, apiKey: String, baseUrl: String) {
+        if (_providerModelProbe.value[providerId] is ModelProbeUiState.Running) return
+        viewModelScope.launch {
+            val saved = settingsRepository.current().cloudProviderProfiles.firstOrNull { it.id == providerId }
+                ?: return@launch
+            val profile = saved.copy(apiKey = apiKey.trim(), baseUrl = baseUrl.trim())
+            _providerModelProbe.value = _providerModelProbe.value + (providerId to ModelProbeUiState.Running)
+            val results = modelProbe.run(profile)
+            _providerModelProbe.value = _providerModelProbe.value + (providerId to ModelProbeUiState.Done(profile.model, results))
         }
     }
 
