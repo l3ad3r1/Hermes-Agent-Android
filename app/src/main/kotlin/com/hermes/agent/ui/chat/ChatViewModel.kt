@@ -714,7 +714,7 @@ private fun com.hermes.agent.domain.model.ExecutionPlan.toSummary(): PlanSummary
 
 /** Best-effort label for the model the router will most likely use this turn. */
 private fun UserSettings.displayModelName(): String {
-    cloudProviderProfiles.firstOrNull { it.enabled && it.apiKey.isNotBlank() }?.let { return it.model }
+    cloudProviderProfiles.firstOrNull { it.enabled && it.hasCredentials }?.let { return it.model }
     if (cloudEnabled && cloudApiKey.isNotBlank()) return cloudModel
     return "On-device"
 }
