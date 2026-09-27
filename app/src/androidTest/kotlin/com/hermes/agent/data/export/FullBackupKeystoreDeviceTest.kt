@@ -161,7 +161,7 @@ class FullBackupKeystoreDeviceTest {
         val stored = File(context.filesDir, "datastore/hermes_settings.preferences_pb").readBytes()
         val storedText = String(stored, Charsets.ISO_8859_1)
         assertFalse("credentials must not rest as plain text", storedText.contains(cloud) || storedText.contains(gateway))
-        assertTrue(storedText.contains("enc:v1:"))
+        assertTrue("sealed in the current format", storedText.contains(com.hermes.agent.data.settings.SecretCipher.PREFIX))
 
         assertEquals("""{"token":"$connectorSecret"}""", db.connectorDao().observeAll().first().single().configJson)
         assertEquals("Job", db.scheduledTaskDao().observeAll().first().single().label)
