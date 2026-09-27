@@ -1,5 +1,15 @@
 # Hermes Agent — Progress
 
+## 2026-09-27 — code-review low findings (37–62)
+
+All low findings fixed (see `../code-review-2026-09-27.md`, "Low follow-up"): prompt
+logging and HTTP logging debug-only, invalid UTF-8 no longer truncates replies,
+launch intents not replayed on rotation, OAuth code exchanged once, voice chat
+re-listens after errors, branch switch and restore keep data on failure, API
+server start race, cron runs not retried, heartbeat lost update.
+
+**VERIFIED:** assembleDebug, app unit tests, agent-core module tests. **UNVERIFIED:** on device.
+
 ## 2026-09-27 — code-review fixes (1–36)
 
 Fixed all high and medium findings from `../code-review-2026-09-27.md`, including

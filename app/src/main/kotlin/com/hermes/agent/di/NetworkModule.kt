@@ -53,7 +53,9 @@ object NetworkModule {
         pinningConfig: com.hermes.agent.data.security.CertificatePinningConfig,
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            // BASIC logs full URLs, and some carry secrets (Telegram bot tokens, Discord
+            // webhook tokens), so request logging is for debug builds only.
+            level = if (com.hermes.agent.BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)

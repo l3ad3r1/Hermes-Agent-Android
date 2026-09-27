@@ -587,15 +587,26 @@ object PendingRestore {
         if (target.exists()) {
             Files.move(target.toPath(), kept.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
-        // A leftover log or shared-memory file from the old database would be replayed onto the new.
-        File(target.path + "-wal").delete()
-        File(target.path + "-shm").delete()
-        File(target.path + "-journal").delete()
+        // The old database's log holds its most recent commits (the app is never closed
+        // cleanly), so it moves with the kept copy instead of being deleted. Left in
+        // place it would be replayed onto the new database.
+        val sidecars = listOf("-wal", "-shm", "-journal")
+        for (suffix in sidecars) {
+            val log = File(target.path + suffix)
+            if (log.exists()) Files.move(log.toPath(), File(kept.path + suffix).toPath(), StandardCopyOption.REPLACE_EXISTING)
+            else File(kept.path + suffix).delete()
+        }
         try {
             Files.move(incoming.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
         } catch (t: Throwable) {
             // Put the old one back rather than leave the app without a database.
-            if (kept.exists()) Files.move(kept.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            if (kept.exists()) {
+                Files.move(kept.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                for (suffix in sidecars) {
+                    val log = File(kept.path + suffix)
+                    if (log.exists()) Files.move(log.toPath(), File(target.path + suffix).toPath(), StandardCopyOption.REPLACE_EXISTING)
+                }
+            }
             throw t
         }
     }

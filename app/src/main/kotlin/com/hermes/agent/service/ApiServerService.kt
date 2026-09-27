@@ -21,8 +21,10 @@ import com.hermes.agent.domain.repository.ConversationRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.net.NetworkInterface
@@ -45,7 +47,11 @@ class ApiServerService : Service() {
     @Inject lateinit var conversationRepository: ConversationRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var server: HermesApiServer? = null
+    @Volatile private var server: HermesApiServer? = null
+
+    /** The start in flight. `server` is only set once settings are read, so it alone
+     *  cannot stop a second start racing the first onto the same port. */
+    private var startJob: Job? = null
 
     companion object {
         const val CHANNEL_ID = "hermes_api_server"
@@ -70,7 +76,7 @@ class ApiServerService : Service() {
     }
 
     private fun startServer() {
-        if (server != null) return
+        if (server != null || startJob?.isActive == true) return
 
         ServiceCompat.startForeground(
             this,
@@ -79,7 +85,7 @@ class ApiServerService : Service() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
         )
 
-        scope.launch(Dispatchers.IO) {
+        startJob = scope.launch(Dispatchers.IO) {
             val settings = settingsRepository.current()
             if (settings.apiServerKey.isBlank()) {
                 ApiServerController.setError("API server needs a bearer token before it can start.")
@@ -108,12 +114,19 @@ class ApiServerService : Service() {
                 // listener thread keeps the server alive alongside the service.
                 server = srv
                 srv.start(NanoTimeouts.SOCKET_READ_TIMEOUT, false)
+                // Stopped while binding: do not leave a listener nobody can reach to stop.
+                if (!isActive) {
+                    runCatching { srv.stop() }
+                    if (server === srv) server = null
+                    return@launch
+                }
                 ApiServerController.setRunning(displayHost, port)
                 Timber.tag("ApiServer").i("started on %s:%d (lan=%b)", host, port, settings.apiServerAllowLan)
             } catch (t: Throwable) {
                 Timber.tag("ApiServer").e(t, "failed to start on port %d", port)
                 ApiServerController.setError(t.message ?: "failed to start (port $port in use?)")
-                server = null
+                // Only forget our own instance; never one another start put there.
+                if (server === srv) server = null
                 runCatching { srv.stop() }
                 stopSelf()
             }
@@ -121,6 +134,8 @@ class ApiServerService : Service() {
     }
 
     private fun stopServer(stopService: Boolean = true) {
+        startJob?.cancel()
+        startJob = null
         server?.let { runCatching { it.stop() } }
         server = null
         ApiServerController.setStopped()

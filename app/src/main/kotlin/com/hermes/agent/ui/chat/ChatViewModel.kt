@@ -110,14 +110,27 @@ class ChatViewModel @Inject constructor(
                 _branchPoints.value, info.parentId, targetPosition - 1,
                 liveTail.map(com.hermes.agent.data.chat.Snap::of),
             ) ?: return@launch
+            // The rewind below deletes the live tail and the branch points are what keep
+            // it. Save them first, and put the tail back if the install fails part way.
+            val before = _branchPoints.value
+            runCatching { branchStore.save(conversationId, switch.points) }
+                .onFailure { t ->
+                    Timber.tag("Chat").w(t, "could not save branches")
+                    _ephemeral.value = _ephemeral.value.copy(errorMessage = "Could not switch to that branch.")
+                    return@launch
+                }
             runCatching {
                 liveTail.firstOrNull()?.let { conversationRepository.rewindTo(conversationId, it) }
                 switch.install.forEach { conversationRepository.addMessage(conversationId, it.toMessage(conversationId)) }
             }.onSuccess {
                 _branchPoints.value = switch.points
-                branchStore.save(conversationId, switch.points)
             }.onFailure { t ->
                 Timber.tag("Chat").w(t, "could not switch branch")
+                runCatching {
+                    switch.install.firstOrNull()?.let { conversationRepository.rewindTo(conversationId, it.toMessage(conversationId)) }
+                    liveTail.forEach { conversationRepository.addMessage(conversationId, it) }
+                    branchStore.save(conversationId, before)
+                }.onFailure { Timber.tag("Chat").w(it, "could not restore the live branch") }
                 _ephemeral.value = _ephemeral.value.copy(errorMessage = "Could not switch to that branch.")
             }
         }
@@ -336,6 +349,8 @@ class ChatViewModel @Inject constructor(
                 }
                 if (ultraSkillInterceptor.intercept(conversationId, trimmed)) {
                     _ephemeral.value = ChatEphemeralState()
+                    // No reply event will come to re-open the mic in voice chat.
+                    if (_voiceChatActive.value) listenForNextTurn()
                     return@launch
                 }
                 
@@ -360,6 +375,8 @@ class ChatViewModel @Inject constructor(
                     isSending = false,
                     errorMessage = t.message ?: "Unknown error",
                 )
+                // Failed never arrives on this path, so voice chat would stay silent.
+                if (_voiceChatActive.value) listenForNextTurn()
             }
         }
     }
@@ -478,6 +495,8 @@ class ChatViewModel @Inject constructor(
         sendJob?.cancel()
         sendJob = null
         _ephemeral.value = ChatEphemeralState()
+        // Stop ends the reply, not hands-free mode: listen for the next turn.
+        if (_voiceChatActive.value) listenForNextTurn()
     }
 
     /** Answer the agent's pending `clarify` question, resuming the tool. */

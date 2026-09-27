@@ -85,10 +85,16 @@ class ScheduledTaskWorker @AssistedInject constructor(
             proactiveNotifier.post(ProactiveSource.SCHEDULED_TASK, label, result)
 
             Result.success()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // A stopped worker is not a failed task; do not record it as one.
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "ScheduledTaskWorker failed for task $taskId")
             cronRepository.recordRun(taskId, "Error: ${e.message}")
-            Result.retry()
+            // No retry: a retry re-runs the whole agent turn (cost, side effects, another
+            // conversation) within the period, and most failures repeat anyway. The next
+            // scheduled run is the retry.
+            Result.success()
         }
     }
 

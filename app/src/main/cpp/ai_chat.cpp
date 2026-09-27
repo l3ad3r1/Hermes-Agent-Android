@@ -462,7 +462,9 @@ static std::string chat_add_and_format(Slot &slot, Lane &lane, const std::string
     auto formatted = common_chat_format_single(
             slot.chat_templates.get(), lane.chat_msgs, new_msg, role == ROLE_USER, /* use_jinja */ true);
     lane.chat_msgs.push_back(new_msg);
-    LOGi("%s: Formatted and added %s message: \n%s\n", __func__, role.c_str(), formatted.c_str());
+    // The text is the user's conversation, memory and persona: debug builds only.
+    LOGd("%s: Formatted and added %s message: \n%s\n", __func__, role.c_str(), formatted.c_str());
+    LOGi("%s: added %s message (%d chars)", __func__, role.c_str(), (int) formatted.size());
     return formatted;
 }
 
@@ -729,6 +731,50 @@ static bool is_valid_utf8(const char *string) {
     return true;
 }
 
+/**
+ * Whether [s], which is not valid UTF-8, is only waiting for the rest of its
+ * last character. Anything else -- a stray continuation byte, a bad lead byte --
+ * can never become valid, however many tokens follow.
+ */
+static bool utf8_awaits_more(const std::string &s) {
+    size_t i = 0;
+    while (i < s.size()) {
+        const auto c = (unsigned char) s[i];
+        int num;
+        if (c < 0x80) num = 1;
+        else if ((c & 0xE0) == 0xC0) num = 2;
+        else if ((c & 0xF0) == 0xE0) num = 3;
+        else if ((c & 0xF8) == 0xF0) num = 4;
+        else return false;
+        for (int k = 1; k < num; ++k) {
+            if (i + k >= s.size()) return true;
+            if ((((unsigned char) s[i + k]) & 0xC0) != 0x80) return false;
+        }
+        i += num;
+    }
+    return false;
+}
+
+/** Replaces every byte that is not part of a well-formed character with U+FFFD. */
+static std::string utf8_repair(const std::string &s) {
+    std::string out;
+    size_t i = 0;
+    while (i < s.size()) {
+        const auto c = (unsigned char) s[i];
+        const int num = c < 0x80 ? 1 : (c & 0xE0) == 0xC0 ? 2 : (c & 0xF0) == 0xE0 ? 3 : (c & 0xF8) == 0xF0 ? 4 : 0;
+        bool ok = num > 0 && i + num <= s.size();
+        for (int k = 1; ok && k < num; ++k) ok = (((unsigned char) s[i + k]) & 0xC0) == 0x80;
+        if (ok) {
+            out.append(s, i, num);
+            i += num;
+        } else {
+            out += "\xEF\xBF\xBD";
+            i += 1;
+        }
+    }
+    return out;
+}
+
 extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
@@ -778,6 +824,12 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     // If not EOG, convert to text
     auto new_token_chars = common_token_to_piece(slot.context, new_token_id);
     lane.cached_token_chars += new_token_chars;
+
+    // A byte that can never complete a character would otherwise hold back every
+    // later token, cutting the reply off there. Replace it and carry on.
+    if (!is_valid_utf8(lane.cached_token_chars.c_str()) && !utf8_awaits_more(lane.cached_token_chars)) {
+        lane.cached_token_chars = utf8_repair(lane.cached_token_chars);
+    }
 
     // Create and return a valid UTF-8 Java string
     jstring result = nullptr;

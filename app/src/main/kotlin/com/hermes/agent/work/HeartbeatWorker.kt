@@ -84,7 +84,9 @@ class HeartbeatWorker @AssistedInject constructor(
                 return Result.success()
             }
 
-            var updatedOrders = orders
+            // Only this run's results, keyed by order id: applied to a fresh read at the
+            // end, since the user may edit the orders during the minutes this takes.
+            val executed = mutableMapOf<String, String>()
             var executedCount = 0
 
             for (order in dueOrders) {
@@ -117,9 +119,7 @@ class HeartbeatWorker @AssistedInject constructor(
                         )
                     }
 
-                    updatedOrders = updatedOrders.map {
-                        if (it.id == order.id) it.copy(lastExecutedAt = now, lastResult = result.take(200)) else it
-                    }
+                    executed[order.id] = result.take(200)
                     executedCount++
                 } catch (e: Exception) {
                     Timber.tag(TAG).w(e, "Error evaluating standing order %s", order.id)
@@ -127,6 +127,10 @@ class HeartbeatWorker @AssistedInject constructor(
             }
 
             if (executedCount > 0) {
+                val latest = parseOrders(settingsRepository.current().standingOrdersJson)
+                val updatedOrders = latest.map { order ->
+                    executed[order.id]?.let { order.copy(lastExecutedAt = now, lastResult = it) } ?: order
+                }
                 val encoded = json.encodeToString(ListSerializer(StandingOrder.serializer()), updatedOrders)
                 settingsRepository.setStandingOrdersJson(encoded)
             }
