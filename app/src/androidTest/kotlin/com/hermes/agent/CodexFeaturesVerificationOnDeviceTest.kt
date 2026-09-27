@@ -19,7 +19,6 @@ import com.hermes.agent.data.settings.SettingsRepositoryImpl
 import com.hermes.agent.data.tools.KanbanTool
 import com.hermes.agent.di.DatabaseModule
 import com.hermes.agent.domain.agent.UltraSkillInterceptor
-import com.hermes.agent.domain.model.EvidenceState
 import com.hermes.agent.domain.model.KanbanStatus
 import com.hermes.agent.domain.model.Memory
 import com.hermes.agent.domain.model.Message
@@ -94,26 +93,18 @@ class CodexFeaturesVerificationOnDeviceTest {
             assertTrue("Missing /model quick", commands.contains("/model quick"))
             assertTrue("Missing /delegate", commands.contains("/delegate"))
             assertTrue("Missing /memory", commands.contains("/memory"))
-            assertTrue("Missing /clear", commands.contains("/clear"))
             assertTrue("Missing /export", commands.contains("/export"))
 
-            // 2. Intercept /plan
+            // 2. /plan goes to the model; it no longer posts a canned reply
             val convId = "conv_test_slash_1"
             val planIntercepted = ultraSkillInterceptor.intercept(convId, "/plan Create a modern Android dashboard")
-            assertTrue("Slash /plan should be intercepted", planIntercepted)
-
-            val messages = mockConversationRepo.messages
-            assertEquals(2, messages.size)
-            assertEquals(EvidenceState.PREPARED, messages[1].evidenceState)
+            assertFalse("Slash /plan should reach the model", planIntercepted)
+            assertEquals(0, mockConversationRepo.messages.size)
 
             // 3. Intercept /memory
             val memIntercepted = ultraSkillInterceptor.intercept(convId, "/memory User prefers dark mode UI")
             assertTrue("Slash /memory should be intercepted", memIntercepted)
             assertEquals("User prefers dark mode UI", mockMemoryRepo.addedMemories.firstOrNull())
-
-            // 4. Intercept /clear
-            val clearIntercepted = ultraSkillInterceptor.intercept(convId, "/clear")
-            assertTrue("Slash /clear should be intercepted", clearIntercepted)
         }
     }
 

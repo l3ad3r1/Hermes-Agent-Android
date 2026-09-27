@@ -44,7 +44,12 @@ class PrivilegedShellUserService : IPrivilegedShellService.Stub() {
                 return "TIMEOUT\nCommand timed out after 15s"
             }
 
-            rawBytes.write(inputStream.readBytes())
+            while (inputStream.available() > 0) {
+                val available = inputStream.available()
+                val n = inputStream.read(buf, 0, minOf(available, buf.size))
+                if (n > 0) rawBytes.write(buf, 0, n)
+            }
+            inputStream.close()
             val exitCode = process.exitValue()
             val output = rawBytes.toByteArray()
                 .toString(Charsets.UTF_8)

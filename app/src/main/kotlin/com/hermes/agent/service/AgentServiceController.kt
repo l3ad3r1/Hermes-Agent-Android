@@ -45,11 +45,16 @@ object AgentServiceController {
     internal fun emitTaskCompleted(taskTitle: String) { _taskCompleted.tryEmit(taskTitle) }
 
     fun start(context: Context) {
-        requestBatteryOptimizationExemption(context)
         val intent = Intent(context, AgentForegroundService::class.java).apply {
             action = AgentForegroundService.ACTION_START
         }
-        ContextCompat.startForegroundService(context, intent)
+        try {
+            ContextCompat.startForegroundService(context, intent)
+        } catch (e: Exception) {
+            // Android 12+ throws ForegroundServiceStartNotAllowedException if backgrounded
+            e.printStackTrace()
+        }
+        requestBatteryOptimizationExemption(context)
     }
 
     /**

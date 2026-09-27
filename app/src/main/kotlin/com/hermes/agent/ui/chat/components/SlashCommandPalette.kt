@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Psychology
@@ -54,18 +53,18 @@ val HERMES_SLASH_COMMANDS = listOf(
     SlashCommand(
         command = "/plan",
         syntax = "/plan <task>",
-        title = "Plan Project (Ultra-Skill)",
-        description = "Generate structured multi-step plan with PREPARED evidence badge",
+        title = "Plan Project",
+        description = "Ask for a structured multi-step plan",
         icon = Icons.Outlined.AutoAwesome,
-        template = "ulw-plan ",
+        template = "Make a step-by-step plan for: ",
     ),
     SlashCommand(
         command = "/research",
         syntax = "/research <query>",
-        title = "Deep Research (Ultra-Skill)",
+        title = "Deep Research",
         description = "Execute multi-step web and document investigation",
         icon = Icons.Outlined.Search,
-        template = "ulw-research ",
+        template = "Research this thoroughly and cite sources: ",
     ),
     SlashCommand(
         command = "/kanban",
@@ -114,14 +113,6 @@ val HERMES_SLASH_COMMANDS = listOf(
         description = "Export conversation trajectory to Markdown / JSON",
         icon = Icons.Outlined.Description,
         template = "Export this conversation trajectory",
-    ),
-    SlashCommand(
-        command = "/clear",
-        syntax = "/clear",
-        title = "Clear Context",
-        description = "Reset active chat conversation transcript",
-        icon = Icons.Outlined.CleaningServices,
-        template = "/clear",
     ),
 )
 

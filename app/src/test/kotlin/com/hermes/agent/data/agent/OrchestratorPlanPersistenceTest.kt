@@ -209,6 +209,21 @@ class OrchestratorPlanPersistenceTest {
         assertTrue(system.contains("## Learned operating notes\nAnswer in one sentence."))
     }
 
+    @Test
+    fun `the live user turn is sent exactly once whatever the earlier turns said`() = runTest {
+        suspend fun userTurns(recent: List<LlmMessage>): List<String> {
+            val fixture = fixture(AgentLoopOutcome.Completed("done", emptyList()))
+            fixture.orchestrator.run("conv-dup", "yes", recent, ExecutionOrigin.INTERACTIVE).toList()
+            return fixture.shownToModel.single().filter { it.role == "user" }.map { it.content }
+        }
+        val earlier = listOf(LlmMessage("user", "yes"), LlmMessage("assistant", "Email Bob too?"))
+
+        // API server: prior turns only, and an earlier "yes" must not replace this one.
+        assertEquals(listOf("yes", "yes"), userTurns(earlier))
+        // Chat: the persisted turn is already last in history and must not be doubled.
+        assertEquals(listOf("yes", "yes"), userTurns(earlier + LlmMessage("user", "yes")))
+    }
+
     private fun fixture(
         outcome: AgentLoopOutcome,
         personaChat: Boolean = false,

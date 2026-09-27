@@ -507,17 +507,16 @@ static int decode_tokens_in_batches(
         llama_context *context,
         llama_batch &batch,
         const llama_tokens &tokens,
-        const llama_pos start_pos,
         const bool compute_last_logit = false) {
     // Process tokens in batches using the global batch
-    LOGd("%s: Decode %d tokens starting at position %d", __func__, (int) tokens.size(), start_pos);
+    LOGd("%s: Decode %d tokens starting at position %d", __func__, (int) tokens.size(), lane.current_position);
     for (int i = 0; i < (int) tokens.size(); i += BATCH_SIZE) {
         const int cur_batch_size = std::min((int) tokens.size() - i, BATCH_SIZE);
         common_batch_clear(batch);
         LOGv("%s: Preparing a batch size of %d starting at: %d", __func__, cur_batch_size, i);
 
         // Shift context if current batch cannot fit into the context
-        if (start_pos + i + cur_batch_size >= LANE_CONTEXT_SIZE - OVERFLOW_HEADROOM) {
+        if (lane.current_position + cur_batch_size >= LANE_CONTEXT_SIZE - OVERFLOW_HEADROOM) {
             LOGw("%s: Current batch won't fit into lane %d! Shifting...", __func__, lane.id);
             shift_context(slot, lane);
         }
@@ -525,7 +524,7 @@ static int decode_tokens_in_batches(
         // Add tokens to the batch with proper positions
         for (int j = 0; j < cur_batch_size; j++) {
             const llama_token token_id = tokens[i + j];
-            const llama_pos position = start_pos + i + j;
+            const llama_pos position = lane.current_position + j;
             const bool want_logit = compute_last_logit && (i + j == tokens.size() - 1);
             common_batch_add(batch, token_id, position, {lane.id}, want_logit);
         }
@@ -543,7 +542,8 @@ static int decode_tokens_in_batches(
         }
         cache_record(lane,
                      llama_tokens(tokens.begin() + i, tokens.begin() + i + cur_batch_size),
-                     start_pos + i);
+                     lane.current_position);
+        lane.current_position += cur_batch_size;
     }
     return 0;
 }
@@ -578,6 +578,8 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
     env->ReleaseStringUTFChars(jsystem_prompt, system_prompt);
 
     // Tokenize system prompt
+    // parse_special stays on: the template markers and the tool-caller declarations
+    // are real control tokens. Untrusted text is defused in Kotlin (neutralizeControlTokens).
     auto system_tokens = common_tokenize(slot.context, formatted_system_prompt,
                                          false, true);
     for (auto id: system_tokens) {
@@ -622,13 +624,13 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
 
     // Decode whatever diverged, in batches
     if (!pending.empty() &&
-        decode_tokens_in_batches(slot, lane, slot.context, slot.batch, pending, lane.current_position)) {
+        decode_tokens_in_batches(slot, lane, slot.context, slot.batch, pending)) {
         LOGe("%s: llama_decode() failed!", __func__);
         return 2;
     }
 
     // Update position
-    lane.system_prompt_position = lane.current_position = (int) system_tokens.size();
+    lane.system_prompt_position = lane.current_position;
     return 0;
 }
 
@@ -661,6 +663,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
     env->ReleaseStringUTFChars(juser_prompt, user_prompt);
 
     // Decode formatted user prompts
+    // See processSystemPrompt: untrusted text arrives already defused.
     auto user_tokens = common_tokenize(slot.context, formatted_user_prompt, false, true);
     for (auto id: user_tokens) {
         LOGv("token: `%s`\t -> `%d`", common_token_to_piece(slot.context, id).c_str(), id);
@@ -671,19 +674,17 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
     const int max_batch_size = LANE_CONTEXT_SIZE - OVERFLOW_HEADROOM;
     if (original_user_prompt_size > max_batch_size) {
         const int skipped_tokens = original_user_prompt_size - max_batch_size;
-        user_tokens.resize(max_batch_size);
+        user_tokens.erase(user_tokens.begin(), user_tokens.begin() + skipped_tokens);
         LOGw("%s: User prompt too long! Skipped %d tokens!", __func__, skipped_tokens);
     }
 
     // Decode user tokens in batches
-    if (decode_tokens_in_batches(slot, lane, slot.context, slot.batch, user_tokens, lane.current_position, true)) {
+    if (decode_tokens_in_batches(slot, lane, slot.context, slot.batch, user_tokens, true)) {
         LOGe("%s: llama_decode() failed!", __func__);
         return 2;
     }
 
     // Update position
-    const int decoded_user_prompt_size = (int) user_tokens.size();
-    lane.current_position += decoded_user_prompt_size;
     lane.stop_generation_position = lane.current_position + n_predict;
     return 0;
 }

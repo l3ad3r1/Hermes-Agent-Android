@@ -24,14 +24,14 @@ class SlashCommandPaletteTest {
     fun testPlanCommandTemplate() {
         val planCmd = HERMES_SLASH_COMMANDS.find { it.command == "/plan" }
         assertNotNull(planCmd)
-        assertEquals("ulw-plan ", planCmd!!.template)
+        assertEquals("Make a step-by-step plan for: ", planCmd!!.template)
     }
 
     @Test
     fun testResearchCommandTemplate() {
         val researchCmd = HERMES_SLASH_COMMANDS.find { it.command == "/research" }
         assertNotNull(researchCmd)
-        assertEquals("ulw-research ", researchCmd!!.template)
+        assertEquals("Research this thoroughly and cite sources: ", researchCmd!!.template)
     }
 
     @Test

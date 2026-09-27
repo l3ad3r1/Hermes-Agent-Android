@@ -57,7 +57,8 @@ enum class TalkState {
 class TalkSessionController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val voiceOutputManager: VoiceOutputManager,
-    private val orchestrator: Orchestrator,
+    private val orchestrator: com.hermes.agent.domain.agent.Orchestrator,
+    private val chatRepository: com.hermes.agent.domain.repository.ChatRepository,
     private val settingsRepository: SettingsRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -192,10 +193,9 @@ class TalkSessionController @Inject constructor(
             val augmentedPrompt = if (contextBlock != null) "$contextBlock\n$userText" else userText
 
             val responseAccumulator = StringBuilder()
-            orchestrator.run(
+            chatRepository.sendMessageOrchestrated(
                 conversationId = activeConversationId,
-                userMessage = augmentedPrompt,
-                recentMessages = emptyList(),
+                content = augmentedPrompt,
                 origin = ExecutionOrigin.INTERACTIVE,
             ).collect { event ->
                 when (event) {
@@ -268,6 +268,10 @@ class TalkSessionController @Inject constructor(
             var record: AudioRecord? = null
             var detected = false
             try {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    Timber.tag("TalkMode").w("Barge-in VAD unavailable; RECORD_AUDIO permission missing")
+                    return@launch
+                }
                 record = AudioRecord(
                     MediaRecorder.AudioSource.VOICE_COMMUNICATION,
                     VAD_SAMPLE_RATE,

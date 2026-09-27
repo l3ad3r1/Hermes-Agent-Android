@@ -415,7 +415,11 @@ class OrchestratorImpl @Inject constructor(
                 add(LlmMessage(role = "system", content = stableSystem))
                 if (turnContext.isNotBlank()) add(LlmMessage(role = "system", content = turnContext))
                 addAll(history)
-                if (history.none { it.role == "user" && it.content == userMessage }) {
+                // Chat persists the turn first, so it is already the last history entry.
+                // The API server passes only earlier turns; an identical earlier "yes"
+                // must not stand in for this one, so only the last entry counts.
+                val last = history.lastOrNull()
+                if (last?.role != "user" || last.content != userMessage) {
                     add(LlmMessage(role = "user", content = userMessage))
                 }
             }

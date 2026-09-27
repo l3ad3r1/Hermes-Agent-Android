@@ -231,6 +231,7 @@ class ChatViewModel @Inject constructor(
      * message, not add one.
      */
     fun editMessage(message: Message) {
+        if (_ephemeral.value.isSending) return
         viewModelScope.launch {
             runCatching { keepBranchBefore(message) }
                 .onFailure { Timber.tag("Chat").w(it, "could not keep the earlier version as a branch") }
@@ -246,6 +247,7 @@ class ChatViewModel @Inject constructor(
      * composer so the turn can be retried without retyping it.
      */
     fun rewindTo(message: Message) {
+        if (_ephemeral.value.isSending) return
         viewModelScope.launch {
             runCatching { conversationRepository.rewindTo(conversationId, message) }
                 .onSuccess { removed ->
@@ -287,6 +289,7 @@ class ChatViewModel @Inject constructor(
      * stacked in the transcript, which reads as the user asking twice.
      */
     fun retryWithAlias(message: Message, alias: String) {
+        if (_ephemeral.value.isSending) return
         val cleanContent = message.content
             .removePrefix("[ultrabrain] ")
             .removePrefix("[quick] ")

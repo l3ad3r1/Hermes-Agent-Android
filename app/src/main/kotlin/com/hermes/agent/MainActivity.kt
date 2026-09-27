@@ -217,7 +217,15 @@ class MainActivity : FragmentActivity() {
                 pendingChatIntentTrigger = true
             }
             "com.hermes.agent.action.NOTIFICATION_REPLY" -> {
-                val replyText = intent.getStringExtra("EXTRA_REPLY_TEXT")
+                // Inline replies come as RemoteInput results; the old receiver path used the extra.
+                val replyText = androidx.core.app.RemoteInput.getResultsFromIntent(intent)
+                    ?.getCharSequence("KEY_REPLY")?.toString()
+                    ?: intent.getStringExtra("EXTRA_REPLY_TEXT")
+                // Clears the reply spinner; the conversation continues in the app.
+                val notificationId = intent.getIntExtra("EXTRA_NOTIFICATION_ID", 0)
+                if (notificationId != 0) {
+                    androidx.core.app.NotificationManagerCompat.from(this).cancel(notificationId)
+                }
                 if (!replyText.isNullOrBlank()) {
                     PendingChatIntent.publish(PendingChatIntent.Action.PrefillText(replyText))
                     pendingChatIntentTrigger = true
