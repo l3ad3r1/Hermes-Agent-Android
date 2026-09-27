@@ -26,6 +26,7 @@ import com.hermes.agent.domain.model.ActivityEntry
 import com.hermes.agent.domain.model.ActivityKind
 import com.hermes.agent.domain.model.StepStatus
 import com.hermes.agent.domain.repository.ExecutionPlanRepository
+import com.hermes.agent.domain.repository.SupplementalPromptRepository
 import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.domain.tool.ToolExecutionDecision
@@ -110,6 +111,7 @@ class OrchestratorImpl @Inject constructor(
     private val executionPlanRepository: ExecutionPlanRepository,
     private val activityLedger: ActivityLedger,
     private val settingsRepository: com.hermes.agent.domain.settings.SettingsRepository,
+    private val supplementalPromptRepository: SupplementalPromptRepository,
     private val localBotStore: LocalBotStore,
 ) : Orchestrator {
 
@@ -275,6 +277,12 @@ class OrchestratorImpl @Inject constructor(
         // lexical match — zero LLM cost; see SkillMatcher).
         val skillBlock = skillBlockDeferred
 
+        // 3.6. Learned operating notes: user-approved guidance layered on top of each
+        // agent's immutable base prompt. Fetched once here rather than per step — it is
+        // five rows at most and the plan may revisit a role.
+        val supplementalPrompts = runCatching { supplementalPromptRepository.getAll() }
+            .getOrDefault(emptyMap())
+
         // 4. Execute each step; collect all tool names used for learning.
         val aggregator = StringBuilder()
         val reasoningParts = mutableListOf<String>()
@@ -362,9 +370,18 @@ class OrchestratorImpl @Inject constructor(
             )
 
             val toolInstruction = if (tools.isNotEmpty()) ToolCallPrompt.INSTRUCTION else ""
+
+            // Appended to the base prompt, never substituted for it: the base declares the
+            // agent's tools and wiring and stays immutable, while this block is the part
+            // refinement is allowed to change.
+            val supplementalBlock = supplementalPrompts[step.agentRole]
+                ?.takeIf { !it.isEmpty }
+                ?.let { "\n\n## Learned operating notes\n${it.content.trim()}" }
+                ?: ""
+
             // Two system messages so provider prompt caching (OpenAI/Gemini/DeepSeek
             // do it automatically on a stable prefix) can hit the big stable chunk —
-            // tool schema + persona + standing instructions + tool-call format — every
+            // tool schema + persona + standing/learned notes + tool-call format — every
             // turn. The per-turn recall (memory, skill match, prior-agent context)
             // goes in a second system block that the cache skips.
             // A local bot's persona is layered on top of the role's default prompt for
@@ -378,7 +395,7 @@ class OrchestratorImpl @Inject constructor(
             } else {
                 agent.systemPrompt
             }
-            val stableSystem = persona + standingBlock + toolInstruction
+            val stableSystem = persona + standingBlock + supplementalBlock + toolInstruction
             val turnContext = memoryBlock + skillBlock + previousContext + deferredBlock
             // A persona chat is replayed to a small model as history, so what it once said badly
             // is what it says next: a reply that was only a raw `tool_call {...}` (the call never

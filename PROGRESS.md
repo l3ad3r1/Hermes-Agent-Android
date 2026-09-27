@@ -1,5 +1,15 @@
 # Hermes Agent — Progress
 
+## 2026-09-27 — backports from Jeeves
+
+- Learned operating notes (Settings → Agent operating notes) now reach the model:
+  the screen and storage existed, but OrchestratorImpl never read them, so every
+  approved note was silently ignored. Regression test added; it fails without the fix.
+- Refine skills gains the per-skill revision history with restore, from Jeeves.
+- Removed an unused variable in ChatRepositoryImpl.
+
+**VERIFIED:** `:app:testDebugUnitTest` passed. **UNVERIFIED:** on device.
+
 ## v1.0.4 (2026-09-11) — audit remediation, engine pin repin & settings fields
 
 - Repinned `agent-core.ref` to `f939add`: includes shared engine hardening, plugin test suites, and remote gateway settings contracts.

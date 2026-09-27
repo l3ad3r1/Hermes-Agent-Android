@@ -142,7 +142,7 @@ class OpenClawWiringTest {
         val orchestrator = source("data/agent/OrchestratorImpl.kt")
         assertTrue(
             "stable content (persona + standing + tool-call format) must be one system message",
-            orchestrator.contains("val stableSystem = persona + standingBlock + toolInstruction"),
+            orchestrator.contains("val stableSystem = persona + standingBlock + supplementalBlock + toolInstruction"),
         )
         assertTrue(
             "per-turn recall (memory / skill / prior-agent context) must be a separate system message",
@@ -151,7 +151,7 @@ class OpenClawWiringTest {
         )
         assertTrue(
             "memory must NOT be in the stable half or the cache prefix breaks every turn",
-            !orchestrator.contains("stableSystem = persona + standingBlock + memoryBlock"),
+            !orchestrator.contains("stableSystem = persona + standingBlock + supplementalBlock + memoryBlock"),
         )
     }
 

@@ -190,10 +190,30 @@ class OrchestratorPlanPersistenceTest {
         assertEquals(AgentRole.PRODUCTIVITY, planSlot.captured.steps.single().agentRole)
     }
 
+    @Test
+    fun `learned operating notes reach the model in the stable system prompt`() = runTest {
+        val note = com.hermes.agent.domain.model.SupplementalPrompt(
+            role = AgentRole.CONVERSATIONAL,
+            content = "Answer in one sentence.",
+            version = "1",
+            updatedAt = 0L,
+        )
+        val fixture = fixture(
+            AgentLoopOutcome.Completed("done", emptyList()),
+            notes = mapOf(AgentRole.CONVERSATIONAL to note),
+        )
+
+        fixture.orchestrator.run("conv-notes", "hello", emptyList(), ExecutionOrigin.INTERACTIVE).toList()
+
+        val system = fixture.shownToModel.single().first { it.role == "system" }.content
+        assertTrue(system.contains("## Learned operating notes\nAnswer in one sentence."))
+    }
+
     private fun fixture(
         outcome: AgentLoopOutcome,
         personaChat: Boolean = false,
         routerWouldPick: AgentRole = AgentRole.CONVERSATIONAL,
+        notes: Map<AgentRole, com.hermes.agent.domain.model.SupplementalPrompt> = emptyMap(),
     ): Fixture {
         // Phase observed at each stage, recorded from inside the producer
         // coroutine where it is actually accurate.
@@ -269,6 +289,9 @@ class OrchestratorPlanPersistenceTest {
             activityLedger = mockk<ActivityLedger>(relaxed = true),
             settingsRepository = mockk<com.hermes.agent.domain.settings.SettingsRepository>(relaxed = true) {
                 coEvery { current() } returns com.hermes.agent.domain.settings.UserSettings()
+            },
+            supplementalPromptRepository = mockk<com.hermes.agent.domain.repository.SupplementalPromptRepository>(relaxed = true) {
+                coEvery { getAll() } returns notes
             },
             localBotStore = mockk<com.hermes.agent.data.local.LocalBotStore>(relaxed = true) {
                 every { isLocalBot(any()) } returns personaChat

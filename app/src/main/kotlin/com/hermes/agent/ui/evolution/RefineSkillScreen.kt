@@ -1,5 +1,4 @@
 package com.hermes.agent.ui.evolution
-import com.hermes.agent.domain.settings.*
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,25 +13,32 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hermes.agent.data.evolution.ReflectiveSkillRefiner
-import com.hermes.agent.domain.skill.SkillConstraints
 import com.hermes.agent.domain.skill.SkillDoc
 import com.hermes.agent.ui.components.SlimTopBar
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun RefineSkillScreen(
@@ -41,6 +47,7 @@ fun RefineSkillScreen(
 ) {
     val skills by viewModel.skills.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -64,7 +71,9 @@ fun RefineSkillScreen(
         ) {
             Text(
                 "Reflects on how each skill was actually used in your recent chats and " +
-                    "proposes an improved version. Nothing changes until you approve it.",
+                    "proposes an improved version — both the instructions and the " +
+                    "description that decides when the skill gets loaded. Nothing changes " +
+                    "until you approve it, and every version is kept so you can roll back.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -85,6 +94,10 @@ fun RefineSkillScreen(
                     Text("✓ Skill updated.", color = MaterialTheme.colorScheme.primary)
                     OutlinedButton(onClick = viewModel::reset, modifier = Modifier.fillMaxWidth()) { Text("Done") }
                 }
+                is RefineUiState.Restored -> StatusCard {
+                    Text("✓ Restored v${s.version}.", color = MaterialTheme.colorScheme.primary)
+                    OutlinedButton(onClick = viewModel::reset, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+                }
                 is RefineUiState.NoChange -> StatusCard {
                     Text(s.message, style = MaterialTheme.typography.bodyMedium)
                     OutlinedButton(onClick = viewModel::reset, modifier = Modifier.fillMaxWidth()) { Text("OK") }
@@ -96,7 +109,15 @@ fun RefineSkillScreen(
                 is RefineUiState.Idle -> Unit
             }
 
-            if (state is RefineUiState.Idle) {
+            history?.let { h ->
+                HistoryCard(
+                    history = h,
+                    onRestore = viewModel::restore,
+                    onClose = viewModel::closeHistory,
+                )
+            }
+
+            if (state is RefineUiState.Idle && history == null) {
                 if (skills.isEmpty()) {
                     Text(
                         "No user-created skills yet. Skills are auto-created as the agent " +
@@ -116,10 +137,15 @@ fun RefineSkillScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
-                                Button(
-                                    onClick = { viewModel.refine(skill.name) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text("Refine from usage") }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = { viewModel.refine(skill.name) },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Refine from usage") }
+                                    OutlinedButton(
+                                        onClick = { viewModel.showHistory(skill.name) },
+                                    ) { Text("History") }
+                                }
                             }
                         }
                     }
@@ -169,12 +195,34 @@ private fun ProposalCard(
                 Text("$icon ${c.name}: ${c.message}", style = MaterialTheme.typography.labelSmall, color = color)
             }
 
-            Text("Proposed body:", style = MaterialTheme.typography.labelLarge)
-            Text(
-                proposedBody,
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // The description decides whether this skill is ever retrieved, so
+            // a change to it deserves as much scrutiny as the body.
+            if (proposal.descriptionChanged) {
+                HorizontalDivider()
+                Text("Description (drives when this skill loads):", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    proposal.originalDescription,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        textDecoration = TextDecoration.LineThrough,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    proposal.proposedDescription,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+
+            if (proposal.bodyChanged) {
+                HorizontalDivider()
+                Text("Proposed body:", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    proposedBody,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -184,6 +232,68 @@ private fun ProposalCard(
                 ) { Text(if (proposal.constraintsPass) "Apply" else "Failed gates") }
                 OutlinedButton(onClick = onDiscard, modifier = Modifier.weight(1f)) { Text("Discard") }
             }
+        }
+    }
+}
+
+@Composable
+private fun HistoryCard(
+    history: HistoryState,
+    onRestore: (RevisionRow) -> Unit,
+    onClose: () -> Unit,
+) {
+    val dateFmt = remember { SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("${history.skillName} — version history", style = MaterialTheme.typography.titleMedium)
+
+            when {
+                history.loading -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text("Loading…", style = MaterialTheme.typography.bodySmall)
+                }
+
+                history.revisions.isEmpty() -> Text(
+                    "No earlier versions yet. A snapshot is kept every time this skill " +
+                        "is refined, improved, or edited.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                else -> for (rev in history.revisions) {
+                    HorizontalDivider()
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "v${rev.version} · ${dateFmt.format(Date(rev.replacedAt))}",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Text(
+                            rev.note,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (rev.description.isNotBlank()) {
+                            Text(
+                                "Description: ${rev.description}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        TextButton(onClick = { onRestore(rev) }) { Text("Restore this version") }
+                    }
+                }
+            }
+
+            OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("Close") }
         }
     }
 }

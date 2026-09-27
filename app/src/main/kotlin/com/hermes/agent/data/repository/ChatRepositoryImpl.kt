@@ -226,7 +226,6 @@ class ChatRepositoryImpl @Inject constructor(
         //    final reply so we can persist a single assistant Message at
         //    the end.
         val accumulator = StringBuilder()
-        var finalAgentRole: AgentRole = AgentRole.DEFAULT
         var finalIsOnDevice: Boolean = true
         var replyCompleted = false
         var failureMessage: String? = null
@@ -237,7 +236,6 @@ class ChatRepositoryImpl @Inject constructor(
                     is OrchestratorEvent.ReplyToken -> accumulator.append(event.text)
                     is OrchestratorEvent.ReplyComplete -> {
                         replyCompleted = true
-                        finalAgentRole = event.agentRole
                         finalIsOnDevice = event.isOnDevice
                         val assistantMessage = Message(
                             id = IdGenerator.newId(),
