@@ -27,6 +27,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -584,7 +585,9 @@ class SettingsViewModel @Inject constructor(
         _providerModelDiscovery.value = _providerModelDiscovery.value - providerId
     }
 
-    fun setProviderApiKey(providerId: String, key: String) = viewModelScope.launch {
+    // The provider card saves its key and Base URL when it leaves composition, which is
+    // as this view model is cleared; NonCancellable keeps that last save from being dropped.
+    fun setProviderApiKey(providerId: String, key: String) = viewModelScope.launch(NonCancellable) {
         updateProvider(providerId) { it.copy(apiKey = key, enabled = key.isNotBlank()) }
         if (key.isNotBlank()) settingsRepository.setCloudEnabled(true)
     }
@@ -593,7 +596,7 @@ class SettingsViewModel @Inject constructor(
         updateProvider(providerId) { it.copy(enabled = enabled && (it.apiKey.isNotBlank() || it.id.startsWith("custom_"))) }
     }
 
-    fun setProviderBaseUrl(providerId: String, baseUrl: String) = viewModelScope.launch {
+    fun setProviderBaseUrl(providerId: String, baseUrl: String) = viewModelScope.launch(NonCancellable) {
         updateProvider(providerId) { it.copy(baseUrl = baseUrl.trim()) }
     }
 
