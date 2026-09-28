@@ -47,7 +47,15 @@ data class SlashCommand(
     val description: String,
     val icon: ImageVector,
     val template: String,
+    /** Set for a command the app carries out itself instead of prefilling a prompt. */
+    val action: SlashAction? = null,
 )
+
+/**
+ * Commands that are app actions, not prompts. /export used to prefill "Export this conversation
+ * trajectory" for the model, which has no tool that exports a chat and said so.
+ */
+enum class SlashAction { EXPORT }
 
 val HERMES_SLASH_COMMANDS = listOf(
     SlashCommand(
@@ -96,7 +104,9 @@ val HERMES_SLASH_COMMANDS = listOf(
         title = "Delegate Subagent",
         description = "Launch isolated subagent background task",
         icon = Icons.Outlined.Send,
-        template = "Delegate task: ",
+        // "Delegate task: " made the model run the subtask inside this turn, so nothing reached
+        // the Delegate screen. Asking for the background run is what queues it there.
+        template = "Delegate this as a background task (delegate with background=true): ",
     ),
     SlashCommand(
         command = "/memory",
@@ -110,9 +120,10 @@ val HERMES_SLASH_COMMANDS = listOf(
         command = "/export",
         syntax = "/export",
         title = "Export Trajectory",
-        description = "Export conversation trajectory to Markdown / JSON",
+        description = "Share this conversation as Markdown",
         icon = Icons.Outlined.Description,
-        template = "Export this conversation trajectory",
+        template = "",
+        action = SlashAction.EXPORT,
     ),
 )
 
@@ -124,6 +135,7 @@ fun SlashCommandPalette(
     currentQuery: String,
     onSelectCommand: (SlashCommand) -> Unit,
     modifier: Modifier = Modifier,
+    commands: List<SlashCommand> = HERMES_SLASH_COMMANDS,
 ) {
     val isVisible = currentQuery.startsWith("/") || currentQuery.startsWith("ulw-")
     val queryToken = when {
@@ -133,9 +145,9 @@ fun SlashCommandPalette(
     }.trim().lowercase()
 
     val filteredCommands = if (queryToken.isEmpty()) {
-        HERMES_SLASH_COMMANDS
+        commands
     } else {
-        HERMES_SLASH_COMMANDS.filter {
+        commands.filter {
             it.command.lowercase().contains(queryToken) ||
                 it.title.lowercase().contains(queryToken) ||
                 it.description.lowercase().contains(queryToken)

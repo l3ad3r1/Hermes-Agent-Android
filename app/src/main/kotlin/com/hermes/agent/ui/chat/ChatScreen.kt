@@ -194,6 +194,7 @@ fun ChatScreen(
                                 onAnswer = viewModel::answerClarification,
                             )
                         }
+                        val exportContext = androidx.compose.ui.platform.LocalContext.current
                         ChatInputBar(
                             isSending = uiState.isSending,
                             isListening = uiState.isListening,
@@ -209,6 +210,15 @@ fun ChatScreen(
                             reasoningEffort = uiState.reasoningEffort,
                             onReasoningEffortChange = viewModel::setReasoningEffort,
                             modelName = uiState.activeModel,
+                            onExportConversation = {
+                                viewModel.exportMarkdown { markdown ->
+                                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                        putExtra(android.content.Intent.EXTRA_TEXT, markdown)
+                                        type = "text/plain"
+                                    }
+                                    exportContext.startActivity(android.content.Intent.createChooser(send, "Export Chat Transcript"))
+                                }
+                            },
                         )
                     }
                 }

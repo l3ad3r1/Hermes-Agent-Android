@@ -253,7 +253,8 @@ private fun RemoteShellSection(
                     "(docker exec …). Leave the host blank to keep the shell on-device only.",
             )
 
-            var host by remember(settings.sshHost) { mutableStateOf(settings.sshHost) }
+            val hostField = rememberSettingText(settings.sshHost)
+            var host by hostField::text
             OutlinedTextField(
                 value = host,
                 onValueChange = { host = it; onHost(it) },
@@ -261,20 +262,22 @@ private fun RemoteShellSection(
                 placeholder = { Text("192.168.1.10 or example.com") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(hostField),
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                var user by remember(settings.sshUser) { mutableStateOf(settings.sshUser) }
+                val userField = rememberSettingText(settings.sshUser)
+                var user by userField::text
                 OutlinedTextField(
                     value = user,
                     onValueChange = { user = it; onUser(it) },
                     label = { Text("User") },
                     singleLine = true,
                     colors = hermesFieldColors(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).settingFocus(userField),
                 )
-                var portText by remember(settings.sshPort) { mutableStateOf(settings.sshPort.toString()) }
+                val portTextField = rememberSettingText(settings.sshPort.toString())
+                var portText by portTextField::text
                 OutlinedTextField(
                     value = portText,
                     onValueChange = {
@@ -284,11 +287,12 @@ private fun RemoteShellSection(
                     label = { Text("Port") },
                     singleLine = true,
                     colors = hermesFieldColors(),
-                    modifier = Modifier.width(96.dp),
+                    modifier = Modifier.width(96.dp).settingFocus(portTextField),
                 )
             }
 
-            var password by remember(settings.sshPassword) { mutableStateOf(settings.sshPassword) }
+            val passwordField = rememberSettingText(settings.sshPassword)
+            var password by passwordField::text
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it; onPassword(it) },
@@ -297,12 +301,11 @@ private fun RemoteShellSection(
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(passwordField),
             )
 
-            var hostFingerprint by remember(settings.sshHostFingerprint) {
-                mutableStateOf(settings.sshHostFingerprint)
-            }
+            val hostFingerprintField = rememberSettingText(settings.sshHostFingerprint)
+            var hostFingerprint by hostFingerprintField::text
             OutlinedTextField(
                 value = hostFingerprint,
                 onValueChange = { hostFingerprint = it; onHostFingerprint(it) },
@@ -311,7 +314,7 @@ private fun RemoteShellSection(
                 supportingText = { Text("Verify this fingerprint out of band before saving it.") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(hostFingerprintField),
             )
         }
     }
@@ -337,7 +340,8 @@ private fun HomeAssistantSection(
                 "Control lights, switches, climates, and scenes via your local or remote Home Assistant instance.",
             )
 
-            var url by remember(settings.homeAssistantUrl) { mutableStateOf(settings.homeAssistantUrl) }
+            val urlField = rememberSettingText(settings.homeAssistantUrl)
+            var url by urlField::text
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it; onUrl(it) },
@@ -345,10 +349,11 @@ private fun HomeAssistantSection(
                 placeholder = { Text("http://homeassistant.local:8123") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(urlField),
             )
 
-            var token by remember(settings.homeAssistantToken) { mutableStateOf(settings.homeAssistantToken) }
+            val tokenField = rememberSettingText(settings.homeAssistantToken)
+            var token by tokenField::text
             OutlinedTextField(
                 value = token,
                 onValueChange = { token = it; onToken(it) },
@@ -358,7 +363,7 @@ private fun HomeAssistantSection(
                 trailingIcon = { RevealToggle(tokenVisible) { tokenVisible = !tokenVisible } },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(tokenField),
             )
 
             OutlinedButton(
@@ -385,9 +390,8 @@ private fun HomeAssistantSection(
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            var dashboard by remember(settings.homeAssistantDashboardPath) {
-                mutableStateOf(settings.homeAssistantDashboardPath)
-            }
+            val dashboardField = rememberSettingText(settings.homeAssistantDashboardPath)
+            var dashboard by dashboardField::text
             OutlinedTextField(
                 value = dashboard,
                 onValueChange = { dashboard = it; onDashboardPath(it) },
@@ -396,7 +400,7 @@ private fun HomeAssistantSection(
                 supportingText = { Text("Relative to the base URL. Leave blank for the default dashboard.") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(dashboardField),
             )
             ToggleRow(
                 title = "Show on Home screen",

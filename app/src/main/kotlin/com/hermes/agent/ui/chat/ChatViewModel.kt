@@ -56,11 +56,21 @@ class ChatViewModel @Inject constructor(
     private val toolConfirmationService: com.hermes.agent.domain.tool.ToolConfirmationService,
     private val executionPlanRepository: ExecutionPlanRepository,
     private val ultraSkillInterceptor: com.hermes.agent.domain.agent.UltraSkillInterceptor,
+    private val sessionRepository: com.hermes.agent.data.repository.SessionRepository,
 ) : ViewModel() {
 
     val conversationId: String = checkNotNull(savedStateHandle["conversationId"])
 
     val pendingToolConfirmation = toolConfirmationService.pendingRequest
+
+    /** This conversation as Markdown, for the /export share sheet (same format as the chat list's export). */
+    fun exportMarkdown(onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            runCatching { sessionRepository.exportToMarkdown(conversationId) }
+                .onSuccess(onResult)
+                .onFailure { timber.log.Timber.w(it, "could not export conversation %s", conversationId) }
+        }
+    }
 
     fun submitToolConfirmation(requestId: String, approved: Boolean) {
         toolConfirmationService.submitConfirmation(requestId, approved)

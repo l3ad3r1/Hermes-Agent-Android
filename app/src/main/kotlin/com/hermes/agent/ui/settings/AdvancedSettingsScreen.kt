@@ -144,10 +144,19 @@ private fun FilesWorkspaceSection(
     rootUri: String,
     onUpdateRoot: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
         if (uri != null) {
+            // Kept across restarts; without it the grant lapsed with the process.
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
             onUpdateRoot(uri.toString())
         }
     }
@@ -165,7 +174,7 @@ private fun FilesWorkspaceSection(
                 text = if (rootUri.isBlank()) {
                     "Default: App Sandbox Internal Workspace"
                 } else {
-                    "Granted Root: $rootUri"
+                    "Granted Root: ${com.hermes.agent.data.tools.WorkspaceRoots.pathOf(rootUri) ?: rootUri}"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

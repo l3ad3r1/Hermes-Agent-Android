@@ -12,10 +12,10 @@ import javax.inject.Singleton
 /**
  * Enqueues / cancels the periodic WorkManager job backing a [ScheduledTask].
  *
- * Driven by the cron UI ([com.hermes.agent.ui.cron.CronViewModel]). The schedule lives in
- * WorkManager's own database, separate from the task rows, so a task that is in the list is not
- * necessarily scheduled: a restored or reinstalled app has the rows and none of the work.
- * [reconcile] closes that gap at startup.
+ * The schedule lives in WorkManager's own database, separate from the task rows, so a task that is
+ * in the list is not necessarily scheduled. Rows change from several places: the cron screen, the
+ * agent's scheduler tool (which only writes the row), a restore. [sync] follows the rows while the
+ * app runs, so each of those ends up scheduled.
  */
 @Singleton
 class CronScheduler @Inject constructor(
@@ -24,12 +24,20 @@ class CronScheduler @Inject constructor(
     fun schedule(task: ScheduledTask) = enqueue(task, ExistingPeriodicWorkPolicy.UPDATE)
 
     /**
-     * Makes sure every enabled task has its periodic work. A task that is already scheduled is
-     * left exactly as it is (KEEP), so running this on every launch does not restart anyone's
-     * timing; only a task WorkManager has lost gets enqueued again.
+     * Brings WorkManager in line with [tasks]. Every enabled task gets its periodic work, and one
+     * that already has it is left exactly as it is (KEEP), so running this on every change does not
+     * restart anyone's timing. A task in [previouslyScheduled] that is now disabled or deleted is
+     * cancelled. Returns the ids scheduled now, to pass back in next time.
+     *
+     * A routine the agent created used to wait for the next app launch: the tool wrote the row and
+     * nothing enqueued it, so "remind me in three minutes" never fired.
      */
-    fun reconcile(tasks: List<ScheduledTask>) {
-        tasks.filter { it.isEnabled }.forEach { enqueue(it, ExistingPeriodicWorkPolicy.KEEP) }
+    fun sync(tasks: List<ScheduledTask>, previouslyScheduled: Set<String> = emptySet()): Set<String> {
+        val enabled = tasks.filter { it.isEnabled }
+        enabled.forEach { enqueue(it, ExistingPeriodicWorkPolicy.KEEP) }
+        val scheduled = enabled.map { it.id }.toSet()
+        (previouslyScheduled - scheduled).forEach(::cancel)
+        return scheduled
     }
 
     private fun enqueue(task: ScheduledTask, policy: ExistingPeriodicWorkPolicy) {

@@ -4,6 +4,8 @@ import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.domain.llm.LlmProvider
 import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.data.tool.ToolCallExecutor
+import com.hermes.agent.data.tools.DeferredToolScope
+import com.hermes.agent.data.tools.ToolSearchEngine
 import com.hermes.agent.domain.agent.ExecutionGuard
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.agent.ExecutionStopReason
@@ -14,6 +16,11 @@ import com.hermes.agent.domain.tool.ToolExecutionPolicy
 import com.hermes.agent.domain.tool.ToolRegistry
 import com.hermes.agent.domain.tool.ToolResult
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -49,6 +56,7 @@ class AgentLoopRunner @Inject constructor(
     private val toolCallExecutor: ToolCallExecutor,
     private val executionGuard: ExecutionGuard,
     private val executionPolicy: ToolExecutionPolicy,
+    private val deferredScope: DeferredToolScope = DeferredToolScope(),
 ) {
     suspend fun run(
         provider: LlmProvider,
@@ -121,11 +129,15 @@ class AgentLoopRunner @Inject constructor(
             )
 
             val observations = mutableListOf<ToolExecutionObservation>()
-            for (call in response.toolCalls) {
+            for (requested in response.toolCalls) {
+                val call = routeThroughBridge(requested, tools)
                 toolsInvoked += call.name
+                // A bridge call is judged as the tool it runs, so the policy's name
+                // lists and that tool's own confirmation rule apply to it.
+                val (gateName, gateArgs) = bridgeTarget(call) ?: (call.name to call.arguments)
                 val requiresConfirmation =
-                    toolRegistry.byName(call.name)?.requiresConfirmation(call.arguments) ?: false
-                val decision = executionPolicy.evaluate(origin, call.name, requiresConfirmation)
+                    toolRegistry.byName(gateName)?.requiresConfirmation(gateArgs) ?: false
+                val decision = executionPolicy.evaluate(origin, gateName, requiresConfirmation)
                 val mustConfirm = decision is ToolExecutionDecision.Confirm
                 onToolRequested(call, mustConfirm)
 
@@ -215,6 +227,48 @@ class AgentLoopRunner @Inject constructor(
             "Hermes reached the tool-step limit before finishing. Try splitting the request into smaller steps.",
             toolsInvoked.toList(),
         )
+    }
+
+    /**
+     * A direct call to a deferred tool this step is granted goes through the bridge. The
+     * system prompt names the deferred tools, so models call them by name, and that failed
+     * "unauthorized tool" although tool_call would have run the same tool.
+     */
+    private fun routeThroughBridge(call: ToolCall, tools: List<ToolDescriptor>): ToolCall =
+        if (tools.none { it.name == call.name } &&
+            tools.any { it.name == ToolSearchEngine.TOOL_CALL_NAME } &&
+            deferredScope.isAllowed(call.name)
+        ) {
+            call.copy(
+                name = ToolSearchEngine.TOOL_CALL_NAME,
+                arguments = mapOf(
+                    "tool_name" to JsonPrimitive(call.name),
+                    "arguments" to JsonObject(call.arguments),
+                ),
+            )
+        } else {
+            call
+        }
+
+    /**
+     * The granted deferred tool a tool_call runs, with its arguments. Judged by the name
+     * "tool_call", every deferred read asked for approval, and a background run reaching a
+     * never-autonomous tool through the bridge was only stopped by that blanket flag.
+     * Null when the call is not a bridge call or names nothing this step may run.
+     */
+    private fun bridgeTarget(call: ToolCall): Pair<String, Map<String, JsonElement>>? {
+        if (call.name != ToolSearchEngine.TOOL_CALL_NAME) return null
+        val name = (call.arguments["tool_name"] as? JsonPrimitive)?.content?.trim().orEmpty()
+        if (!deferredScope.isAllowed(name)) return null
+        val args = when (val nested = call.arguments["arguments"]) {
+            is JsonObject -> nested.toMap()
+            null, JsonNull -> emptyMap()
+            is JsonPrimitive ->
+                (runCatching { Json.parseToJsonElement(nested.content) }.getOrNull() as? JsonObject)?.toMap()
+                    ?: return null
+            else -> return null
+        }
+        return name to args
     }
 
     companion object {

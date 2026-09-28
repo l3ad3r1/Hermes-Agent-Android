@@ -99,6 +99,7 @@ class ChatViewModelTest {
         branchStore = mockk<com.hermes.agent.data.chat.BranchStore>(relaxed = true),
         toolConfirmationService = mockk<ToolConfirmationService>(relaxed = true),
         executionPlanRepository = plans,
+        sessionRepository = mockk<com.hermes.agent.data.repository.SessionRepository>(relaxed = true),
         ultraSkillInterceptor = mockk<com.hermes.agent.domain.agent.UltraSkillInterceptor>(relaxed = true).also {
             io.mockk.coEvery { it.intercept(any(), any()) } returns false
         }

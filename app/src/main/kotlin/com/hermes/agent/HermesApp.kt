@@ -131,10 +131,15 @@ class HermesApp : Application(), Configuration.Provider {
         scheduleAmbientWorkers()
 
         // The schedule lives in WorkManager's own database, not with the task rows, so a restored
-        // or reinstalled app has the jobs listed and nothing running them.
+        // or reinstalled app has the jobs listed and nothing running them, and a routine the agent
+        // creates is only a row. Follow the rows for as long as the app runs.
         applicationScope.launch {
             runCatching {
-                cronSchedulerProvider.get().reconcile(cronRepositoryProvider.get().observe().first())
+                val scheduler = cronSchedulerProvider.get()
+                    var scheduled = emptySet<String>()
+                    cronRepositoryProvider.get().observe().collect { tasks ->
+                        scheduled = scheduler.sync(tasks, scheduled)
+                    }
             }.onFailure { Timber.tag("Cron").w(it, "could not re-schedule cron jobs") }
         }
 

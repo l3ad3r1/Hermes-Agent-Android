@@ -20,8 +20,8 @@ class CronSchedulerTest {
         ScheduledTask(id = id, label = id, prompt = "p", cronExpression = "0 8 * * *", isEnabled = enabled)
 
     @Test
-    fun `reconcile schedules every enabled task without restarting one that already exists`() {
-        scheduler.reconcile(listOf(task("a"), task("b")))
+    fun `sync schedules every enabled task without restarting one that already exists`() {
+        scheduler.sync(listOf(task("a"), task("b")))
 
         // KEEP: a task WorkManager already has keeps its timing; only a lost one is enqueued again.
         verify { workManager.enqueueUniquePeriodicWork("cron_a", ExistingPeriodicWorkPolicy.KEEP, any<PeriodicWorkRequest>()) }
@@ -29,10 +29,22 @@ class CronSchedulerTest {
     }
 
     @Test
-    fun `reconcile leaves a disabled task unscheduled`() {
-        scheduler.reconcile(listOf(task("off", enabled = false)))
+    fun `sync leaves a disabled task unscheduled`() {
+        scheduler.sync(listOf(task("off", enabled = false)))
 
         verify(exactly = 0) { workManager.enqueueUniquePeriodicWork(any(), any(), any<PeriodicWorkRequest>()) }
+    }
+
+    @Test
+    fun `sync cancels a task that was disabled or deleted since the last change`() {
+        val first = scheduler.sync(listOf(task("keep"), task("off"), task("gone")))
+
+        val second = scheduler.sync(listOf(task("keep"), task("off", enabled = false)), first)
+
+        verify { workManager.cancelUniqueWork("cron_off") }
+        verify { workManager.cancelUniqueWork("cron_gone") }
+        verify(exactly = 0) { workManager.cancelUniqueWork("cron_keep") }
+        org.junit.Assert.assertEquals(setOf("keep"), second)
     }
 
     @Test

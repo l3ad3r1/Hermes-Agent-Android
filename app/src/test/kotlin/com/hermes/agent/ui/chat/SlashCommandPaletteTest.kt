@@ -1,6 +1,7 @@
 package com.hermes.agent.ui.chat
 
 import com.hermes.agent.ui.chat.components.HERMES_SLASH_COMMANDS
+import com.hermes.agent.ui.chat.components.SlashAction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -16,7 +17,8 @@ class SlashCommandPaletteTest {
             assertTrue(cmd.syntax.startsWith("/"))
             assertTrue(cmd.title.isNotBlank())
             assertTrue(cmd.description.isNotBlank())
-            assertTrue(cmd.template.isNotBlank())
+            // Every command does something: it prefills a prompt, or the app carries it out.
+            assertTrue(cmd.command, cmd.template.isNotBlank() || cmd.action != null)
         }
     }
 
@@ -43,5 +45,18 @@ class SlashCommandPaletteTest {
         val quickCmd = HERMES_SLASH_COMMANDS.find { it.command == "/model quick" }
         assertNotNull(quickCmd)
         assertEquals("[quick] ", quickCmd!!.template)
+    }
+
+    @Test
+    fun exportIsAnAppActionNotAPrompt() {
+        // It used to prefill "Export this conversation trajectory" for a model with no export tool.
+        val export = HERMES_SLASH_COMMANDS.single { it.command == "/export" }
+        assertEquals(SlashAction.EXPORT, export.action)
+    }
+
+    @Test
+    fun delegateAsksForABackgroundTask() {
+        val delegate = HERMES_SLASH_COMMANDS.single { it.command == "/delegate" }
+        assertTrue(delegate.template.contains("background=true"))
     }
 }

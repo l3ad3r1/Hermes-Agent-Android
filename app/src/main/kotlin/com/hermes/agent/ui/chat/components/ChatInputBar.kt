@@ -105,6 +105,8 @@ fun ChatInputBar(
     attachmentsEnabled: Boolean = true,
     /** Overrides the "Ask Hermes" hint, for a chat that is with someone in particular. */
     placeholder: String? = null,
+    /** Shares this conversation; /export is offered only where this is set. */
+    onExportConversation: (() -> Unit)? = null,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var text by remember(prefillText) { mutableStateOf(prefillText) }
@@ -140,7 +142,16 @@ fun ChatInputBar(
         SlashCommandPalette(
             currentQuery = text,
             onSelectCommand = { cmd ->
-                text = cmd.template
+                when (cmd.action) {
+                    SlashAction.EXPORT -> {
+                        text = ""
+                        onExportConversation?.invoke()
+                    }
+                    null -> text = cmd.template
+                }
+            },
+            commands = HERMES_SLASH_COMMANDS.filter {
+                it.action != SlashAction.EXPORT || onExportConversation != null
             },
         )
 

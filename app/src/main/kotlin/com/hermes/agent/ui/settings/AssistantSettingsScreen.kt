@@ -132,9 +132,8 @@ fun AssistantSettingsScreen(
             SectionHeader(text = "Standing instructions")
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    var standingText by remember(settings.standingInstructions) {
-                        mutableStateOf(settings.standingInstructions)
-                    }
+                    val standingTextField = rememberSettingText(settings.standingInstructions)
+                    var standingText by standingTextField::text
                     OutlinedTextField(
                         value = standingText,
                         onValueChange = {
@@ -147,7 +146,7 @@ fun AssistantSettingsScreen(
                         },
                         minLines = 3,
                         colors = hermesFieldColors(),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().settingFocus(standingTextField),
                     )
                 }
             }
@@ -678,7 +677,8 @@ private fun LegacyCloudSectionRemoved(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            var baseUrl by remember(settings.cloudBaseUrl) { mutableStateOf(settings.cloudBaseUrl) }
+            val baseUrlField = rememberSettingText(settings.cloudBaseUrl)
+            var baseUrl by baseUrlField::text
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = {
@@ -689,10 +689,11 @@ private fun LegacyCloudSectionRemoved(
                 supportingText = { Text("Models load automatically from this URL's /models endpoint.") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(baseUrlField),
             )
 
-            var apiKey by remember(settings.cloudApiKey) { mutableStateOf(settings.cloudApiKey) }
+            val apiKeyField = rememberSettingText(settings.cloudApiKey)
+            var apiKey by apiKeyField::text
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = {
@@ -704,7 +705,7 @@ private fun LegacyCloudSectionRemoved(
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(apiKeyField),
             )
 
             CloudModelSelector(
@@ -723,7 +724,8 @@ private fun LegacyCloudSectionRemoved(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            var auxBaseUrl by remember(settings.auxBaseUrl) { mutableStateOf(settings.auxBaseUrl) }
+            val auxBaseUrlField = rememberSettingText(settings.auxBaseUrl)
+            var auxBaseUrl by auxBaseUrlField::text
             OutlinedTextField(
                 value = auxBaseUrl,
                 onValueChange = {
@@ -734,10 +736,11 @@ private fun LegacyCloudSectionRemoved(
                 supportingText = { Text("Leave blank to reuse the primary provider and its model list.") },
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(auxBaseUrlField),
             )
 
-            var auxApiKey by remember(settings.auxApiKey) { mutableStateOf(settings.auxApiKey) }
+            val auxApiKeyField = rememberSettingText(settings.auxApiKey)
+            var auxApiKey by auxApiKeyField::text
             OutlinedTextField(
                 value = auxApiKey,
                 onValueChange = {
@@ -749,7 +752,7 @@ private fun LegacyCloudSectionRemoved(
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 colors = hermesFieldColors(),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingFocus(auxApiKeyField),
             )
 
             CloudModelSelector(

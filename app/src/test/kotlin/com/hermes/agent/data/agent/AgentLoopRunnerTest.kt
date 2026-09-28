@@ -8,6 +8,7 @@ import com.hermes.agent.domain.llm.LlmToolResponse
 import com.hermes.agent.domain.llm.ToolCall
 import com.hermes.agent.data.tool.ToolCallExecutor
 import com.hermes.agent.data.tool.ToolRegistryImpl
+import com.hermes.agent.data.tools.DeferredToolScope
 import com.hermes.agent.domain.agent.ExecutionOrigin
 import com.hermes.agent.domain.tool.Tool
 import com.hermes.agent.domain.tool.ToolDescriptor
@@ -20,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -258,9 +260,100 @@ class AgentLoopRunnerTest {
         assertEquals(AgentLoopFailureReason.TIMED_OUT, (result as AgentLoopOutcome.Failed).reason)
     }
 
+    @Test
+    fun `a direct call to a granted deferred tool runs through the bridge`() = runTest {
+        val call = ToolCall("c", "bookmarks", mapOf("action" to JsonPrimitive("list")))
+        val fixture = fixture { round ->
+            if (round == 0) LlmToolResponse("", listOf(call), 1, "fake", "tool_calls")
+            else LlmToolResponse("done", emptyList(), 1, "fake", "stop")
+        }
+        fixture.registry.register(stubTool("tool_call", requiresConfirmation = true))
+        fixture.registry.register(stubTool("bookmarks"))
+        fixture.scope.publish(setOf("bookmarks"))
+        val executed = mutableListOf<ToolCall>()
+        coEvery { fixture.executor.execute(any(), confirmationGate = null) } answers {
+            executed += firstArg<ToolCall>()
+            ToolResult.ok("No bookmarks found.")
+        }
+
+        val result = fixture.run(listOf("tool_call"))
+
+        assertEquals("done", (result as AgentLoopOutcome.Completed).reply)
+        assertEquals("tool_call", executed.single().name)
+        assertEquals(JsonPrimitive("bookmarks"), executed.single().arguments["tool_name"])
+        assertEquals(JsonObject(call.arguments), executed.single().arguments["arguments"])
+    }
+
+    @Test
+    fun `a bridged read-only tool does not ask while a bridged write still does`() = runTest {
+        val read = bridged("bookmarks", "list")
+        val write = bridged("scheduler", "create")
+        val fixture = fixture { round ->
+            when (round) {
+                0 -> LlmToolResponse("", listOf(read), 1, "fake", "tool_calls")
+                1 -> LlmToolResponse("", listOf(write), 1, "fake", "tool_calls")
+                else -> LlmToolResponse("done", emptyList(), 1, "fake", "stop")
+            }
+        }
+        fixture.registry.register(stubTool("tool_call", requiresConfirmation = true))
+        fixture.registry.register(stubTool("bookmarks"))
+        fixture.registry.register(stubTool("scheduler", requiresConfirmation = true))
+        fixture.scope.publish(setOf("bookmarks", "scheduler"))
+        coEvery { fixture.executor.execute(any(), confirmationGate = null) } returns ToolResult.ok("ok")
+        val asked = mutableListOf<String>()
+        val gate = ToolCallExecutor.ConfirmationGate { c, _ ->
+            asked += (c.arguments["tool_name"] as JsonPrimitive).content
+            true
+        }
+
+        fixture.run(listOf("tool_call"), confirmationGate = gate)
+
+        assertEquals(listOf("scheduler"), asked)
+    }
+
+    @Test
+    fun `a background run cannot reach a never-autonomous tool through the bridge`() = runTest {
+        val call = bridged("alarm", "set")
+        val fixture = fixture { LlmToolResponse("", listOf(call), 1, "fake", "tool_calls") }
+        fixture.registry.register(stubTool("tool_call", requiresConfirmation = true))
+        fixture.registry.register(stubTool("alarm"))
+        fixture.scope.publish(setOf("alarm"))
+        val results = mutableListOf<ToolResult>()
+
+        fixture.run(listOf("tool_call"), origin = ExecutionOrigin.BACKGROUND, onToolResult = { _, r -> results += r })
+
+        coVerify(exactly = 0) { fixture.executor.execute(any(), any()) }
+        assertTrue(results.first().errorMessage.orEmpty().contains("never allowed from background"))
+    }
+
+    @Test
+    fun `a tool outside the granted scope is still unauthorized`() = runTest {
+        val call = ToolCall("c", "shell", emptyMap())
+        val fixture = fixture { LlmToolResponse("", listOf(call), 1, "fake", "tool_calls") }
+        fixture.registry.register(stubTool("tool_call", requiresConfirmation = true))
+        fixture.registry.register(stubTool("shell"))
+        fixture.scope.publish(setOf("bookmarks"))
+        val results = mutableListOf<ToolResult>()
+
+        fixture.run(listOf("tool_call"), onToolResult = { _, r -> results += r })
+
+        coVerify(exactly = 0) { fixture.executor.execute(any(), any()) }
+        assertEquals("unauthorized tool: shell", results.first().errorMessage)
+    }
+
+    private fun bridged(name: String, action: String) = ToolCall(
+        "c-$name",
+        "tool_call",
+        mapOf(
+            "tool_name" to JsonPrimitive(name),
+            "arguments" to JsonObject(mapOf("action" to JsonPrimitive(action))),
+        ),
+    )
+
     private fun fixture(response: (Int) -> LlmToolResponse): Fixture {
         val registry = ToolRegistryImpl()
         val executor = mockk<ToolCallExecutor>()
+        val scope = DeferredToolScope()
         return Fixture(
             registry,
             executor,
@@ -270,7 +363,9 @@ class AgentLoopRunnerTest {
                 executor,
                 RepeatedExecutionGuard(),
                 ToolExecutionPolicy(mockk(relaxed = true)),
+                scope,
             ),
+            scope,
         )
     }
 
@@ -284,7 +379,24 @@ class AgentLoopRunnerTest {
         val executor: ToolCallExecutor,
         val provider: LlmProvider,
         val runner: AgentLoopRunner,
+        val scope: DeferredToolScope,
     ) {
+        /** Runs with only [advertised] tools offered to the model, as the orchestrator does. */
+        suspend fun run(
+            advertised: List<String>,
+            origin: ExecutionOrigin = ExecutionOrigin.INTERACTIVE,
+            confirmationGate: ToolCallExecutor.ConfirmationGate? = null,
+            onToolResult: suspend (ToolCall, ToolResult) -> Unit = { _, _ -> },
+        ): AgentLoopOutcome = runner.run(
+            provider,
+            listOf(LlmMessage("user", "test")),
+            registry.descriptors().filter { it.name in advertised },
+            origin,
+            { _, _ -> },
+            confirmationGate,
+            onToolResult,
+        )
+
         suspend fun runWithTools(
             origin: ExecutionOrigin = ExecutionOrigin.INTERACTIVE,
             confirmationGate: ToolCallExecutor.ConfirmationGate? = null,
