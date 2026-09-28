@@ -6,7 +6,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.hermes.agent.data.evolution.EvolutionNotifier
 import com.hermes.agent.data.evolution.ReflectiveSkillRefiner
-import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.domain.model.Skill
 import com.hermes.agent.domain.model.SkillLifecycle
@@ -53,7 +52,7 @@ class SkillImprovementWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val skillRepository: SkillRepository,
-    private val llmProvider: CloudLlmProvider,
+    private val llmProvider: com.hermes.agent.domain.llm.LlmProvider,
     private val refiner: ReflectiveSkillRefiner,
     private val notifier: EvolutionNotifier,
 ) : CoroutineWorker(appContext, params) {

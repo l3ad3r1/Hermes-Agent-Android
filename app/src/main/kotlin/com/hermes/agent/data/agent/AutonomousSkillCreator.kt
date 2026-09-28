@@ -1,6 +1,5 @@
 package com.hermes.agent.data.agent
 
-import com.hermes.agent.data.llm.CloudLlmProvider
 import com.hermes.agent.domain.llm.LlmMessage
 import com.hermes.agent.domain.repository.SkillRepository
 import com.hermes.agent.domain.skill.SkillGuard
@@ -29,7 +28,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AutonomousSkillCreator @Inject constructor(
-    private val llmProvider: CloudLlmProvider,
+    private val llmProvider: com.hermes.agent.domain.llm.LlmProvider,
     private val skillRepository: SkillRepository,
     private val dispatchers: DispatcherProvider,
 ) {
