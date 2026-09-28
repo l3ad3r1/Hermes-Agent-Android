@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Debug copy: static shortcuts need the literal package, and the debug build is com.hermes.agent.debug.
+     A string resource here is not resolved and the launch fails. Keep in step with src/main. -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
         android:shortcutId="shortcut_new_note"
@@ -8,7 +10,7 @@
         android:shortcutLongLabel="@string/shortcut_new_note_long">
         <intent
             android:action="com.hermes.agent.action.NEW_NOTE"
-            android:targetPackage="com.hermes.agent"
+            android:targetPackage="com.hermes.agent.debug"
             android:targetClass="com.hermes.agent.MainActivity" />
         <categories android:name="android.shortcut.conversation" />
     </shortcut>
@@ -21,7 +23,7 @@
         android:shortcutLongLabel="@string/shortcut_set_alarm_long">
         <intent
             android:action="com.hermes.agent.action.SET_ALARM"
-            android:targetPackage="com.hermes.agent"
+            android:targetPackage="com.hermes.agent.debug"
             android:targetClass="com.hermes.agent.MainActivity" />
     </shortcut>
 
@@ -33,7 +35,7 @@
         android:shortcutLongLabel="@string/shortcut_ask_hermes_long">
         <intent
             android:action="com.hermes.agent.action.ASK_HERMES"
-            android:targetPackage="com.hermes.agent"
+            android:targetPackage="com.hermes.agent.debug"
             android:targetClass="com.hermes.agent.MainActivity" />
     </shortcut>
 
@@ -45,7 +47,7 @@
         android:shortcutLongLabel="@string/shortcut_briefing_long">
         <intent
             android:action="com.hermes.agent.action.PLAY_BRIEFING"
-            android:targetPackage="com.hermes.agent"
+            android:targetPackage="com.hermes.agent.debug"
             android:targetClass="com.hermes.agent.MainActivity" />
     </shortcut>
 </shortcuts>
