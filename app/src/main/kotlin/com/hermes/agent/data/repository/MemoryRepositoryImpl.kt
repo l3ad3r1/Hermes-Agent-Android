@@ -13,7 +13,10 @@ import com.hermes.agent.domain.repository.MemoryRepository
 import com.hermes.agent.util.DispatcherProvider
 import com.hermes.agent.util.IdGenerator
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -41,6 +44,12 @@ class MemoryRepositoryImpl @Inject constructor(
     private val vectorStore: VectorStore,
     private val dispatchers: DispatcherProvider,
 ) : MemoryRepository {
+
+    // The vector store lives in RAM, so memories saved before this process started
+    // (or restored from a backup) are not in it until they are indexed again.
+    @Volatile
+    private var indexHydrated = false
+    private val hydrationLock = Mutex()
 
     override fun observeMemories(): Flow<List<Memory>> =
         memoryDao.observeAll().map { rows -> rows.map { it.toDomain() } }
@@ -89,6 +98,7 @@ class MemoryRepositoryImpl @Inject constructor(
      */
     override suspend fun searchMemories(query: String, limit: Int): List<Memory> =
         withContext(dispatchers.io) {
+            ensureIndexHydrated()
             if (vectorStore.count() == 0) {
                 return@withContext keywordFallback(query, limit)
             }
@@ -113,6 +123,21 @@ class MemoryRepositoryImpl @Inject constructor(
                 )
             }
         }
+
+    private suspend fun ensureIndexHydrated() {
+        if (indexHydrated) return
+        hydrationLock.withLock {
+            if (indexHydrated) return
+            val rows = memoryDao.observeAll().first()
+            val vectors = runCatching { embeddingService.embedAll(rows.map { it.content }) }
+                .onFailure { Timber.tag("MemoryRepo").w(it, "memory index hydration failed") }
+                .getOrNull()
+            vectors?.forEachIndexed { i, vector ->
+                vectorStore.upsert(VectorEntry(id = rows[i].id, vector = vector, payload = rows[i].content))
+            }
+            indexHydrated = true
+        }
+    }
 
     private suspend fun keywordFallback(query: String, limit: Int): List<Memory> {
         Timber.tag("MemoryRepo").d("vector store empty — keyword fallback")

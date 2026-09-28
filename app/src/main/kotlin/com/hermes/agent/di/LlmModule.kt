@@ -62,7 +62,7 @@ abstract class LlmModule {
 
     @Binds
     @Singleton
-    abstract fun bindCloudLlmProvider(impl: CloudLlmProvider): LlmProvider
+    abstract fun bindDefaultLlmProvider(impl: com.hermes.agent.data.llm.RoutedCloudLlmProvider): LlmProvider
 
     companion object {
 
