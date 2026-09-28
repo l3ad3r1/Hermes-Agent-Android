@@ -50,6 +50,9 @@ class HermesApp : Application(), Configuration.Provider {
     lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
+    lateinit var pluginRegistry: Provider<com.hermes.agent.domain.plugin.PluginRegistry>
+
+    @Inject
     lateinit var memoryPressureMonitor: MemoryPressureMonitor
 
     @Inject
@@ -117,6 +120,12 @@ class HermesApp : Application(), Configuration.Provider {
         // keystore key and can never be read here. Left in place they are handed
         // to providers as API keys, which comes back as "invalid key" from every
         // provider at once and hides the real cause.
+        // Plugins the user switched on come back on; their tools were otherwise gone after a restart.
+        applicationScope.launch {
+            runCatching { (pluginRegistry.get() as? com.hermes.agent.data.plugin.PluginRegistryImpl)?.restoreActive() }
+                .onFailure { Timber.tag("PluginRegistry").w(it, "could not restore plugins") }
+        }
+
         applicationScope.launch {
             runCatching { encryptedSettingsProvider.get().clearUnreadableSecrets() }
                 .onFailure { Timber.tag("Settings").w(it, "secret sweep unavailable") }
