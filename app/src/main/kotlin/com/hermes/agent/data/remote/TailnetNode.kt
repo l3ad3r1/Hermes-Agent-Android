@@ -8,13 +8,18 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import timber.log.Timber
 import tsbridge.InterfaceProvider
 import tsbridge.Tsbridge
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.Proxy
+import java.net.ProxySelector
+import java.net.SocketAddress
+import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -109,12 +114,57 @@ class TailnetNode @Inject constructor(
         return wrapped
     }
 
+    /**
+     * For the app's shared client: requests to a tailnet host (a MagicDNS `*.ts.net` name or a
+     * 100.64.0.0/10 address -- the same rule the bridge's proxy enforces) go through the node
+     * while it runs; everything else connects directly. This is what lets a cloud provider's
+     * base URL point at a PC on the tailnet, e.g. the compute relay.
+     */
+    val tailnetProxySelector: ProxySelector = object : ProxySelector() {
+        override fun select(uri: URI): List<Proxy> {
+            val proxy = if (isTailnetHost(uri.host)) proxyAddress() else null
+            return listOf(proxy?.let { Proxy(Proxy.Type.HTTP, it) } ?: Proxy.NO_PROXY)
+        }
+
+        override fun connectFailed(uri: URI?, sa: SocketAddress?, ioe: IOException?) = Unit
+    }
+
+    /** Adds this run's proxy credential to tailnet-bound requests only; see [wrap]. */
+    val tailnetProxyAuth = Interceptor { chain ->
+        val request = chain.request()
+        val token = if (isTailnetHost(request.url.host) && proxyAddress() != null) {
+            runCatching { Tsbridge.proxyToken() }.getOrDefault("")
+        } else {
+            ""
+        }
+        chain.proceed(
+            if (token.isBlank()) request
+            else request.newBuilder().header("Proxy-Authorization", "Bearer $token").build(),
+        )
+    }
+
+    private fun proxyAddress(): InetSocketAddress? {
+        val address = runCatching { Tsbridge.proxyAddr() }.getOrDefault("")
+        val port = address.substringAfterLast(':').toIntOrNull() ?: return null
+        return InetSocketAddress.createUnresolved(address.substringBeforeLast(':'), port)
+    }
+
     private fun defaultHostname(): String =
         ("hermes-" + android.os.Build.MODEL).lowercase().replace(Regex("[^a-z0-9-]"), "-").take(60)
 
-    private companion object {
-        const val TAG = "TailnetNode"
-        const val KEY_AUTOSTART = "autostart"
+    companion object {
+        private const val TAG = "TailnetNode"
+        private const val KEY_AUTOSTART = "autostart"
+        private val IPV4 = Regex("""\d{1,3}(\.\d{1,3}){3}""")
+
+        /** A MagicDNS name or an address in Tailscale's 100.64.0.0/10 range. No DNS lookup. */
+        fun isTailnetHost(host: String?): Boolean {
+            val h = host?.trimEnd('.')?.lowercase() ?: return false
+            if (h.endsWith(".ts.net")) return true
+            if (!IPV4.matches(h)) return false
+            val octets = h.split('.').map { it.toInt() }
+            return octets[0] == 100 && octets[1] in 64..127
+        }
     }
 }
 

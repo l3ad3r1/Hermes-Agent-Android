@@ -51,6 +51,7 @@ object NetworkModule {
     @Singleton
     fun provideOkHttp(
         pinningConfig: com.hermes.agent.data.security.CertificatePinningConfig,
+        tailnet: com.hermes.agent.data.remote.TailnetNode,
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             // BASIC logs full URLs, and some carry secrets (Telegram bot tokens, Discord
@@ -59,6 +60,10 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)
+            // Tailnet hosts (*.ts.net, 100.64.0.0/10) go through the embedded node when it runs,
+            // so a cloud provider can point at a PC on the tailnet. Other hosts are unaffected.
+            .proxySelector(tailnet.tailnetProxySelector)
+            .addInterceptor(tailnet.tailnetProxyAuth)
             .certificatePinner(pinningConfig.pinner)
             .connectTimeout(15, TimeUnit.SECONDS)
             // Reasoning models (o1/o3, DeepSeek R1, Nemotron reasoning, Claude
