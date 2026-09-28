@@ -41,6 +41,7 @@ class ExperimentViewModel @Inject constructor(
     private val cloudLlmProvider: CloudLlmProvider,
     private val localLlmProvider: LocalLlmProvider,
     private val settingsRepository: SettingsRepository,
+    private val profileProviderFactory: com.hermes.agent.data.llm.ProfileCloudProviderFactory,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ExperimentState())
@@ -50,7 +51,10 @@ class ExperimentViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsRepository.observe().first()
             _state.value = _state.value.copy(
-                modelA = settings.cloudModel.ifBlank { "gpt-4o-mini" },
+                // With no legacy cloud key the configured provider is what actually answers.
+                modelA = settings.cloudProviderProfiles.firstOrNull { it.enabled }?.model
+                    ?.takeIf { settings.cloudApiKey.isBlank() }
+                    ?: settings.cloudModel.ifBlank { "gpt-4o-mini" },
                 modelB = if (settings.auxModel.isNotBlank()) settings.auxModel else "claude-3-5-sonnet",
             )
         }
@@ -84,7 +88,16 @@ class ExperimentViewModel @Inject constructor(
             val streamFlow = if (modelName.equals("local", ignoreCase = true) || modelName.equals("llama", ignoreCase = true)) {
                 localLlmProvider.stream(messages)
             } else {
-                cloudLlmProvider.streamWithModelOverride(messages, modelName)
+                // A model served by a configured provider (the PC relay, say) runs through
+                // that provider; the bare cloud provider only knows the legacy primary key
+                // and answered "cloud API key not set".
+                val profile = settingsRepository.current().cloudProviderProfiles
+                    .firstOrNull { it.enabled && it.model.equals(modelName, ignoreCase = true) }
+                if (profile != null) {
+                    profileProviderFactory.create(profile).stream(messages)
+                } else {
+                    cloudLlmProvider.streamWithModelOverride(messages, modelName)
+                }
             }
 
             streamFlow.collect { chunk ->
