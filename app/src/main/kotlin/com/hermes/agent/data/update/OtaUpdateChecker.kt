@@ -78,16 +78,23 @@ class OtaUpdateChecker @Inject constructor(
         return ""
     }
 
-    private fun isNewer(remote: String, current: String): Boolean {
-        fun semver(v: String) = v.split(".").map { it.toIntOrNull() ?: 0 }
-        val r = semver(remote)
-        val c = semver(current)
-        for (i in 0 until maxOf(r.size, c.size)) {
-            val rv = r.getOrElse(i) { 0 }
-            val cv = c.getOrElse(i) { 0 }
-            if (rv > cv) return true
-            if (rv < cv) return false
-        }
-        return false
+    private fun isNewer(remote: String, current: String): Boolean = isNewerVersion(remote, current)
+}
+
+/**
+ * True when [remote] is a later version than [current]. A build suffix is ignored:
+ * "1.0.8-debug" used to read as 1.0.0, so a debug build was offered 1.0.4 as an update.
+ */
+internal fun isNewerVersion(remote: String, current: String): Boolean {
+    fun semver(v: String) = v.substringBefore('-').substringBefore('+')
+        .split(".").map { it.toIntOrNull() ?: 0 }
+    val r = semver(remote)
+    val c = semver(current)
+    for (i in 0 until maxOf(r.size, c.size)) {
+        val rv = r.getOrElse(i) { 0 }
+        val cv = c.getOrElse(i) { 0 }
+        if (rv > cv) return true
+        if (rv < cv) return false
     }
+    return false
 }
