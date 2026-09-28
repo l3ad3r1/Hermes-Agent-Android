@@ -35,8 +35,13 @@ class HeuristicIntentClassifier @Inject constructor() : AgentRouter {
     override suspend fun route(userMessage: String): RoutingResult {
         val p = userMessage.lowercase()
 
+        // "search" and "find" also describe looking through the user's own files, and the
+        // Research agent has no file tools: "search_files in the workspace" went there and
+        // was told no such tool exists. Anything about files stays with Conversational.
+        val aboutFiles = FILE_REQUEST.containsMatchIn(p)
+
         // Multi-agent pattern: research-then-create.
-        if (MULTI_AGENT_PATTERN.containsMatchIn(p)) {
+        if (!aboutFiles && MULTI_AGENT_PATTERN.containsMatchIn(p)) {
             return RoutingResult.MultiAgent(
                 agents = listOf(AgentRole.RESEARCH, AgentRole.CREATIVE),
                 planSummary = "Research the topic, then draft a response based on findings.",
@@ -45,6 +50,7 @@ class HeuristicIntentClassifier @Inject constructor() : AgentRouter {
 
         // Single-agent routing by keyword.
         for ((role, keywords) in ROUTING_RULES) {
+            if (role == AgentRole.RESEARCH && aboutFiles) continue
             if (keywords.any { p.contains(it) }) {
                 return RoutingResult.Solo(role, confidence = 0.75f)
             }
@@ -54,6 +60,10 @@ class HeuristicIntentClassifier @Inject constructor() : AgentRouter {
     }
 
     companion object {
+        private val FILE_REQUEST = Regex(
+            """\b(workspace|files?|folders?|directory|search_files|read_file|file_\w+)\b|\.(txt|md|csv|json|pdf|docx?)\b"""
+        )
+
         private val MULTI_AGENT_PATTERN = Regex(
             """(search.+then.+(write|draft|summar|create))|""" +
                 """(find.+(and|then).+(write|draft|summar|create))|""" +

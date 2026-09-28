@@ -25,6 +25,18 @@ class HeuristicIntentClassifierTest {
     }
 
     @Test
+    fun `searching the user's own files stays with Conversational, which has the file tools`() = runTest {
+        for (prompt in listOf(
+            "Using search_files in the workspace: which files mention eggs?",
+            "find the file groceries.txt and summarise it",
+            "search my notes.md for the word herbs",
+        )) {
+            val result = classifier.route(prompt)
+            assertEquals(prompt, AgentRole.CONVERSATIONAL, (result as com.hermes.agent.domain.agent.RoutingResult.Solo).agent)
+        }
+    }
+
+    @Test
     fun `routes productivity prompts to Productivity`() = runTest {
         val result = classifier.route("schedule a meeting for tomorrow at 3pm")
         assertTrue(result is com.hermes.agent.domain.agent.RoutingResult.Solo)
