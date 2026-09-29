@@ -5,6 +5,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
 import javax.inject.Inject
@@ -13,7 +16,16 @@ import javax.inject.Singleton
 @Singleton
 class OtaUpdateChecker @Inject constructor(
     private val okHttpClient: OkHttpClient,
+    @ApplicationContext private val context: Context,
 ) {
+
+    /**
+     * Test builds: releases the self-repair pipeline publishes as pre-releases before they are
+     * promoted to "latest". Off by default; a device that turns it on is the canary.
+     */
+    var testBuilds: Boolean
+        get() = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_TEST_BUILDS, false)
+        set(value) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_TEST_BUILDS, value).apply()
 
     data class UpdateInfo(
         val version: String,
@@ -34,7 +46,10 @@ class OtaUpdateChecker @Inject constructor(
             return@withContext null
         }
         val request = Request.Builder()
-            .url("https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest")
+            .url(
+                if (testBuilds) "https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases?per_page=15"
+                else "https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest",
+            )
             .header("Accept", "application/vnd.github.v3+json")
             .header("User-Agent", "Hermes/${BuildConfig.VERSION_NAME}")
             .build()
@@ -47,7 +62,7 @@ class OtaUpdateChecker @Inject constructor(
         }.onFailure { Timber.tag("OtaChecker").w(it, "network error") }
             .getOrNull() ?: return@withContext null
 
-        val obj = runCatching { JSONObject(body) }
+        val obj = runCatching { if (testBuilds) newestRelease(JSONArray(body)) else JSONObject(body) }
             .onFailure { Timber.tag("OtaChecker").w(it, "JSON parse error") }
             .getOrNull() ?: return@withContext null
 
@@ -79,6 +94,29 @@ class OtaUpdateChecker @Inject constructor(
     }
 
     private fun isNewer(remote: String, current: String): Boolean = isNewerVersion(remote, current)
+
+    companion object {
+        const val PREFS = "ota_update"
+        const val KEY_TEST_BUILDS = "test_builds"
+    }
+}
+
+/** The highest-versioned published release in a /releases listing, pre-releases included; drafts skipped. */
+internal fun newestRelease(releases: JSONArray): JSONObject? {
+    val items = (0 until releases.length()).mapNotNull { releases.optJSONObject(it) }
+    val index = newestIndex(items.map { it.optString("tag_name") }, items.map { it.optBoolean("draft") })
+    return index?.let { items[it] }
+}
+
+/** Index of the highest version among [tags], skipping drafts and blank tags; null when there is none. */
+internal fun newestIndex(tags: List<String>, drafts: List<Boolean>): Int? {
+    var best: Int? = null
+    tags.forEachIndexed { i, raw ->
+        val tag = raw.removePrefix("v")
+        if (drafts.getOrElse(i) { false } || tag.isBlank()) return@forEachIndexed
+        if (best == null || isNewerVersion(tag, tags[best!!].removePrefix("v"))) best = i
+    }
+    return best
 }
 
 /**

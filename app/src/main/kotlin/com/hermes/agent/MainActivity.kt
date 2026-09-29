@@ -119,7 +119,20 @@ class MainActivity : FragmentActivity() {
             val fontScalePercent by HermesSettings.fontScalePercentFlow(this)
                 .collectAsState(initial = HermesSettings.fontScalePercent(this))
 
-            var crashReport by remember { mutableStateOf(com.hermes.agent.data.diagnostics.CrashReporter.pending(this)) }
+            var crashReport by remember {
+                val pending = com.hermes.agent.data.diagnostics.CrashReporter.pending(this)
+                // Test-build devices send crashes unasked, so a bad automatic release can be rolled back.
+                if (pending != null && repairReporter.isConfigured && repairReporter.autoSendCrashes) {
+                    lifecycleScope.launch {
+                        if (repairReporter.fileCrash(pending, BuildConfig.VERSION_NAME).isSuccess) {
+                            com.hermes.agent.data.diagnostics.CrashReporter.discard(this@MainActivity)
+                        }
+                    }
+                    mutableStateOf<String?>(null)
+                } else {
+                    mutableStateOf(pending)
+                }
+            }
             HermesTheme(
                 // 'System' has to actually follow the system. Testing only against
                 // THEME_LIGHT made THEME_SYSTEM -- the default -- resolve to dark

@@ -53,16 +53,22 @@ class SelfRepairViewModel @Inject constructor(
     data class State(
         val configured: Boolean,
         val autoRepair: Boolean,
+        val autoSendCrashes: Boolean = false,
         val sending: Boolean = false,
         val message: String? = null,
     )
 
-    private val _state = MutableStateFlow(State(reporter.isConfigured, reporter.autoRepair))
+    private val _state = MutableStateFlow(State(reporter.isConfigured, reporter.autoRepair, reporter.autoSendCrashes))
     val state = _state.asStateFlow()
 
     fun saveToken(token: String) {
         reporter.setToken(token)
         _state.value = _state.value.copy(configured = reporter.isConfigured, message = null)
+    }
+
+    fun setAutoSendCrashes(on: Boolean) {
+        reporter.autoSendCrashes = on
+        _state.value = _state.value.copy(autoSendCrashes = on)
     }
 
     fun setAutoRepair(on: Boolean) {
@@ -136,6 +142,17 @@ fun SelfRepairSection(viewModel: SelfRepairViewModel = hiltViewModel()) {
                     )
                 }
                 Switch(checked = state.autoRepair, onCheckedChange = viewModel::setAutoRepair)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Send crash reports automatically", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Redacted, at the next launch, without asking. Turn on for devices that take test builds.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = state.autoSendCrashes, onCheckedChange = viewModel::setAutoSendCrashes, enabled = state.configured)
             }
             Button(onClick = { reporting = true }, enabled = state.configured && !state.sending) {
                 Text(if (state.sending) "Sending…" else "Report a problem")

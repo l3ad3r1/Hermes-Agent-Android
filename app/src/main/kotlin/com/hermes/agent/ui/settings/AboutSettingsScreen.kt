@@ -126,6 +126,24 @@ fun AboutSettingsScreen(
                     },
                     onDismiss = viewModel::dismissUpdateState,
                 )
+                var testBuilds by remember { androidx.compose.runtime.mutableStateOf(viewModel.otaTestBuilds) }
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Test builds", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                "Also offer fixes the self-repair pipeline released as test builds, before they " +
+                                    "reach everyone. A crash reported from a test build rolls it back.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(checked = testBuilds, onCheckedChange = { testBuilds = it; viewModel.otaTestBuilds = it })
+                    }
+                }
             }
         }
     }

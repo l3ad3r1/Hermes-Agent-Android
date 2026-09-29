@@ -42,6 +42,18 @@ class RepairReporter @Inject constructor(
         get() = prefs.getBoolean(KEY_AUTO_REPAIR, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_REPAIR, value).apply()
 
+    /** File a crash report at the next launch without asking. Off by default; meant for test-build devices. */
+    var autoSendCrashes: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_SEND_CRASHES, false)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_SEND_CRASHES, value).apply()
+
+    /** Files a crash (redacted here) with the app version, so a test build that crashes can be rolled back. */
+    suspend fun fileCrash(report: String, version: String): Result<String> {
+        val redacted = ReportRedactor.redact(report)
+        val firstLine = redacted.lineSequence().firstOrNull { it.contains("Exception") || it.contains("Error") } ?: "Crash"
+        return file(title = "Crash: ${firstLine.trim().take(100)}", body = body(APP, "$APP crashed.", redacted, version))
+    }
+
     val isConfigured: Boolean get() = token().isNotBlank()
 
     fun setToken(token: String) {
@@ -94,6 +106,7 @@ class RepairReporter @Inject constructor(
         private const val ALIAS = "jeeves.repair_reports_token"
         private const val KEY_TOKEN = "token"
         private const val KEY_AUTO_REPAIR = "auto_repair"
+        private const val KEY_AUTO_SEND_CRASHES = "auto_send_crashes"
 
         /** The issue body in the shape of the repo's bug-report form. */
         fun body(component: String, what: String, logs: String, version: String): String = buildString {

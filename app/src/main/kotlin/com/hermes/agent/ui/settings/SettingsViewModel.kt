@@ -1103,6 +1103,11 @@ class SettingsViewModel @Inject constructor(
 
     // --- OTA update ---
 
+    /** Also offer the self-repair pipeline's pre-releases (test builds) as updates. */
+    var otaTestBuilds: Boolean
+        get() = otaUpdateChecker.testBuilds
+        set(value) { otaUpdateChecker.testBuilds = value }
+
     fun checkForUpdate() {
         // JX-01: the checker targets the standalone Hermes-Agent-Android channel — wrong
         // application for this build. The Settings UI is hidden behind the same flag.
