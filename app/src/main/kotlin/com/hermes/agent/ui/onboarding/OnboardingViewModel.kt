@@ -42,6 +42,7 @@ class OnboardingViewModel @Inject constructor(
     private val deviceProfiler: DeviceProfiler,
     private val jsonBackupManager: JsonBackupManager,
     @ApplicationContext private val appContext: android.content.Context,
+    private val fullBackupManager: com.hermes.agent.data.export.FullBackupManager,
 ) : ViewModel() {
 
     private val _step = MutableStateFlow(WELCOME)
@@ -55,6 +56,10 @@ class OnboardingViewModel @Inject constructor(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    /** A non-error status line, e.g. that a verified full backup waits for the next start. */
+    private val _notice = MutableStateFlow<String?>(null)
+    val notice: StateFlow<String?> = _notice.asStateFlow()
 
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
@@ -118,6 +123,17 @@ class OnboardingViewModel @Inject constructor(
             _saving.value = true
             _error.value = null
             runCatching {
+                if (isFullBackup(uri)) {
+                    // A full backup (Settings > Advanced > Back up) is an encrypted container, not
+                    // JSON: it failed here with "Unexpected JSON token ... 'H'". It is staged like
+                    // Settings does and applied on the next start (Android 15 blocks relaunching
+                    // from the background, so the user reopens the app).
+                    val secret = password ?: error("This is a full backup: enter its password first.")
+                    appContext.contentResolver.openInputStream(uri)?.use { fullBackupManager.stageRestore(it, secret) }
+                        ?: error("Could not open that file.")
+                    _notice.value = "Backup verified. Close Hermes and open it again to finish the restore."
+                    return@runCatching
+                }
                 val text = appContext.contentResolver.openInputStream(uri)?.use { input ->
                     input.readBytes().toString(Charsets.UTF_8)
                 } ?: error("Could not open that file.")
@@ -129,6 +145,13 @@ class OnboardingViewModel @Inject constructor(
             _saving.value = false
         }
     }
+
+    private fun isFullBackup(uri: Uri): Boolean = runCatching {
+        appContext.contentResolver.openInputStream(uri)?.use { input ->
+            val head = ByteArray(FULL_BACKUP_MAGIC.size)
+            input.read(head) == head.size && head.contentEquals(FULL_BACKUP_MAGIC)
+        } ?: false
+    }.getOrDefault(false)
 
     private suspend fun saveToMemory() {
         val p = _profile.value
@@ -151,6 +174,7 @@ class OnboardingViewModel @Inject constructor(
     }
 
     companion object {
+        private val FULL_BACKUP_MAGIC = "HRMSFB01".toByteArray(Charsets.US_ASCII)
         const val WELCOME = 0
         const val RESTORE = 1
         const val PROFILE = 2

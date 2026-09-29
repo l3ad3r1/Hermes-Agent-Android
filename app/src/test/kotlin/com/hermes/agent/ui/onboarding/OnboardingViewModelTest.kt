@@ -44,7 +44,29 @@ class OnboardingViewModelTest {
             mockk(relaxed = true),
             mockk(relaxed = true),
             mockk(relaxed = true),
+            mockk(relaxed = true),
         )
+
+    @Test
+    fun `a full backup picked at first run is staged, not parsed as JSON`() = runTest {
+        // On the tablet the golden backup failed here with "Unexpected JSON token ... 'H'".
+        val uri = mockk<android.net.Uri>()
+        val resolver = mockk<android.content.ContentResolver> {
+            io.mockk.every { openInputStream(uri) } answers { "HRMSFB01rest-of-container".byteInputStream() }
+        }
+        val context = mockk<android.content.Context> { io.mockk.every { contentResolver } returns resolver }
+        val json = mockk<com.hermes.agent.data.export.JsonBackupManager>(relaxed = true)
+        val full = mockk<com.hermes.agent.data.export.FullBackupManager>(relaxed = true)
+        val vm = OnboardingViewModel(mockSettings(), mockk(relaxed = true), mockk(relaxed = true), json, context, full)
+
+        vm.restoreBackup(uri, "rado1992")
+        advanceUntilIdle()
+
+        coVerify { full.stageRestore(any(), "rado1992") }
+        coVerify(exactly = 0) { json.decode(any(), any()) }
+        assertTrue(vm.notice.value.orEmpty(), vm.notice.value.orEmpty().contains("open it again"))
+        assertEquals(null, vm.error.value)
+    }
 
     @Test
     fun `initial step is WELCOME`() = runTest {
