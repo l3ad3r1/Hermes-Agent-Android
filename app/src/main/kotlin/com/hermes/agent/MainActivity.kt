@@ -52,6 +52,36 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var deviceAuthenticationService: DeviceAuthenticationService
 
+    private val restorePermissions =
+        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { }
+
+    /**
+     * A restore brings back everything but Android's runtime grants, and it skips the
+     * onboarding step that asks for them: after restoring onto a fresh install every
+     * permission was off, so notifications, location weather, contacts and calendar
+     * quietly stopped working. The first launch after a restore asks once, for the same
+     * permissions onboarding asks for.
+     */
+    private fun askPermissionsAfterRestore() {
+        val restore = com.hermes.agent.data.export.PendingRestore.lastResult(this) ?: return
+        if (!restore.ok) return
+        val asked = getSharedPreferences("restore_permissions", MODE_PRIVATE)
+        if (asked.getLong("asked_for_restore_at", 0L) == restore.at) return
+        asked.edit().putLong("asked_for_restore_at", restore.at).apply()
+        val wanted = buildList {
+            add(android.Manifest.permission.RECORD_AUDIO)
+            if (android.os.Build.VERSION.SDK_INT >= 33) add(android.Manifest.permission.POST_NOTIFICATIONS)
+            add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            add(android.Manifest.permission.READ_CONTACTS)
+            add(android.Manifest.permission.READ_CALENDAR)
+            add(android.Manifest.permission.WRITE_CALENDAR)
+            add(android.Manifest.permission.CAMERA)
+        }
+        val missing = wanted.filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) restorePermissions.launch(missing.toTypedArray())
+    }
+
     /** Set by [handleIntent] on cold start (onCreate) or a re-delivered intent (onNewIntent). */
     private var pendingChatIntentTrigger by mutableStateOf(false)
 
@@ -70,6 +100,7 @@ class MainActivity : FragmentActivity() {
         val freshLaunch = savedInstanceState == null
         if (freshLaunch) handleIntent(intent)
         installDeviceAuthenticationHost()
+        if (freshLaunch) askPermissionsAfterRestore()
 
         setContent {
             val themeMode by HermesSettings.themeModeFlow(this)
