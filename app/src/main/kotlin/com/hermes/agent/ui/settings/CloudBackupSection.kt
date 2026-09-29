@@ -235,6 +235,14 @@ fun CloudBackupSection(viewModel: CloudBackupViewModel = hiltViewModel()) {
                 enabled = ui.working == null && ui.hasToken,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Show cloud backups") }
+            // Upload and Show stay off until a token is saved; say so instead of leaving two dead buttons.
+            val missing = when {
+                !CloudBackupPolicy.isRepo(ui.repo) -> "Enter the repo as owner/name and tap Save."
+                !ui.hasToken -> "Paste a GitHub token and tap Save to turn on Upload and Show cloud backups."
+                !ui.hasPassword -> "Enter the backup password and tap Save before uploading."
+                else -> null
+            }
+            missing?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 
             ui.working?.let {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
