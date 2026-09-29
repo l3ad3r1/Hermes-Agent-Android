@@ -53,6 +53,9 @@ class HermesApp : Application(), Configuration.Provider {
     lateinit var pluginRegistry: Provider<com.hermes.agent.domain.plugin.PluginRegistry>
 
     @Inject
+    lateinit var proactiveScheduler: Provider<com.hermes.agent.data.proactive.ProactiveScheduler>
+
+    @Inject
     lateinit var memoryPressureMonitor: MemoryPressureMonitor
 
     @Inject
@@ -120,6 +123,12 @@ class HermesApp : Application(), Configuration.Provider {
         // keystore key and can never be read here. Left in place they are handed
         // to providers as API keys, which comes back as "invalid key" from every
         // provider at once and hides the real cause.
+        // A restored backup brings proactive consent back without its WorkManager jobs.
+        applicationScope.launch {
+            runCatching { proactiveScheduler.get().syncFromConsent() }
+                .onFailure { Timber.tag("Proactive").w(it, "could not sync proactive jobs") }
+        }
+
         // Plugins the user switched on come back on; their tools were otherwise gone after a restart.
         applicationScope.launch {
             runCatching { (pluginRegistry.get() as? com.hermes.agent.data.plugin.PluginRegistryImpl)?.restoreActive() }

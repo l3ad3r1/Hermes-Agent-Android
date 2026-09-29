@@ -27,10 +27,26 @@ class ProactiveScheduler @Inject constructor(
 
     fun setConsent(source: ProactiveSource, granted: Boolean) {
         store.setConsent(source, granted)
+        schedule(source, granted, ExistingPeriodicWorkPolicy.UPDATE)
+    }
+
+    /**
+     * Schedules every source whose consent is on; called at start-up. Consent can arrive
+     * without its worker (a restored backup brings the preference, not the WorkManager
+     * job), and the digest then never ran. KEEP leaves an existing schedule's timing alone.
+     */
+    fun syncFromConsent() {
+        for (source in listOf(ProactiveSource.DIGEST, ProactiveSource.NUDGE)) {
+            if (store.consent(source)) schedule(source, true, ExistingPeriodicWorkPolicy.KEEP)
+        }
+    }
+
+    private fun schedule(source: ProactiveSource, granted: Boolean, policy: ExistingPeriodicWorkPolicy) {
         when (source) {
             ProactiveSource.DIGEST -> reschedule(
                 granted,
                 DailyDigestWorker.UNIQUE_NAME,
+                policy,
             ) {
                 PeriodicWorkRequestBuilder<DailyDigestWorker>(Duration.ofDays(1))
                     .setInitialDelay(untilNext(DIGEST_HOUR))
@@ -39,6 +55,7 @@ class ProactiveScheduler @Inject constructor(
             ProactiveSource.NUDGE -> reschedule(
                 granted,
                 CommitmentNudgeWorker.UNIQUE_NAME,
+                policy,
             ) {
                 PeriodicWorkRequestBuilder<CommitmentNudgeWorker>(Duration.ofDays(1))
                     .setInitialDelay(untilNext(NUDGE_HOUR))
@@ -51,12 +68,13 @@ class ProactiveScheduler @Inject constructor(
     private fun reschedule(
         granted: Boolean,
         uniqueName: String,
+        policy: ExistingPeriodicWorkPolicy,
         request: () -> androidx.work.PeriodicWorkRequest,
     ) {
         if (granted) {
             workManager.enqueueUniquePeriodicWork(
                 uniqueName,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                policy,
                 request(),
             )
             Timber.tag("Proactive").i("scheduled %s", uniqueName)
