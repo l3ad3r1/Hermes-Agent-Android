@@ -397,7 +397,7 @@ private fun CheckRow(checked: Boolean, onChange: (Boolean) -> Unit, label: Strin
 }
 
 /** Ends this process so the next launch applies the staged restore before anything is open. */
-private fun closeHermes(context: Context) {
+internal fun closeHermes(context: Context) {
     (context as? Activity)?.finishAffinity()
     android.os.Process.killProcess(android.os.Process.myPid())
 }

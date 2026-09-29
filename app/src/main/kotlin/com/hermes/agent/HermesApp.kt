@@ -98,6 +98,9 @@ class HermesApp : Application(), Configuration.Provider {
     @Inject
     lateinit var autoBackupStoreProvider: Provider<com.hermes.agent.data.export.AutoBackupStore>
 
+    @Inject
+    lateinit var cloudBackupStoreProvider: Provider<com.hermes.agent.data.export.CloudBackupStore>
+
     private val applicationScope = CoroutineScope(Dispatchers.Default)
 
     override fun onCreate() {
@@ -167,6 +170,11 @@ class HermesApp : Application(), Configuration.Provider {
             runCatching {
                 com.hermes.agent.data.export.AutoBackupScheduler.apply(this@HermesApp, autoBackupStoreProvider.get(), replace = false)
             }.onFailure { Timber.tag("AutoBackup").w(it, "could not schedule automatic backups") }
+        }
+        applicationScope.launch {
+            runCatching {
+                com.hermes.agent.data.export.CloudBackupScheduler.apply(this@HermesApp, cloudBackupStoreProvider.get(), replace = false)
+            }.onFailure { Timber.tag("CloudBackup").w(it, "could not schedule cloud backups") }
         }
 
         // The Gist backup is gone, but an install that used it still holds the
