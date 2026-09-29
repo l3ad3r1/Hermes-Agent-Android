@@ -19,7 +19,13 @@ import androidx.compose.ui.unit.dp
  * the whole text is shown so they can see exactly what would be sent.
  */
 @Composable
-fun CrashReportDialog(report: String, onShare: () -> Unit, onDismiss: () -> Unit) {
+fun CrashReportDialog(
+    report: String,
+    onShare: () -> Unit,
+    onDismiss: () -> Unit,
+    /** Files it (redacted) to the private repair repo; null when no token is set. */
+    onSendForRepair: (() -> Unit)? = null,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Hermes crashed last time") },
@@ -40,7 +46,12 @@ fun CrashReportDialog(report: String, onShare: () -> Unit, onDismiss: () -> Unit
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onShare) { Text("Share") } },
+        confirmButton = {
+            androidx.compose.foundation.layout.Row {
+                onSendForRepair?.let { TextButton(onClick = it) { Text("Send for repair") } }
+                TextButton(onClick = onShare) { Text("Share") }
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Delete") } },
     )
 }

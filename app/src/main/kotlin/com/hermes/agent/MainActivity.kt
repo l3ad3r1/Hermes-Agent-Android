@@ -52,6 +52,9 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var deviceAuthenticationService: DeviceAuthenticationService
 
+    @Inject
+    lateinit var repairReporter: com.hermes.agent.data.diagnostics.RepairReporter
+
     private val restorePermissions =
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { }
 
@@ -152,6 +155,30 @@ class MainActivity : FragmentActivity() {
                         onDismiss = {
                             com.hermes.agent.data.diagnostics.CrashReporter.discard(this)
                             crashReport = null
+                        },
+                        onSendForRepair = if (repairReporter.isConfigured) {
+                            {
+                                val redacted = com.hermes.agent.data.diagnostics.ReportRedactor.redact(report)
+                                val firstLine = redacted.lineSequence()
+                                    .firstOrNull { it.contains("Exception") || it.contains("Error") } ?: "Crash"
+                                lifecycleScope.launch {
+                                    val result = repairReporter.file(
+                                        title = "Crash: ${firstLine.trim().take(100)}",
+                                        body = com.hermes.agent.data.diagnostics.RepairReporter.body(
+                                            "Hermes", "Hermes crashed.", redacted, BuildConfig.VERSION_NAME,
+                                        ),
+                                    )
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        result.fold({ "Report sent for repair." }, { "Could not send: ${it.message}" }),
+                                        android.widget.Toast.LENGTH_LONG,
+                                    ).show()
+                                    if (result.isSuccess) com.hermes.agent.data.diagnostics.CrashReporter.discard(this@MainActivity)
+                                }
+                                crashReport = null
+                            }
+                        } else {
+                            null
                         },
                     )
                 }
