@@ -44,7 +44,32 @@ class ChatRepositoryImpl @Inject constructor(
     private val compressor: com.hermes.agent.data.llm.ConversationCompressor,
     private val dispatchers: DispatcherProvider,
     private val reasoningStore: com.hermes.agent.data.chat.ReasoningStore,
+    private val imageAttachments: com.hermes.agent.data.tools.ImageAttachments? = null,
 ) : ChatRepository {
+
+    /**
+     * A stored turn as the model gets it. An attached image is kept as a phone-local
+     * content:// URI, which no provider can open: it goes out as a downscaled data URL,
+     * or, if it can no longer be read, as a note in the text instead of a broken link.
+     */
+    private suspend fun toModelMessage(m: Message): LlmMessage {
+        val uri = m.attachmentUri
+        val encoded = when {
+            uri == null || uri.startsWith("data:") || uri.startsWith("http://") || uri.startsWith("https://") -> uri
+            else -> imageAttachments?.let { images ->
+                runCatching { images.toDataUrl(uri) }
+                    .onFailure { Timber.tag("ChatRepo").w(it, "attachment could not be read") }
+                    .getOrNull()
+            }
+        }
+        val note = if (uri != null && encoded == null) "\n[An attached image could not be read.]" else ""
+        return LlmMessage(
+            role = m.role.wireName,
+            content = m.content + note,
+            attachmentUri = encoded,
+            attachmentMimeType = if (encoded != null) encoded.substringAfter("data:", "").substringBefore(";").ifBlank { m.attachmentMimeType } else null,
+        )
+    }
 
     // Summarization must outlive the ViewModel that requests it: onCleared()
     // runs AFTER viewModelScope is cancelled, so launching there never
@@ -103,12 +128,7 @@ class ChatRepositoryImpl @Inject constructor(
             add(LlmMessage(role = "system", content = SYSTEM_PROMPT))
             recent.forEach { m ->
                 add(
-                    LlmMessage(
-                        role = m.role.wireName,
-                        content = m.content,
-                        attachmentUri = m.attachmentUri,
-                        attachmentMimeType = m.attachmentMimeType,
-                    ),
+                    toModelMessage(m),
                 )
             }
         }
@@ -212,12 +232,7 @@ class ChatRepositoryImpl @Inject constructor(
             brief?.let { add(LlmMessage(role = "system", content = "## Earlier in this conversation\n$it")) }
             recent.forEach { m ->
                 add(
-                    LlmMessage(
-                        role = m.role.wireName,
-                        content = m.content,
-                        attachmentUri = m.attachmentUri,
-                        attachmentMimeType = m.attachmentMimeType,
-                    ),
+                    toModelMessage(m),
                 )
             }
         }
