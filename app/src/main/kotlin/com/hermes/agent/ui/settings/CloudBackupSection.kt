@@ -86,7 +86,7 @@ class CloudBackupViewModel @Inject constructor(
     /** Saves what was typed; blank token and password fields keep what is already saved. */
     fun save(repo: String, device: String, token: String, password: String) {
         if (!CloudBackupPolicy.isRepo(repo)) {
-            _ui.update { it.copy(message = "Enter the repo as owner/name, for example l3ad3r1/jeeves-backups.", isError = true) }
+            _ui.update { it.copy(message = "Enter the repo as owner/name, for example yourname/app-backups.", isError = true) }
             return
         }
         store.repo = repo

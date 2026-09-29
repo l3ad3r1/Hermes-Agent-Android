@@ -36,8 +36,8 @@ class CloudBackupTest {
 
     @Test
     fun `repo must look like owner slash name`() {
-        assertTrue(CloudBackupPolicy.isRepo("l3ad3r1/jeeves-backups"))
-        assertTrue(!CloudBackupPolicy.isRepo("jeeves-backups"))
+        assertTrue(CloudBackupPolicy.isRepo("yourname/app-backups"))
+        assertTrue(!CloudBackupPolicy.isRepo("app-backups"))
         assertTrue(!CloudBackupPolicy.isRepo("https://github.com/a/b"))
     }
 
