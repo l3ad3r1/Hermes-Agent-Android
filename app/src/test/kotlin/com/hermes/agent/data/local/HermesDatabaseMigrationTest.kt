@@ -424,5 +424,77 @@ class HermesDatabaseMigrationTest {
         }
         assertTrue("index_presence_logs_timestamp" in indices)
     }
-}
 
+    @Test
+    fun `migration 23 to 24 creates the evolution tables exactly as Room would`() {
+        val configuration = SupportSQLiteOpenHelper.Configuration.builder(
+            ApplicationProvider.getApplicationContext(),
+        ).name(null).callback(object : SupportSQLiteOpenHelper.Callback(23) {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) = Unit
+            override fun onUpgrade(
+                db: androidx.sqlite.db.SupportSQLiteDatabase,
+                oldVersion: Int,
+                newVersion: Int,
+            ) = Unit
+        }).build()
+        helper = FrameworkSQLiteOpenHelperFactory().create(configuration)
+        val migrated = checkNotNull(helper).writableDatabase
+
+        HermesDatabase.MIGRATION_23_24.migrate(migrated)
+        // Idempotent: a re-run (e.g. after a restore) must not fail.
+        HermesDatabase.MIGRATION_23_24.migrate(migrated)
+
+        // Room validates the migrated schema against the entities on open; comparing
+        // with the schema Room itself creates catches any drift in the hand-written SQL.
+        val room = androidx.room.Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            HermesDatabase::class.java,
+        ).allowMainThreadQueries().build()
+        try {
+            val fresh = room.openHelper.writableDatabase
+            for (table in listOf("evolution_proposals", "evolution_module_versions")) {
+                assertEquals("columns of $table", columns(fresh, table), columns(migrated, table))
+                assertEquals("indices of $table", indices(fresh, table), indices(migrated, table))
+            }
+        } finally {
+            room.close()
+        }
+
+        val proposalColumns = columns(migrated, "evolution_proposals").map { it.substringBefore('|') }.toSet()
+        assertTrue("artifactSha256" in proposalColumns && "reviewFindings" in proposalColumns)
+        assertEquals(
+            setOf("index_evolution_proposals_status", "index_evolution_proposals_signalKey"),
+            indices(migrated, "evolution_proposals"),
+        )
+        assertEquals(setOf("index_evolution_module_versions_moduleId"), indices(migrated, "evolution_module_versions"))
+    }
+
+    /** name|type|notnull|default|pk for every column, in declaration order. */
+    private fun columns(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): List<String> {
+        val out = mutableListOf<String>()
+        db.query("PRAGMA table_info('$table')").use { c ->
+            while (c.moveToNext()) {
+                out += listOf(
+                    c.getString(c.getColumnIndexOrThrow("name")),
+                    c.getString(c.getColumnIndexOrThrow("type")),
+                    c.getInt(c.getColumnIndexOrThrow("notnull")).toString(),
+                    c.getString(c.getColumnIndexOrThrow("dflt_value")).orEmpty(),
+                    c.getInt(c.getColumnIndexOrThrow("pk")).toString(),
+                ).joinToString("|")
+            }
+        }
+        return out
+    }
+
+    private fun indices(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Set<String> {
+        val out = mutableSetOf<String>()
+        db.query("PRAGMA index_list('$table')").use { c ->
+            val nameIndex = c.getColumnIndexOrThrow("name")
+            while (c.moveToNext()) {
+                val name = c.getString(nameIndex)
+                if (!name.startsWith("sqlite_autoindex_")) out += name
+            }
+        }
+        return out
+    }
+}
