@@ -94,6 +94,7 @@ fun SettingsScreen(
                     NavItem(Icons.Outlined.Stars, "Skills & tools", "Browse and manage the agent's skills and tools", nav("skills")),
                     NavItem(Icons.Outlined.Science, "Refine skills", "Improve a skill from how it was actually used", nav("refine_skills")),
                     NavItem(Icons.Outlined.Description, "Agent operating notes", "Learned guidance layered on each agent's prompt", nav("refine_prompts")),
+                    NavItem(Icons.Outlined.AutoAwesome, "Feature evolution", "Improvements proposed from usage, built and reviewed by your bots", nav("evolution")),
                 ),
             )
 
