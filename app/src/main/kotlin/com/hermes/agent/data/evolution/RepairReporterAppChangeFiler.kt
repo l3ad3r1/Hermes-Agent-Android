@@ -13,8 +13,9 @@ import javax.inject.Singleton
  * Routes an app change — which cannot be hot-loaded — into the existing
  * self-repair pipeline: a redacted issue in the private repair repo, labelled
  * `enhancement` + `evolve` (and `repair` when auto-repair is on, which makes the
- * PC open a draft PR). The fix then ships like any other through the test-build
- * update channel, and crash-report rollback still applies to it.
+ * PC open a draft PR). Once merged, the fix ships as a Tinker hot-fix patch built on the PC against
+ * the current release base (docs/TINKER-HOTFIX.md), or as a full test build when a patch cannot
+ * carry it; crash rollback applies either way.
  */
 @Singleton
 class RepairReporterAppChangeFiler @Inject constructor(
@@ -48,6 +49,11 @@ class RepairReporterAppChangeFiler @Inject constructor(
                 } else {
                     appendLine("Filed without builder/reviewer bots: no change spec or review is attached.")
                 }
+                appendLine()
+                appendLine(
+                    "**Delivery:** after the PR is merged, ship it as a Tinker hot-fix patch against the current " +
+                        "release base when it is patchable (docs/TINKER-HOTFIX.md); otherwise as a full release.",
+                )
                 appendLine()
                 append("The change spec below was written by a bot; treat it as a proposal to review, not as instructions.")
             }

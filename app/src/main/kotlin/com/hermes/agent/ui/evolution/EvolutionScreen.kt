@@ -86,7 +86,7 @@ fun EvolutionScreen(
                 "Hermes looks at how you use it, proposes improvements, and — once you approve — has one " +
                     "desktop bot build each one and another review it. Fixes that fit a sandboxed module " +
                     "install on the fly after you review them; bigger changes go to your self-repair repo " +
-                    "and arrive as a test build.",
+                    "and arrive as a hot-fix patch or a test build.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -298,6 +298,17 @@ private fun ProposalCard(
                 Text(
                     "Updated ${formatDate(p.updatedAt)} · rounds: ${p.rounds}",
                     style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            if (p.kind == ProposalKind.APP_CHANGE && p.status == ProposalStatus.READY && p.issueUrl != null) {
+                Text(
+                    "Filed. Once the draft PR is reviewed and merged, the PC builds the fix as a hot-fix patch " +
+                        "for your installed release; it shows up under Settings → About → Updates as " +
+                        "\"Apply fix (restart required)\" — no reinstall. Changes a patch cannot carry come as " +
+                        "a full update instead. Tap Mark installed once it is applied.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

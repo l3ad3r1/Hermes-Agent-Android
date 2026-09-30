@@ -4,7 +4,10 @@ Hermes improves itself from how it is used: it notices where it falls short,
 proposes improvements, has one desktop bot **build** each approved improvement
 and another **review** it, and ships approved fixes **on the fly** — as
 hot-loaded script modules, without a reinstall or restart. Changes that need
-Kotlin go through the existing self-repair pipeline and arrive as a test build.
+Kotlin go through the existing self-repair pipeline; once their PR is merged
+they arrive as a signed Tinker hot-fix patch (no reinstall, one restart — see
+[TINKER-HOTFIX.md](TINKER-HOTFIX.md)) or, when a patch cannot carry them, as a
+test build.
 
 Nothing is built without the user approving the proposal, and nothing is
 installed without the user reviewing the exact code, permissions and test
@@ -22,7 +25,9 @@ usage (Room) ──► UsageSignalMiner ──► one cloud-only model pass ─�
                READY ──► MODULE_*: user reviews code/permissions/tests ─► installLocal (sha256 pinned)
                   │                   ─► reloadEnabled(): live now ─► INSTALLED ─► rollback / auto-revert
                   └────► APP_CHANGE: filed to the self-repair repo (enhancement, evolve[, repair])
-                                      ─► draft PR on the PC ─► test-build OTA ─► "Mark installed"
+                                      ─► draft PR on the PC ─► human review + merge
+                                      ─► PC builds a signed Tinker patch against the release base
+                                         (or a full test build) ─► OTA "Apply fix" ─► "Mark installed"
 ```
 
 ## Where the code lives
@@ -55,7 +60,7 @@ network code; the app supplies those through small interfaces.
 | `data/evolution/EvolutionSettings`, `FeatureEvolutionScheduler` | Preferences; weekly worker and per-proposal dispatch worker. |
 | `data/evolution/EvolutionNotifier` | Also implements `EvolutionEvents` (new proposals, ready module, auto-revert). |
 | `work/FeatureEvolutionWorker`, `work/EvolutionDispatchWorker` | Weekly analysis; the long-running bot loop. Both fail-soft. |
-| `di/EvolutionModule` | Assembles the engine. `HermesApp` starts the override controller before the first module reload. |
+| `di/EvolutionModule` | Assembles the engine. `HermesAppStartup` starts the override controller before the first module reload. |
 | `ui/evolution/EvolutionScreen`, `EvolutionViewModel` | Settings → Knowledge & skills → **Feature evolution**. |
 
 ## Lifecycle
@@ -246,9 +251,16 @@ user taps **File to repair repo**: `RepairReporterAppChangeFiler` files a
 redacted issue (report-form shape, so the pipeline picks the app) with the
 proposal, acceptance criteria, reviewer verdict and spec, labelled
 `enhancement` + `evolve`, plus `repair` when auto-repair is on — which starts
-the PC fix pipeline, producing a **draft PR** for human review. The fix ships
-through the existing **test-build OTA channel**, where crash-report rollback
-still applies. The user marks the proposal installed once they have that build.
+the PC fix pipeline, producing a **draft PR** for human review. Nothing merges
+automatically. Once a human merges it, the maintainer builds a **Tinker hot-fix
+patch** on the PC against the current release base and publishes it with the
+release (`tools/tinker`, [TINKER-HOTFIX.md](TINKER-HOTFIX.md)); the phone offers
+**Apply fix (restart required)** — no reinstall. A change a patch cannot carry
+(manifest, new components, llama.cpp) ships as a full test build through the
+same OTA channel instead. Crash rollback applies to both (the patch crash guard
+removes a patch that crashes Hermes right after start). The screen tells the user
+this once the change is filed; they mark the proposal installed once the fix is
+applied.
 
 **Why not recompile on the phone?** There is no Gradle, Android SDK, Kotlin
 compiler or NDK on the device, and a Hermes build compiles the llama.cpp native
@@ -258,13 +270,17 @@ which must never be on the phone. A Termux-hosted toolchain is conceivable as
 future work (the repo already has `install-hermes-termux.sh`), but it is out of
 scope here.
 
-**Why no dex or native code loading?** Script modules run in Rhino in
-interpreted mode with a class shutter that denies **every** Java class. That is
-the security boundary that makes installing bot-written code acceptable at all.
-Adding `DexClassLoader`, `System.load` or any other code-loading path would let
-a module escape it with the app's full permissions (accessibility, SMS,
-contacts, files), so evolution deliberately does not, and the vetter rejects
-scripts that reach for Java or loaders.
+**Which code may be loaded?** Script modules run in Rhino in interpreted mode
+with a class shutter that denies **every** Java class. That is the security
+boundary that makes installing bot-written code acceptable at all, and the
+vetter rejects scripts that reach for Java or loaders. The **only** dex/native
+code-loading path in the app is Tinker, and it loads only patches that pass all
+of: Tinker's signature check and Hermes' stricter one (every entry signed by the
+installed app's own certificate — the release key), a TINKER_ID equal to the
+installed base build's, and the SHA-256 published in the release's
+`hermes-patch.json`. Code produced on the device, by a model or by a bot is never
+loaded: patches are built only by the PC pipeline from reviewed, merged code and
+signed there. Evolution modules have no path to Tinker.
 
 ## Trust boundaries
 
@@ -275,7 +291,8 @@ scripts that reach for Java or loaders.
 | Bot-built module → the device | Phone vetting + smoke tests in a scratch engine, then the user's explicit review; Rhino sandbox with permission-gated host API. |
 | Approved bytes → installed bytes | SHA-256 shown at review, required by `installLocal`, pinned in the row, re-checked on every reload. |
 | Module → built-in tools | Overrides only for evolution modules; policy re-checked at wiring time; built-in descriptor kept; auto-revert. |
-| App change → the codebase | Issue → draft PR reviewed by a human → signed test build via OTA. |
+| App change → the codebase | Issue → draft PR reviewed and merged by a human → PC-built patch signed with the release key (or signed test build) via OTA. |
+| Patch → loaded code | Tinker signature + TINKER_ID (install and every load), Hermes `PatchGate` (every entry signed by the installed certificate, TINKER_ID, published SHA-256), single listener, user approval, crash guard. |
 | Evolution → prompts/guard rails | Never modified. |
 
 ## Verification
@@ -317,7 +334,7 @@ repair and evolution classes, so the glue copies over nearly verbatim:
      (copy the object verbatim); `DatabaseModule.kt`: register the migration, provide `EvolutionDao`.
    - `RepairReporter.kt`: the `extraLabels` parameter on `file(...)`.
    - `EvolutionNotifier.kt`: implement `EvolutionEvents` (the three methods and IDs 9003–9005).
-   - `HermesApp.kt`: start `ToolOverrideController` in the same launch, just before
+   - `HermesApp.kt` (in Hermes now `HermesAppStartup.kt`; see TINKER-HOTFIX.md for the split): start `ToolOverrideController` in the same launch, just before
      `scriptPluginRepository.reloadEnabled()`, and call `scheduleFeatureEvolution()`.
    - Navigation: the `"evolution"` route and a Settings entry.
 4. If Jeeves' built-in tool names differ, review `ToolOverridePolicy.DENYLIST` in
