@@ -56,6 +56,8 @@ fun AboutSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+    val hotfixViewModel: HotfixViewModel = hiltViewModel()
+    val hotfixStatus by hotfixViewModel.status.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     Scaffold(
@@ -125,6 +127,16 @@ fun AboutSettingsScreen(
                         viewModel.dismissUpdateState()
                     },
                     onDismiss = viewModel::dismissUpdateState,
+                    onApplyFix = { offer ->
+                        hotfixViewModel.apply(offer)
+                        viewModel.dismissUpdateState()
+                    },
+                    onChooseFullUpdate = viewModel::chooseFullUpdate,
+                )
+                HotfixStatusCard(
+                    status = hotfixStatus,
+                    onRestart = hotfixViewModel::restartNow,
+                    onRemove = hotfixViewModel::remove,
                 )
                 var testBuilds by remember { androidx.compose.runtime.mutableStateOf(viewModel.otaTestBuilds) }
                 Card(modifier = Modifier.fillMaxWidth()) {

@@ -48,6 +48,14 @@ sealed class UpdateUiState {
         /** Release page — browser fallback when there is no APK asset. */
         val releaseUrl: String,
     ) : UpdateUiState()
+    /**
+     * A hot-fix patch for exactly this installed build (docs/TINKER-HOTFIX.md). Applied through
+     * HotfixViewModel; [fullUpdate] is a newer full release the user may pick instead.
+     */
+    data class FixAvailable(
+        val offer: com.hermes.agent.data.hotfix.PatchOffer,
+        val fullUpdate: com.hermes.agent.data.hotfix.FullUpdate?,
+    ) : UpdateUiState()
     data class Downloading(val version: String, val percent: Int) : UpdateUiState()
     object UpToDate : UpdateUiState()
     data class Error(val message: String) : UpdateUiState()
@@ -1115,15 +1123,19 @@ class SettingsViewModel @Inject constructor(
         if (_updateState.value is UpdateUiState.Checking) return
         _updateState.value = UpdateUiState.Checking
         viewModelScope.launch {
-            val result = runCatching { otaUpdateChecker.check() }
-            _updateState.value = when {
-                result.isFailure -> UpdateUiState.Error(result.exceptionOrNull()?.message ?: "Check failed")
-                result.getOrNull() == null -> UpdateUiState.UpToDate
-                else -> {
-                    val u = result.getOrNull()!!
-                    UpdateUiState.UpdateAvailable(u.version, u.apkUrl, u.releaseUrl)
-                }
-            }
+            val result = runCatching { otaUpdateChecker.checkOffer() }
+            _updateState.value = result.fold(
+                onFailure = { UpdateUiState.Error(it.message ?: "Check failed") },
+                onSuccess = { decision ->
+                    when (decision) {
+                        is com.hermes.agent.data.hotfix.OtaDecision.Patch ->
+                            UpdateUiState.FixAvailable(decision.offer, decision.fullUpdate)
+                        is com.hermes.agent.data.hotfix.OtaDecision.FullApk ->
+                            decision.update.let { UpdateUiState.UpdateAvailable(it.version, it.apkUrl, it.releaseUrl) }
+                        com.hermes.agent.data.hotfix.OtaDecision.None -> UpdateUiState.UpToDate
+                    }
+                },
+            )
         }
     }
 
@@ -1146,6 +1158,13 @@ class SettingsViewModel @Inject constructor(
         
         otaInstaller.startDownloadService(available.apkUrl)
         _updateState.value = UpdateUiState.Idle
+    }
+
+    /** From [UpdateUiState.FixAvailable]: skip the patch and offer the newer full APK instead. */
+    fun chooseFullUpdate() {
+        val fix = _updateState.value as? UpdateUiState.FixAvailable ?: return
+        val full = fix.fullUpdate ?: return
+        _updateState.value = UpdateUiState.UpdateAvailable(full.version, full.apkUrl, full.releaseUrl)
     }
 
     fun dismissUpdateState() {

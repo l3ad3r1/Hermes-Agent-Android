@@ -35,6 +35,8 @@ internal fun UpdateSection(
     onManagePermission: () -> Unit,
     onOpenUrl: (String) -> Unit,
     onDismiss: () -> Unit,
+    onApplyFix: (com.hermes.agent.data.hotfix.PatchOffer) -> Unit = {},
+    onChooseFullUpdate: () -> Unit = {},
 ) {
     // Keep the screen awake while an update is downloading. The download runs
     // in-app (OkHttp in the ViewModel, not DownloadManager/WorkManager), so
@@ -134,6 +136,35 @@ internal fun UpdateSection(
                         }
                     }
                 }
+                is UpdateUiState.FixAvailable -> {
+                    val m = state.offer.manifest
+                    Text(
+                        "A fix for this version is available (fix #${m.patchVersion}, ${formatSize(m.size)}).",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    if (m.notes.isNotBlank()) {
+                        Text(m.notes, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(
+                        "No reinstall: Hermes downloads the fix, checks that it is signed with the same key as " +
+                            "this app and made for this exact build, then asks you to restart. It takes effect " +
+                            "the next time Hermes starts.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(onClick = { onApplyFix(state.offer) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Apply fix (restart required)")
+                    }
+                    state.fullUpdate?.let { full ->
+                        OutlinedButton(onClick = onChooseFullUpdate, modifier = Modifier.fillMaxWidth()) {
+                            Text("Install full update ${full.version} instead")
+                        }
+                    }
+                    androidx.compose.material3.TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                        Text("Not now")
+                    }
+                }
                 is UpdateUiState.Downloading -> {
                     Text(
                         "Downloading Hermes ${state.version}… ${state.percent}%",
@@ -153,4 +184,10 @@ internal fun UpdateSection(
             }
         }
     }
+}
+
+private fun formatSize(bytes: Long): String = when {
+    bytes >= 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
+    bytes >= 1024 -> "${bytes / 1024} KB"
+    else -> "$bytes B"
 }
