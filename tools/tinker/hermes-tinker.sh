@@ -46,7 +46,9 @@ apk_info() { "$CLI" info "$1"; }
 
 git_clean_or_die() {
     [ "${ALLOW_DIRTY:-false}" = true ] && return 0
-    if [ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]; then
+    local dirty; dirty=$(git -C "$ROOT" status --porcelain --untracked-files=no)
+    if [ -n "$dirty" ]; then
+        echo "$dirty" >&2
         die "working tree has uncommitted changes; the TINKER_ID (git sha) would not describe the build. Commit first or pass --allow-dirty."
     fi
 }

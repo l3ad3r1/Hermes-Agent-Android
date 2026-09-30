@@ -9,11 +9,13 @@ import java.io.File
 
 /**
  * Fixtures in src/test/resources/hotfix are tiny stand-ins for a Tinker patch
- * (`assets/package_meta.txt` with TINKER_ID=hermes-90-0123456789ab and a fake classes.dex):
- * `unsigned.jar`; `signed-a.jar` (SHA256withRSA, SHA-256 digests, throwaway test key A whose
- * certificate SHA-256 is [KEY_A]); `signed-b.jar` (same content, throwaway key B);
- * `tampered-a.jar` (classes.dex changed after signing); `extra-unsigned-entry-a.jar` (an entry
- * added after signing). The keys exist only for these files and are unrelated to the release key.
+ * (`assets/package_meta.txt` with TINKER_ID=hermes-90-0123456789ab, HERMES_PATCH_VERSION=1 and a
+ * fake classes.dex): `unsigned.jar`; `signed-a.jar` (SHA256withRSA, SHA-256 digests, throwaway
+ * test key A whose certificate SHA-256 is [KEY_A]); `signed-b.jar` (same content, throwaway key B);
+ * `signed-a-and-b.jar` (signed-a.jar signed again by key B); `tampered-a.jar` (classes.dex changed
+ * after signing); `extra-unsigned-entry-a.jar` (an entry added after signing);
+ * `signed-a-version-2.jar` / `signed-a-no-version.jar` (key A, HERMES_PATCH_VERSION=2 / absent).
+ * The keys were generated for these files, then discarded; they are unrelated to the release key.
  */
 class PatchGateTest {
 
@@ -44,7 +46,7 @@ class PatchGateTest {
 
     @Test
     fun `signature checks reject unsigned, foreign, tampered and partially signed archives`() {
-        for (name in listOf("unsigned.jar", "signed-b.jar", "tampered-a.jar", "extra-unsigned-entry-a.jar")) {
+        for (name in listOf("unsigned.jar", "signed-b.jar", "signed-a-and-b.jar", "tampered-a.jar", "extra-unsigned-entry-a.jar")) {
             val f = fixture(name)
             val sig = PatchSignatureVerifier.verify(f, setOf(KEY_A))
             assertTrue("$name must be rejected, got $sig", sig is PatchSignatureVerifier.Result.Rejected)
@@ -79,13 +81,26 @@ class PatchGateTest {
     }
 
     @Test
+    fun `the manifest's patch version must equal the patch's own signed version`() {
+        // Replay: an older signed patch republished under a higher manifest number.
+        val v1 = fixture("signed-a.jar")
+        assertTrue(PatchGate.verify(v1, expected(v1).copy(patchVersion = 2), BASE, setOf(KEY_A)) is PatchGate.Verdict.Rejected)
+        val v2 = fixture("signed-a-version-2.jar")
+        assertEquals(PatchGate.Verdict.Accepted, PatchGate.verify(v2, expected(v2).copy(patchVersion = 2), BASE, setOf(KEY_A)))
+        assertTrue(PatchGate.verify(v2, expected(v2), BASE, setOf(KEY_A)) is PatchGate.Verdict.Rejected)
+        val none = fixture("signed-a-no-version.jar")
+        assertTrue(PatchGate.verify(none, expected(none), BASE, setOf(KEY_A)) is PatchGate.Verdict.Rejected)
+    }
+
+    @Test
     fun `package meta is read from the patch`() {
         val meta = PatchSignatureVerifier.packageMeta(fixture("signed-a.jar"))!!
         assertEquals(BASE, meta.getProperty("TINKER_ID"))
+        assertEquals("1", meta.getProperty(PatchGate.PATCH_VERSION_KEY))
     }
 
     private companion object {
         const val BASE = "hermes-90-0123456789ab"
-        const val KEY_A = "748bb9f90bfeb186d66123874ece7df8d6019e98c0c0bb6fef87f4930798ac50"
+        const val KEY_A = "1c171c87e6eb7f3a5201c9437ebecb90c994ed97744add8bbc6bfd931b914e64"
     }
 }

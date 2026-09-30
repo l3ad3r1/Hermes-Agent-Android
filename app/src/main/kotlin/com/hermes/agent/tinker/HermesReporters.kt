@@ -4,9 +4,11 @@ import android.content.Context
 import com.hermes.agent.data.hotfix.AppliedPatch
 import com.hermes.agent.data.hotfix.HotfixEvent
 import com.hermes.agent.data.hotfix.HotfixPlatform
+import com.hermes.agent.data.hotfix.abandonInterruptedPreparation
 import com.tencent.tinker.lib.reporter.DefaultLoadReporter
 import com.tencent.tinker.lib.reporter.DefaultPatchReporter
 import com.tencent.tinker.lib.tinker.Tinker
+import com.tencent.tinker.lib.util.TinkerServiceInternals
 import com.tencent.tinker.loader.shareutil.ShareConstants
 import com.tencent.tinker.loader.shareutil.ShareTinkerInternals
 import java.io.File
@@ -29,7 +31,7 @@ class HermesLoadReporter(context: Context) : DefaultLoadReporter(context) {
                     val staged = s.staged
                     when {
                         staged != null && staged.md5.equals(md5, ignoreCase = true) -> s.copy(
-                            applied = AppliedPatch(staged.patchVersion, staged.baseTinkerId, staged.md5, staged.notes, now),
+                            applied = AppliedPatch(staged.patchVersion, staged.baseTinkerId, staged.md5, staged.notes, now, staged.sha256, staged.sizeBytes),
                             staged = null,
                             restartPending = false,
                             lastEvent = HotfixEvent(HotfixEvent.Kind.LOADED, "Fix #${staged.patchVersion} is active.", now, staged.patchVersion),
@@ -53,6 +55,12 @@ class HermesLoadReporter(context: Context) : DefaultLoadReporter(context) {
                     lastEvent = HotfixEvent(HotfixEvent.Kind.LOAD_FAILED, "The fix could not be loaded (code $loadCode); Hermes runs the installed version.", now, s.staged?.patchVersion),
                 )
             }
+        }
+        // A preparation whose :patch process died (killed, reboot) never reports back: without this
+        // the card would show "Preparing…" forever and decideOta would never offer that fix again.
+        val preparing = runCatching { TinkerServiceInternals.isTinkerPatchServiceRunning(context) }.getOrDefault(true)
+        if (!preparing) {
+            store.update { s -> abandonInterruptedPreparation(s, now) }
         }
     }
 }

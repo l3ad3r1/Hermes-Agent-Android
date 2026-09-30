@@ -64,6 +64,8 @@ class TinkerWiringTest {
         assertTrue(proguard.contains("DaggerHermesApp_HiltComponents_SingletonC"))
         assertTrue("patches are signed by the scripts with SHA-256, not by Tinker's SHA1 signer", config.contains("<useSign value=\"false\"/>"))
         assertTrue(config.contains("<ignoreWarning value=\"false\"/>"))
+        // PatchGate binds the (unsigned) manifest's patchVersion to this signed package_meta field.
+        assertTrue(config.contains("<configField name=\"${com.hermes.agent.data.hotfix.PatchGate.PATCH_VERSION_KEY}\" value=\"@PATCH_VERSION@\"/>"))
     }
 
     @Test

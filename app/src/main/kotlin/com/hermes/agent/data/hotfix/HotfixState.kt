@@ -29,6 +29,9 @@ data class AppliedPatch(
     val md5: String,
     val notes: String,
     val loadedAtMillis: Long,
+    /** From the staged record, so Tinker's oat-repair of this patch can be re-verified; "" if unknown. */
+    val sha256: String = "",
+    val sizeBytes: Long = 0,
 )
 
 @Serializable
@@ -98,4 +101,22 @@ class CrashCounterFile(private val file: File) {
             file.writeText(count.toString())
         }
     }
+}
+
+/**
+ * At a main-process start with no Tinker patch service running, a staged patch that was never
+ * reported as prepared can no longer finish: drop it so it can be offered and applied again.
+ */
+fun abandonInterruptedPreparation(state: HotfixState, nowMillis: Long): HotfixState {
+    val staged = state.staged ?: return state
+    if (staged.installed) return state
+    return state.copy(
+        staged = null,
+        lastEvent = HotfixEvent(
+            HotfixEvent.Kind.INSTALL_FAILED,
+            "Preparing fix #${staged.patchVersion} was interrupted; nothing was changed. Check for updates to try again.",
+            nowMillis,
+            staged.patchVersion,
+        ),
+    )
 }

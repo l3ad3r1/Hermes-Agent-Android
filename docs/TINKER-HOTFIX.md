@@ -53,9 +53,16 @@ The checks, all of which must pass:
    identical. Tinker re-checks the last two itself at install and at every load.
 4. **Published digest.** The downloaded file's exact size and SHA-256 must match
    `hermes-patch.json` from the same GitHub release.
-5. **One door.** `tinker/HermesPatchListener` is Tinker's only patch listener. It refuses any file
-   that the OTA flow did not download and record as staged (path and MD5), and re-runs
-   `PatchGate` before Tinker's own checks. Nothing else in the app calls into Tinker with a path.
+5. **Signed patch version.** The manifest is not signed, so its `patchVersion` must equal the
+   `HERMES_PATCH_VERSION` that `tinker_config.xml` writes into the patch's signed
+   `assets/package_meta.txt`. An older signed patch cannot be replayed under a higher number, and
+   a removed or rolled-back fix cannot come back under a new one.
+6. **One door.** `tinker/HermesPatchListener` is Tinker's only patch listener. It admits only a
+   file that belongs to a verified record (`data/hotfix/PatchAdmission`): the OTA flow's staged
+   download (path and MD5), or Tinker's own copy of the staged/applied patch inside its private
+   `tinker` directory, which Tinker re-runs to rebuild compiled code after the system discarded it
+   (e.g. an Android system update). Either way it re-runs `PatchGate` with the recorded SHA-256
+   and size before Tinker's own checks. Nothing else in the app calls into Tinker with a path.
 
 The signature is the trust anchor. The SHA-256 and TINKER_ID checks are integrity and
 compatibility checks: someone who could edit the GitHub release could also change the JSON,
@@ -80,7 +87,7 @@ patched activities would receive old-loader objects. So:
 | Class | Loader? | Role |
 |---|---|---|
 | `tinker/loader/HermesTinkerApplication` (Java) | **yes** | Manifest `android:name`. Extends `TinkerApplication` (`TINKER_ENABLE_ALL`, `DelegateLastClassLoader`), implements Hilt's `GeneratedComponentManager` and forwards it. Nothing else. |
-| `dagger.hilt.internal.GeneratedComponentManager` | **yes** | The one interface Hilt's generated activities/services/receivers/entry points check the Application for. Listed as a loader class so both loaders share it. |
+| `dagger.hilt.internal.GeneratedComponentManager` | **yes** | The one interface Hilt's generated activities/services/receivers/entry points check the Application for. Listed as a loader class so both loaders share it: tinker-patch-lib strips loader classes from every patched dex (`removeLoaderForAllDex`), so the patched loader falls back to the original copy. |
 | `com.tencent.tinker.loader.**`, `com.tencent.tinker.anno.**` | **yes** | Tinker's loader. |
 | `tinker/HermesApplicationLike` | no | Tinker's delegate, created **through the patched loader**. Installs the Hilt component manager (built lazily), installs Tinker, runs the start-up. |
 | `tinker/HermesComponentFactory` | no | Builds `DaggerHermesApp_HiltComponents_SingletonC` exactly as `Hilt_HermesApp` would (by name: Hilt generates the root after the app compiles). |
@@ -143,8 +150,10 @@ A GitHub release may carry, next to (or instead of) the APK:
 }
 ```
 
-`minRestartPrompt`: `true` asks the user to restart as soon as the fix is prepared; `false` only
-shows that it applies on the next start. Either way nothing restarts by itself.
+`minRestartPrompt`: `true` asks the user to restart as soon as the fix is prepared (a filled
+"Restart now" button); `false` only shows that it applies on the next start, with a quiet
+"Restart now" text button (`restartPromptWanted` in `ui/settings/HotfixSection.kt`). Either way
+nothing restarts by itself.
 
 Patches are attached to **the base's own release** (`v<versionName>`); the checker also looks at
 the newest release. `decideOta` (pure, unit-tested) picks:

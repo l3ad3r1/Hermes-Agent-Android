@@ -80,7 +80,7 @@ function Apk-Info([string]$apk) {
 function Assert-Clean {
     if ($AllowDirty) { return }
     $st = git -C $Root status --porcelain --untracked-files=no
-    if ($st) { Die 'working tree has uncommitted changes; the TINKER_ID (git sha) would not describe the build. Commit first or pass -AllowDirty.' }
+    if ($st) { $st | ForEach-Object { [Console]::Error.WriteLine($_) }; Die'working tree has uncommitted changes; the TINKER_ID (git sha) would not describe the build. Commit first or pass -AllowDirty.' }
 }
 function Find-Apk([string]$variant) {
     $apk = Get-ChildItem (Join-Path $Root "app\build\outputs\apk\$variant") -Filter *.apk -ErrorAction SilentlyContinue | Select-Object -First 1

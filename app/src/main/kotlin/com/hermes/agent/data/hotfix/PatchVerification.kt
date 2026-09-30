@@ -108,11 +108,15 @@ data class ExpectedPatch(
  *
  * 1. exact size and SHA-256 of the manifest published with the release;
  * 2. the manifest's base TINKER_ID equals the installed build's, and so does the patch's own;
- * 3. every entry is signed by the installed app's signing certificate.
+ * 3. every entry is signed by the installed app's signing certificate;
+ * 4. the patch's own (signed) HERMES_PATCH_VERSION equals the manifest's patchVersion.
  *
  * Tinker then re-checks the signature and TINKER_ID itself, at install and on every load.
  */
 object PatchGate {
+    /** Written into the signed `assets/package_meta.txt` by tools/tinker/tinker_config.xml. */
+    const val PATCH_VERSION_KEY = "HERMES_PATCH_VERSION"
+
     sealed class Verdict {
         data object Accepted : Verdict()
         data class Rejected(val reason: String) : Verdict()
@@ -142,6 +146,13 @@ object PatchGate {
             ?: return Verdict.Rejected("patch has no ${PatchSignatureVerifier.PACKAGE_META}")
         if (!TinkerIds.matches(installedTinkerId, meta.getProperty("TINKER_ID"))) {
             return Verdict.Rejected("patch's own TINKER_ID ${meta.getProperty("TINKER_ID")} is not this build's")
+        }
+        // The manifest is not signed, the patch is: bind the manifest's patchVersion to the signed
+        // HERMES_PATCH_VERSION (tinker_config.xml packageConfig) so an old, legitimately signed patch
+        // cannot be replayed under a higher number, or a removed/rolled-back one under a new number.
+        val signedVersion = meta.getProperty(PATCH_VERSION_KEY)?.trim()?.toIntOrNull()
+        if (signedVersion != expected.patchVersion) {
+            return Verdict.Rejected("patch's own version ${meta.getProperty(PATCH_VERSION_KEY) ?: "(none)"} is not the manifest's ${expected.patchVersion}")
         }
         return Verdict.Accepted
     }

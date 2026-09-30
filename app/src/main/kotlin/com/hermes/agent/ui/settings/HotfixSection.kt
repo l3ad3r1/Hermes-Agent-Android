@@ -114,12 +114,23 @@ internal fun HotfixStatusCard(
             }
 
             if (status.restartPending) {
-                Text(
-                    "Restart Hermes to finish. Anything running (a reply, a download) is stopped.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Button(onClick = { confirmRestart = true }, modifier = Modifier.fillMaxWidth()) { Text("Restart now") }
+                // The manifest's minRestartPrompt: false means the fix can simply wait for the next
+                // start, so the restart is offered quietly instead of asked for. Never automatic.
+                if (restartPromptWanted(status)) {
+                    Text(
+                        "Restart Hermes to finish. Anything running (a reply, a download) is stopped.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(onClick = { confirmRestart = true }, modifier = Modifier.fillMaxWidth()) { Text("Restart now") }
+                } else {
+                    Text(
+                        "The fix takes effect the next time Hermes starts.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = { confirmRestart = true }, modifier = Modifier.fillMaxWidth()) { Text("Restart now") }
+                }
             }
             if (status.available && (active != null || staged != null) && !status.busy) {
                 OutlinedButton(onClick = { confirmRemove = true }, modifier = Modifier.fillMaxWidth()) { Text("Remove patch") }
@@ -145,4 +156,13 @@ internal fun HotfixStatusCard(
             dismissButton = { TextButton(onClick = { confirmRestart = false }) { Text("Later") } },
         )
     }
+}
+
+/**
+ * Whether a pending restart is asked for prominently. Only a prepared patch whose manifest set
+ * `minRestartPrompt: false` waits quietly; removals, rollbacks and unknown cases always ask.
+ */
+internal fun restartPromptWanted(status: HotfixStatus): Boolean {
+    val staged = status.staged
+    return !(staged != null && staged.installed && !staged.minRestartPrompt)
 }
