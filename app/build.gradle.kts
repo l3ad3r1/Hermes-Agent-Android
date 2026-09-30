@@ -31,6 +31,39 @@ val localProps = Properties().apply {
     if (f.exists()) load(f.inputStream())
 }
 
+// --- Tinker hot-fix build glue (docs/TINKER-HOTFIX.md) ---------------------------------
+// The Tinker Gradle plugin cannot run on AGP 9 (it needs applicationVariants and the removed
+// Transform API), so the parts of it a patch actually depends on are done here by hand:
+//
+//   TINKER_ID            manifest meta-data + BuildConfig, "hermes-<versionCode>-<git sha>".
+//                        Tinker refuses a patch whose base id differs from the installed one.
+//   --emit-ids           every build writes aapt2's resource-id table to
+//                        build/outputs/tinker/<variant>/stable-ids.txt, so a base can be archived.
+//   hermes.tinker.base   PATCH BUILD MODE: -Phermes.tinker.base=<archived base dir> pins the
+//                        versionCode/versionName to the base's, feeds its stable-ids.txt back to
+//                        aapt2 (--stable-ids) and its mapping.txt to R8 (-applymapping), so the
+//                        fix is diffed against a build with the same resource ids and class names.
+//
+// Nothing here loads code; it only makes two builds comparable. The runtime trust checks live in
+// data/hotfix and the patch itself is produced by tools/tinker from reviewed, merged code.
+val tinkerBaseDir: File? = (project.findProperty("hermes.tinker.base") as String?)
+    ?.takeIf { it.isNotBlank() }
+    ?.let { rootProject.file(it) }
+val tinkerBase: Properties? = tinkerBaseDir?.let { dir ->
+    val info = File(dir, "tinker-base.properties")
+    require(info.isFile) {
+        "hermes.tinker.base=$dir is not an archived Tinker base (no tinker-base.properties). " +
+            "Archive the release with tools/tinker/archive-base first."
+    }
+    Properties().apply { info.inputStream().use { load(it) } }
+}
+val gitShortSha: String = runCatching {
+    providers.exec {
+        commandLine("git", "rev-parse", "--short=12", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim()
+}.getOrDefault("").ifBlank { "nogit" }
+
 ksp {
     // Room writes its expected schema here so migrations can be verified
     // mechanically instead of by eye, and MigrationTestHelper can replay them.
@@ -48,6 +81,17 @@ android {
         // Single source of truth in gradle.properties.
         versionCode = (project.findProperty("hermes.versionCode") as String?)?.toInt() ?: 66
         versionName = project.findProperty("hermes.versionName") as String? ?: "0.9.6"
+        // A patch build must look like its base to the manifest check in tinker-patch-lib
+        // (versionCode/versionName unchanged) and to OTA version comparisons on the phone.
+        tinkerBase?.let { base ->
+            versionCode = base.getProperty("versionCode").toInt()
+            versionName = base.getProperty("versionName")
+        }
+        // Must not look numeric: aapt would store it as an int and Tinker reads it back as text.
+        val tinkerId = (project.findProperty("hermes.tinkerId") as String?)?.takeIf { it.isNotBlank() }
+            ?: "hermes-$versionCode-$gitShortSha"
+        manifestPlaceholders["tinkerId"] = tinkerId
+        buildConfigField("String", "TINKER_ID", "\"$tinkerId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // MigrationTestHelper loads the exported schemas from assets.
@@ -82,6 +126,21 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Patch build mode: keep the base's obfuscated names so the dex diff stays small and
+            // anything that persisted a class name (WorkManager rows, serialized state) still resolves.
+            // A debug (unminified) base, e.g. CI's smoke check, has no mapping; a release base must.
+            tinkerBaseDir?.let { dir ->
+                val mapping = File(dir, "mapping.txt")
+                if (tinkerBase?.getProperty("variant") == "release") {
+                    require(mapping.isFile) { "hermes.tinker.base: $mapping is missing; release bases must archive R8's mapping.txt" }
+                }
+                if (mapping.isFile) {
+                    val rules = project.layout.buildDirectory.file("tinker/applymapping.pro").get().asFile
+                    rules.parentFile.mkdirs()
+                    rules.writeText("-applymapping \"${mapping.absolutePath.replace('\\', '/')}\"\n")
+                    proguardFile(rules)
+                }
+            }
             // Phase 4: release signing config. Reads from hermes.local.properties:
             //   hermes.signing.storeFile=/path/to/hermes-release.jks
             //   hermes.signing.storePassword=...
@@ -225,6 +284,22 @@ android {
     }
 }
 
+// Tinker: per-variant aapt2 resource-id table (always) and, in patch build mode, the base's table.
+// The emitted file is an undeclared output of the resource link task, so a cached/up-to-date link
+// does not rewrite it: tools/tinker/archive-base forces that one task with --rerun.
+androidComponents {
+    onVariants { variant ->
+        val idsOut = layout.buildDirectory.file("outputs/tinker/${variant.name}/stable-ids.txt").get().asFile
+        idsOut.parentFile.mkdirs()
+        variant.androidResources.aaptAdditionalParameters.addAll("--emit-ids", idsOut.absolutePath)
+        tinkerBaseDir?.let { dir ->
+            val stableIds = File(dir, "stable-ids.txt")
+            require(stableIds.isFile) { "hermes.tinker.base: $stableIds is missing" }
+            variant.androidResources.aaptAdditionalParameters.addAll("--stable-ids", stableIds.absolutePath)
+        }
+    }
+}
+
 // AGP 9 built-in Kotlin: replaces the old android { kotlinOptions { ... } } block.
 // jvmTarget is omitted on purpose — it defaults to android.compileOptions.targetCompatibility (17).
 kotlin {
@@ -303,6 +378,10 @@ dependencies {
 
     // --- Logging ---
     implementation(libs.timber)
+
+    // --- Tinker hot-fix runtime (patch loading; see docs/TINKER-HOTFIX.md) ---
+    implementation(libs.tinker.android.lib)
+    implementation(libs.tinker.android.loader)
 
     // --- Shizuku (privileged shell) ---
     implementation(libs.shizuku.api)
