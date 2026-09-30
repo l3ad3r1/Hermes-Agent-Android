@@ -102,6 +102,22 @@ jobs:
       - name: Unit tests (Robolectric)
         run: ./gradlew --no-daemon :app:testDebugUnitTest
 
+      # Hot-fix smoke check (docs/TINKER-HOTFIX.md). Archives this debug build as a Tinker base,
+      # builds a second debug APK against it (-Phermes.tinker.base: same version, aapt2 stable ids)
+      # with a different TINKER_ID so its dex differs, and diffs the two with tinker-patch-lib —
+      # the same tool and checks the release PC uses. This is where a loader-class violation fails
+      # (the Tinker shell referring to a patchable class, or a loader class changing). Unsigned:
+      # CI holds no key, and nothing produced here could be installed on a phone.
+      - name: Tinker patch smoke check (unsigned)
+        run: |
+          set -euo pipefail
+          BASE=$(tools/tinker/hermes-tinker.sh archive-base --variant debug --archive "$RUNNER_TEMP/tinker-archive")
+          cat "$BASE/tinker-base.properties"
+          tools/tinker/hermes-tinker.sh build-patch --base "$BASE" --patch-version 1 --unsigned \
+            --gradle-arg -Phermes.tinkerId=hermes-ci-smoke-fix --out "$RUNNER_TEMP/tinker-patch"
+          unzip -l "$RUNNER_TEMP"/tinker-patch/*-unsigned.apk
+          unzip -p "$RUNNER_TEMP"/tinker-patch/*-unsigned.apk assets/package_meta.txt
+
       - name: Publish test report on failure
         if: failure()
         uses: actions/upload-artifact@v4

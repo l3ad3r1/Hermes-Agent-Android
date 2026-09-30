@@ -53,3 +53,4 @@ scratch/
 
 # SPIKE: gomobile output, built by tsnet-bridge/build.sh
 app/libs/*.aar
+tinker-archive/
