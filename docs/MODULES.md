@@ -191,11 +191,35 @@ Tiny utilities shared across layers.
 
 ---
 
+## `data/evolution/` — feature evolution glue
+
+The engine (usage mining, proposals, builder/reviewer loop, module vetting and
+smoke tests, local install, tool overrides) is in agent-core, `:core:plugin`,
+package `com.hermes.agent.data.plugin.evolution`. See
+[FEATURE-EVOLUTION.md](FEATURE-EVOLUTION.md).
+
+| File | Purpose |
+|---|---|
+| `RoomEvolutionStore.kt` | Proposal store, module version history and usage snapshot over `EvolutionDao` (`data/local/EvolutionDao.kt`, entities in `data/local/EvolutionEntities.kt`, DB v24). |
+| `GatewayEvolutionBotGateway.kt`, `GatewayRunFold.kt` | Builder/reviewer bot runs on desktop-gateway profiles; approvals denied. |
+| `RoutedEvolutionLlm.kt` | Proposal model call, routed cloud-only. |
+| `RepairReporterAppChangeFiler.kt` | App changes → redacted `enhancement`/`evolve` issue in the self-repair repo. |
+| `AppEvidenceSanitizer.kt` | `TraceHeuristics` + `ReportRedactor` for anything leaving the phone. |
+| `EvolutionSettings.kt`, `FeatureEvolutionScheduler.kt` | Weekly analysis toggle (off by default), bot profiles; WorkManager wiring. |
+| `EvolutionNotifier.kt` | Skill-refinement notifications and the engine's `EvolutionEvents`. |
+
+UI: `ui/evolution/EvolutionScreen.kt` + `EvolutionViewModel.kt` (Settings →
+Knowledge & skills → Feature evolution). DI: `di/EvolutionModule.kt`.
+
+---
+
 ## `work/`
 
 | File                              | Purpose                                                                                       |
 |-----------------------------------|-----------------------------------------------------------------------------------------------|
 | `MemoryConsolidationWorker.kt`    | Phase 2: real body. Scheduled daily while charging + idle via `HermesApp`. Iterates all conversations, runs `MemoryConsolidator`, prunes the store. |
+| `FeatureEvolutionWorker.kt`       | Weekly usage analysis (charging + idle + network) when enabled; proposes only. Fail-soft. |
+| `EvolutionDispatchWorker.kt`      | Runs the builder/reviewer loop for one approved proposal. Fail-soft; outcome recorded on the proposal. |
 
 ---
 
