@@ -46,8 +46,10 @@ function Die([string]$msg) { throw "hermes-tinker: $msg" }
 function Log([string]$msg) { Write-Host "==> $msg" }
 function Sha256([string]$path) { (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant() }
 function Cap([string]$s) { $s.Substring(0, 1).ToUpperInvariant() + $s.Substring(1) }
+# Tool output goes to the host, never the pipeline: Archive-Base/Build-Patch return only their
+# directory, and anything a native command printed would otherwise become part of that value.
 function Invoke-Checked([string]$exe, [string[]]$argv) {
-    & $exe @argv
+    & $exe @argv | Out-Host
     if ($LASTEXITCODE -ne 0) { Die "$([IO.Path]::GetFileName($exe)) failed (exit $LASTEXITCODE)" }
 }
 function JavaBin([string]$name) {

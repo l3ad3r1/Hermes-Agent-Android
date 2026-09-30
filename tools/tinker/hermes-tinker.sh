@@ -39,7 +39,7 @@ prop() { grep -E "^$2=" "$1" | head -1 | cut -d= -f2- | sed 's/\\\\/\\/g; s/\\:/
 
 build_cli() {
     log "building the patch CLI (tinker-patch-lib)"
-    "$GRADLEW" -p "$TOOLS/patch-cli" --quiet installDist
+    "$GRADLEW" -p "$TOOLS/patch-cli" --quiet installDist >&2
     [ -x "$CLI" ] || die "patch CLI not built at $CLI"
 }
 
@@ -110,7 +110,7 @@ archive_base() {
     build_cli
     if [ "$skip_build" = false ]; then
         log "building the $variant base"
-        "$GRADLEW" ":app:assemble${V}"
+        "$GRADLEW" ":app:assemble${V}" >&2
     fi
 
     local apk; apk=$(find_apk "$variant")
@@ -203,7 +203,7 @@ build_patch() {
     build_cli
     if [ "$skip_build" = false ]; then
         log "building the fix against $base_id"
-        "$GRADLEW" "-Phermes.tinker.base=$base" ${gradle_args[@]+"${gradle_args[@]}"} ":app:assemble${V}"
+        "$GRADLEW" "-Phermes.tinker.base=$base" ${gradle_args[@]+"${gradle_args[@]}"} ":app:assemble${V}" >&2
     fi
     local new_apk; new_apk=$(find_apk "$variant")
     local info; info=$(apk_info "$new_apk")
@@ -240,7 +240,7 @@ build_patch() {
     sed "s/@PATCH_VERSION@/$patch_version/" "$TOOLS/tinker_config.xml" >"$out/tinker_config.xml"
     cp "$new_apk" "$out/fix.apk"
     log "diffing with tinker-patch-lib"
-    "$CLI" patch --old "$base/base.apk" --new "$out/fix.apk" --config "$out/tinker_config.xml" --out "$out/tinker-out"
+    "$CLI" patch --old "$base/base.apk" --new "$out/fix.apk" --config "$out/tinker_config.xml" --out "$out/tinker-out" >&2
     local unsigned_patch="$out/tinker-out/patch_unsigned.apk"
     [ -s "$unsigned_patch" ] || die "tinker-patch-lib produced no patch (no changes?) — see $out/tinker-out/log.txt"
     unzip -l "$unsigned_patch" | grep -q 'assets/package_meta.txt' || die "patch has no package_meta.txt"
@@ -327,5 +327,5 @@ case "$cmd" in
     archive-base) archive_base "$@";;
     build-patch) build_patch "$@";;
     publish) publish "$@";;
-    *) sed -n '2,21p' "$0"; exit 2;;
+    *) sed -n '2,22p' "$0"; exit 2;;
 esac
