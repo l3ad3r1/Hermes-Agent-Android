@@ -83,6 +83,10 @@ class TinkerWiringTest {
         assertTrue(script.contains("dump resources") && script.contains("check_ids_stable"))
         // A patch build takes the base's version so the manifest check and OTA comparisons hold.
         assertTrue(gradle.contains("versionCode = base.getProperty(\"versionCode\").toInt()"))
+        // The archived versionName is the final (suffixed) manifest value: it must be pinned on the
+        // variant output, never in defaultConfig, or the build type suffix is appended twice.
+        assertTrue(gradle.contains("output.versionName.set(base.getProperty(\"versionName\"))"))
+        assertTrue(!gradle.contains("versionName = base.getProperty(\"versionName\")"))
         assertTrue(gradle.contains("manifestPlaceholders[\"tinkerId\"]"))
     }
 

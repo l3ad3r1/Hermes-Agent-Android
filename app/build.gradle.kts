@@ -81,9 +81,11 @@ android {
         versionName = project.findProperty("hermes.versionName") as String? ?: "0.9.6"
         // A patch build must look like its base to the manifest check in tinker-patch-lib
         // (versionCode/versionName unchanged) and to OTA version comparisons on the phone.
+        // versionName is pinned on the variant output below: the archived value is the final,
+        // already-suffixed manifest value (e.g. "1.1.3-debug"), and pinning it here would get the
+        // build type's versionNameSuffix appended a second time.
         tinkerBase?.let { base ->
             versionCode = base.getProperty("versionCode").toInt()
-            versionName = base.getProperty("versionName")
         }
         // Must not look numeric: aapt would store it as an int and Tinker reads it back as text.
         val tinkerId = (project.findProperty("hermes.tinkerId") as String?)?.takeIf { it.isNotBlank() }
@@ -288,6 +290,12 @@ android {
 // checks that no resource id of the base moved in the fix build.
 androidComponents {
     onVariants { variant ->
+        tinkerBase?.let { base ->
+            variant.outputs.forEach { output ->
+                output.versionName.set(base.getProperty("versionName"))
+                output.versionCode.set(base.getProperty("versionCode").toInt())
+            }
+        }
         tinkerBaseDir?.let { dir ->
             val stableIds = File(dir, "stable-ids.txt")
             require(stableIds.isFile) { "hermes.tinker.base: $stableIds is missing" }

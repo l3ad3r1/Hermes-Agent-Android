@@ -232,8 +232,8 @@ function Build-Patch {
     }
     $newApk = Find-Apk $variant
     $info = Apk-Info $newApk
-    if ($info['versionCode'] -ne $p['versionCode']) { Die 'fix build versionCode differs from the base (was it built with -Phermes.tinker.base?)' }
-    if ($info['versionName'] -ne $p['versionName']) { Die 'fix build versionName differs from the base' }
+    if ($info['versionCode'] -ne $p['versionCode']) { Die "fix build versionCode $($info['versionCode']) differs from the base's $($p['versionCode']) (was it built with -Phermes.tinker.base?)" }
+    if ($info['versionName'] -ne $p['versionName']) { Die "fix build versionName '$($info['versionName'])' differs from the base's '$($p['versionName'])'" }
     if ($info['packageName'] -ne $p['packageName']) { Die 'fix build package differs from the base' }
     if ($info['tinkerId'] -eq $p['tinkerId']) { Die "fix build has the base's TINKER_ID; commit the fix first" }
     Assert-IdsStable (Get-Content -LiteralPath (Join-Path $basePath 'stable-ids.txt')) (Resource-Ids $newApk)

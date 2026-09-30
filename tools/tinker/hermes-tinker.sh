@@ -208,8 +208,10 @@ build_patch() {
     local new_apk; new_apk=$(find_apk "$variant")
     local info; info=$(apk_info "$new_apk")
     local new_id; new_id=$(echo "$info" | sed -n 's/^tinkerId=//p')
-    [ "$(echo "$info" | sed -n 's/^versionCode=//p')" = "$base_vc" ] || die "fix build versionCode differs from the base (was it built with -Phermes.tinker.base?)"
-    [ "$(echo "$info" | sed -n 's/^versionName=//p')" = "$base_vn" ] || die "fix build versionName differs from the base"
+    local new_vc new_vn
+    new_vc=$(echo "$info" | sed -n 's/^versionCode=//p'); new_vn=$(echo "$info" | sed -n 's/^versionName=//p')
+    [ "$new_vc" = "$base_vc" ] || die "fix build versionCode $new_vc differs from the base's $base_vc (was it built with -Phermes.tinker.base?)"
+    [ "$new_vn" = "$base_vn" ] || die "fix build versionName '$new_vn' differs from the base's '$base_vn'"
     [ "$(echo "$info" | sed -n 's/^packageName=//p')" = "$base_pkg" ] || die "fix build package differs from the base"
     [ "$new_id" != "$base_id" ] || die "fix build has the base's TINKER_ID; commit the fix first"
     local fix_ids; fix_ids=$(mktemp)
