@@ -1,5 +1,6 @@
 package com.hermes.agent.tinker
 
+import com.hermes.agent.data.hotfix.HotfixPlatform
 import com.tencent.tinker.lib.service.AbstractResultService
 import com.tencent.tinker.lib.service.PatchResult
 import com.tencent.tinker.lib.util.TinkerServiceInternals
@@ -15,6 +16,16 @@ class HermesPatchResultService : AbstractResultService() {
     override fun onPatchResult(result: PatchResult?) {
         runCatching { TinkerServiceInternals.killTinkerPatchServiceProcess(applicationContext) }
         val raw = result?.rawPatchFilePath ?: return
-        runCatching { File(raw).delete() }
+        runCatching {
+            val file = File(raw)
+            // Only the OTA download. When Tinker rebuilds compiled code it re-runs its own installed
+            // patch file, and deleting that would make the next start drop the fix.
+            if (isDownload(file, HotfixPlatform.inboxDir(applicationContext))) file.delete()
+        }
+    }
+
+    internal companion object {
+        fun isDownload(file: File, inbox: File): Boolean =
+            runCatching { file.canonicalFile.parentFile == inbox.canonicalFile }.getOrDefault(false)
     }
 }
