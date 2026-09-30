@@ -54,4 +54,9 @@ class FeatureEvolutionScheduler @Inject constructor(
             request,
         )
     }
+
+    /** Stops a running bot run for [proposalId]; the worker's cancellation stops the run on the PC too. */
+    fun cancelDispatch(proposalId: String) {
+        workManager.cancelUniqueWork(EvolutionDispatchWorker.uniqueName(proposalId))
+    }
 }

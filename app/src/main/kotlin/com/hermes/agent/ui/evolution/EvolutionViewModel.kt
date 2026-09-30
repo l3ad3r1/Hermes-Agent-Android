@@ -87,6 +87,8 @@ class EvolutionViewModel @Inject constructor(
 
     fun reject(id: String) = work(null) {
         store.transition(id, ProposalStatus.REJECTED, "Rejected by you") ?: error("This proposal can no longer be rejected")
+        // A build in progress is stopped, not just discarded when it finishes.
+        scheduler.cancelDispatch(id)
         "Rejected — it will not be proposed again for 90 days"
     }
 

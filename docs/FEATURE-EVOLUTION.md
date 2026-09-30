@@ -141,9 +141,16 @@ phone vets it and runs its smoke tests (below) → only if that passes does the
 reviewer see it, together with the phone's test report → `APPROVE` moves it to
 `READY`; `REQUEST_CHANGES` (from the reviewer *or* the phone) goes back to the
 builder with the findings and its previous artifact. After 3 rounds: `FAILED`.
-An unreachable bot returns the proposal to `APPROVED` for a retry; the work runs
-in `EvolutionDispatchWorker` so it survives leaving the screen, and a run
-interrupted by process death restarts cleanly.
+An unreachable bot returns the proposal to `APPROVED` for a retry. The work runs
+in `EvolutionDispatchWorker`, promoted to foreground (data-sync) work with an
+ongoing notification so it survives leaving the screen and WorkManager's
+ten-minute limit for background work. A run that is interrupted anyway (process
+death, the foreground start refused) resumes on the next dispatch **after the
+rounds it already used**, with the stored findings, so repeated interruptions
+still end in `FAILED` after 3 rounds. Rejecting (Cancel) a proposal mid-build
+cancels the worker, which stops the run on the PC; progress notes are written
+only while the proposal is still in the state the dispatcher expects
+(`patchIf`), so a rejection is never overwritten by a late round.
 
 ### Output contracts (all bot output is untrusted data)
 
@@ -169,6 +176,8 @@ interrupted by process death restarts cleanly.
    the reviewer: ≤ 48 KB manifest, ≤ 32 KB script, no unknown top-level fields,
    `evo-` id, semver, ≤ 5 snake_case tools, unique names, no collision with an
    existing tool (a new version of the same module may keep its names);
+   no key repeated in a JSON object (the parser keeps the last, a reader may
+   stop at the first); no override of a tool another module supplies;
    no `eval`, `Function`, `Packages`, Java access, loaders, prototype tampering,
    aliasing or indexing of `hermes`, or credential-shaped literals; Skills Guard
    over the script and every description; **minimal permissions** (each declared
@@ -186,8 +195,9 @@ interrupted by process death restarts cleanly.
    their digest in the row (`local:evolution#sha256=…`) and calls
    `reloadEnabled()` — the tools are live immediately. Every later reload
    re-checks the pin and refuses to load a row that was edited behind the user's
-   back. A registry install can never replace a local module (or declare
-   overrides).
+   back. A registry install can never replace a local module, declare
+   overrides, or use a `local:` source. An upgrade that fails to load puts the
+   previously installed row back; a new module that fails to load is switched off.
 5. **Versions and rollback**: every installed version is kept
    (`evolution_module_versions`). **Roll back** reinstalls the previous version
    with its own pinned bytes and grants, or removes the module (restoring any
@@ -296,6 +306,8 @@ repair and evolution classes, so the glue copies over nearly verbatim:
      `RoutedEvolutionLlm.kt`, `RepairReporterAppChangeFiler.kt` (the issue body
      already uses `RepairReporter.APP`), `EvolutionSettings.kt`, `FeatureEvolutionScheduler.kt`
    - `app/src/main/kotlin/com/hermes/agent/work/FeatureEvolutionWorker.kt`, `EvolutionDispatchWorker.kt`
+     (runs as data-sync foreground work, notification ID 9006; Jeeves' manifest already
+     declares `SystemForegroundService` as `dataSync` with `FOREGROUND_SERVICE_DATA_SYNC`)
    - `app/src/main/kotlin/com/hermes/agent/di/EvolutionModule.kt` — change `appName = "Hermes"` to `"Jeeves"`
    - `app/src/main/kotlin/com/hermes/agent/ui/evolution/EvolutionScreen.kt`, `EvolutionViewModel.kt`
    - the tests under `app/src/test/kotlin/com/hermes/agent/data/evolution/` and the
@@ -317,8 +329,6 @@ repair and evolution classes, so the glue copies over nearly verbatim:
   argument handling and parsing; the reviewer and the user's review cover the rest.
 - Overrides keep the built-in's schema; a fix that needs new parameters must be
   a new tool (`MODULE_FEATURE`) or an app change.
-- The dispatcher does not stop the remote run when the user rejects mid-build;
-  the run's result is simply discarded.
 - `GatewayApiClient.streamRunEvents` reads the SSE stream with blocking I/O, so
   the 20-minute bot timeout takes effect at the next event or socket timeout
   rather than instantly; the run is then stopped on the PC.
