@@ -78,6 +78,15 @@ class HermesApp : Application(), Configuration.Provider {
     lateinit var mcpManagerProvider: Provider<McpManager>
 
     @Inject
+    lateinit var toolOverrideControllerProvider: Provider<com.hermes.agent.data.plugin.evolution.ToolOverrideController>
+
+    @Inject
+    lateinit var evolutionSettingsProvider: Provider<com.hermes.agent.data.evolution.EvolutionSettings>
+
+    @Inject
+    lateinit var featureEvolutionSchedulerProvider: Provider<com.hermes.agent.data.evolution.FeatureEvolutionScheduler>
+
+    @Inject
     lateinit var settingsRepositoryProvider: Provider<com.hermes.agent.domain.settings.SettingsRepository>
 
     @Inject
@@ -199,6 +208,10 @@ class HermesApp : Application(), Configuration.Provider {
         // agent would only see them after the user opened Settings → Modules,
         // so an installed module would silently do nothing until then.
         applicationScope.launch {
+            // Evolution-module overrides are rewired after every module reload, this
+            // first one included, so the controller must be following before it runs.
+            runCatching { toolOverrideControllerProvider.get().start() }
+                .onFailure { Timber.tag("Modules").w(it, "tool override wiring unavailable") }
             runCatching { scriptPluginRepositoryProvider.get().reloadEnabled() }
                 .onSuccess { failures ->
                     if (failures.isNotEmpty()) {
@@ -233,6 +246,16 @@ class HermesApp : Application(), Configuration.Provider {
         scheduleMemoryConsolidation()
         scheduleSkillImprovement()
         scheduleOtaUpdateCheck()
+        scheduleFeatureEvolution()
+    }
+
+    /** The weekly usage analysis is opt-in; keep WorkManager in line with the setting. */
+    private fun scheduleFeatureEvolution() {
+        applicationScope.launch {
+            runCatching {
+                featureEvolutionSchedulerProvider.get().applyWeekly(evolutionSettingsProvider.get().current().weeklyAnalysis)
+            }.onFailure { Timber.tag("FeatureEvolution").w(it, "could not schedule the weekly analysis") }
+        }
     }
 
     /**
