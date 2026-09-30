@@ -24,7 +24,7 @@ import timber.log.Timber
  *
  * Phase 4 ships this as a no-arg Initializer; if Hilt initialization
  * hasn't completed by the time [create] is called, we fall back to
- * late-init via [HermesApp.onCreate].
+ * late-init via [com.hermes.agent.HermesAppStartup].
  */
 class MemoryMonitorInitializer : Initializer<MemoryMonitorInitializer> {
 
@@ -37,8 +37,8 @@ class MemoryMonitorInitializer : Initializer<MemoryMonitorInitializer> {
             entryPoint.monitor().start()
             Timber.tag("Startup").i("MemoryPressureMonitor started via App Startup")
         }.onFailure { t ->
-            // Hilt not yet initialized — HermesApp.onCreate will start the monitor.
-            Timber.tag("Startup").d("MemoryPressureMonitor deferred to HermesApp: ${t.message}")
+            // Hilt not yet initialized — HermesAppStartup will start the monitor.
+            Timber.tag("Startup").d("MemoryPressureMonitor deferred to HermesAppStartup: ${t.message}")
         }
         return this
     }

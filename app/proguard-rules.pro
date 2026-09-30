@@ -65,3 +65,23 @@
 # because minification is off there. Keep the package intact.
 -keep class ai.onnxruntime.** { *; }
 -keepclassmembers class ai.onnxruntime.** { *; }
+
+# --- Tinker hot-fix runtime (docs/TINKER-HOTFIX.md) ---
+# Loader classes: loaded before any patch, referenced by name from the manifest and from Tinker's
+# reflection, and required by tools/tinker/tinker_config.xml to be byte-identical between a base
+# and its patch builds. Keep them whole and unrenamed.
+-keep class com.hermes.agent.tinker.loader.** { *; }
+-keep class com.tencent.tinker.loader.** { *; }
+-keep class com.tencent.tinker.anno.** { *; }
+# Shared between the shell and the patched class loader (Hilt finds the component through it).
+-keep interface dagger.hilt.internal.GeneratedComponentManager { *; }
+# Created by name through the patched class loader.
+-keep class com.tencent.tinker.entry.** { *; }
+-keep class com.hermes.agent.tinker.HermesApplicationLike { public <init>(...); }
+# The Hilt root component, built reflectively by HermesComponentFactory.
+-keep class com.hermes.agent.DaggerHermesApp_HiltComponents_SingletonC { public static *** builder(); }
+-keep class com.hermes.agent.DaggerHermesApp_HiltComponents_SingletonC$Builder {
+    public *** applicationContextModule(...);
+    public *** build();
+}
+-dontwarn com.tencent.tinker.**

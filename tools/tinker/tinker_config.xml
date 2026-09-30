@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  tinker-patch-lib configuration for Hermes (docs/TINKER-HOTFIX.md). Used by hermes-tinker.sh /
+  hermes-tinker.ps1; @PATCH_VERSION@ is filled in per patch. No secrets live here: the patch is
+  built unsigned (useSign=false) and the scripts sign it afterwards with the release key from
+  hermes.local.properties using SHA-256 digests (Tinker's own signer hard-codes SHA1, which
+  current JDKs treat as unsigned).
+-->
+<tinkerPatch>
+    <issue id="property">
+        <!-- Loader-class violations and changed loader classes must fail the patch, not warn. -->
+        <ignoreWarning value="false"/>
+        <useSign value="false"/>
+        <isProtectedApp value="false"/>
+        <!-- New activities/services/receivers/providers need a full release. -->
+        <supportHotplugComponent value="false"/>
+        <!-- minSdk 29 native multidex: the shell is not necessarily in classes.dex. -->
+        <allowLoaderInAnyDex value="true"/>
+        <removeLoaderForAllDex value="true"/>
+    </issue>
+
+    <issue id="dex">
+        <dexMode value="jar"/>
+        <pattern value="classes*.dex"/>
+        <!--
+          Loader classes: loaded before a patch can be, so never patched, identical in base and
+          fix (checked), and they may only refer to each other and the Android framework (checked).
+          Keep in sync with proguard-rules.pro and TinkerWiringTest.
+        -->
+        <loader value="com.tencent.tinker.loader.*"/>
+        <loader value="com.tencent.tinker.anno.*"/>
+        <loader value="com.hermes.agent.tinker.loader.*"/>
+        <loader value="dagger.hilt.internal.GeneratedComponentManager"/>
+    </issue>
+
+    <issue id="lib">
+        <!-- arm64-v8a only. hermes-tinker refuses llama.cpp/ggml library changes: the dlopen()ed
+             ggml backends are not patched, so a partial native patch could mix ABIs. -->
+        <pattern value="lib/*/*.so"/>
+    </issue>
+
+    <issue id="resource">
+        <pattern value="res/*"/>
+        <pattern value="assets/*"/>
+        <pattern value="resources.arsc"/>
+        <pattern value="AndroidManifest.xml"/>
+        <!-- AGP's baseline profile is rebuilt every time and is not needed at runtime by a patch. -->
+        <ignoreChange value="assets/dexopt/*"/>
+        <largeModSize value="100"/>
+    </issue>
+
+    <issue id="packageConfig">
+        <!-- Lands in the patch's assets/package_meta.txt next to TINKER_ID / NEW_TINKER_ID. -->
+        <configField name="HERMES_PATCH_VERSION" value="@PATCH_VERSION@"/>
+    </issue>
+</tinkerPatch>

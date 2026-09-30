@@ -81,8 +81,11 @@
 
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- The Application class is Tinker's patch loader shell, not the Hilt application:
+         it must stay tiny and unpatchable. The app itself starts in
+         tinker.HermesApplicationLike (patchable). See docs/TINKER-HOTFIX.md. -->
     <application
-        android:name=".HermesApp"
+        android:name=".tinker.loader.HermesTinkerApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -94,6 +97,19 @@
         android:theme="@style/Theme.HermesAgent"
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="34">
+
+        <!-- Base-build identity for hot-fix patches: a Tinker patch loads only if it was
+             built against exactly this id (hermes-<versionCode>-<git sha>, app/build.gradle.kts). -->
+        <meta-data
+            android:name="TINKER_ID"
+            android:value="${tinkerId}" />
+
+        <!-- Receives Tinker's patch result in the main process and records it. Unlike Tinker's
+             DefaultTinkerResultService it never kills the app: the user restarts when ready. -->
+        <service
+            android:name=".tinker.HermesPatchResultService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- Shizuku provider binding -->
         <provider
@@ -260,7 +276,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- WorkManager initialization deferred to HermesApp via HiltWorkerFactory -->
+        <!-- WorkManager is initialized by HermesAppStartup with the HiltWorkerFactory -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
@@ -270,7 +286,7 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup"
                 tools:node="remove" />
-            <!-- Starts MemoryPressureMonitor before the first screen; HermesApp.onCreate is the fallback. -->
+            <!-- Starts MemoryPressureMonitor before the first screen; HermesAppStartup is the fallback. -->
             <meta-data
                 android:name="com.hermes.agent.data.performance.MemoryMonitorInitializer"
                 android:value="androidx.startup" />
