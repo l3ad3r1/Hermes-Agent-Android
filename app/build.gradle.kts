@@ -37,8 +37,6 @@ val localProps = Properties().apply {
 //
 //   TINKER_ID            manifest meta-data + BuildConfig, "hermes-<versionCode>-<git sha>".
 //                        Tinker refuses a patch whose base id differs from the installed one.
-//   --emit-ids           every build writes aapt2's resource-id table to
-//                        build/outputs/tinker/<variant>/stable-ids.txt, so a base can be archived.
 //   hermes.tinker.base   PATCH BUILD MODE: -Phermes.tinker.base=<archived base dir> pins the
 //                        versionCode/versionName to the base's, feeds its stable-ids.txt back to
 //                        aapt2 (--stable-ids) and its mapping.txt to R8 (-applymapping), so the
@@ -284,14 +282,12 @@ android {
     }
 }
 
-// Tinker: per-variant aapt2 resource-id table (always) and, in patch build mode, the base's table.
-// The emitted file is an undeclared output of the resource link task, so a cached/up-to-date link
-// does not rewrite it: tools/tinker/archive-base forces that one task with --rerun.
+// Tinker, patch build mode only: pin resource ids to the archived base's table. The table itself is
+// taken from the base APK by tools/tinker (aapt2 dump resources), not from an aapt2 --emit-ids
+// side output (an undeclared task output that CI showed is not reliably written); build-patch then
+// checks that no resource id of the base moved in the fix build.
 androidComponents {
     onVariants { variant ->
-        val idsOut = layout.buildDirectory.file("outputs/tinker/${variant.name}/stable-ids.txt").get().asFile
-        idsOut.parentFile.mkdirs()
-        variant.androidResources.aaptAdditionalParameters.addAll("--emit-ids", idsOut.absolutePath)
         tinkerBaseDir?.let { dir ->
             val stableIds = File(dir, "stable-ids.txt")
             require(stableIds.isFile) { "hermes.tinker.base: $stableIds is missing" }

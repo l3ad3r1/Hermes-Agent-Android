@@ -180,7 +180,7 @@ both removed in AGP 8/9. `app/build.gradle.kts` does its parts by hand:
 | What | How |
 |---|---|
 | `TINKER_ID` | Manifest meta-data + `BuildConfig.TINKER_ID` = `hermes-<versionCode>-<git sha12>`; `-Phermes.tinkerId=` overrides. |
-| Resource-id table | Every variant writes `app/build/outputs/tinker/<variant>/stable-ids.txt` (aapt2 `--emit-ids`). |
+| Resource-id table | `archive-base` reads it from the base APK (`aapt2 dump resources`, needs `ANDROID_HOME`) into `<archive>/stable-ids.txt`; `build-patch` refuses a fix build in which any base resource id moved. (An aapt2 `--emit-ids` side output was tried first; it is an undeclared task output and CI showed it is not reliably written.) |
 | Patch build mode | `-Phermes.tinker.base=<archived base>`: versionCode/versionName pinned to the base's, aapt2 `--stable-ids <base>/stable-ids.txt`, R8 `-applymapping <base>/mapping.txt` (release). |
 
 ### 1. Every release: archive the base (mandatory)
@@ -289,7 +289,7 @@ build or sign patches.
 Jeeves shares the package layout and the OTA code:
 
 1. `gradle/libs.versions.toml`: the `tinker` version and the two libraries; `app/build.gradle.kts`:
-   the Tinker glue block (TINKER_ID, `--emit-ids`, `hermes.tinker.base`), the dependencies.
+   the Tinker glue block (TINKER_ID, `hermes.tinker.base`), the dependencies.
 2. Copy `app/src/main/java/com/hermes/agent/tinker/loader/HermesTinkerApplication.java`,
    `app/src/main/kotlin/com/hermes/agent/tinker/`, `data/hotfix/`,
    `ui/settings/HotfixSection.kt`, `HotfixViewModel.kt`, and the tests under

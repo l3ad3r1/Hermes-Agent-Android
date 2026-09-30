@@ -77,7 +77,10 @@ class TinkerWiringTest {
         assertTrue(Regex("tinkerBaseDir\\?\\.let \\{.{0,400}--stable-ids", RegexOption.DOT_MATCHES_ALL).containsMatchIn(gradle))
         assertTrue(Regex("tinkerBaseDir\\?\\.let \\{.{0,400}mapping\\.txt", RegexOption.DOT_MATCHES_ALL).containsMatchIn(gradle))
         assertTrue(gradle.contains("-applymapping"))
-        assertTrue(gradle.contains("\"--emit-ids\""))
+        // The base's id table comes from the APK (aapt2 dump) in tools/tinker, and build-patch
+        // verifies no base id moved; see hermes-tinker.sh resource_ids / check_ids_stable.
+        val script = File(repo, "tools/tinker/hermes-tinker.sh").readText()
+        assertTrue(script.contains("dump resources") && script.contains("check_ids_stable"))
         // A patch build takes the base's version so the manifest check and OTA comparisons hold.
         assertTrue(gradle.contains("versionCode = base.getProperty(\"versionCode\").toInt()"))
         assertTrue(gradle.contains("manifestPlaceholders[\"tinkerId\"]"))

@@ -18,7 +18,8 @@
 #   hermes-tinker.sh publish --patch-dir DIR [--tag vX.Y.Z] [--yes]
 #       Upload the signed patch and hermes-patch.json to the base's GitHub release with `gh`.
 #
-# Environment: HERMES_TINKER_ARCHIVE (default <repo>/tinker-archive), JAVA_HOME (jarsigner/keytool).
+# Environment: HERMES_TINKER_ARCHIVE (default <repo>/tinker-archive), JAVA_HOME (jarsigner/keytool),
+# ANDROID_HOME (aapt2 for the resource-id table, apksigner for the release signer check).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -68,6 +69,31 @@ signer_of_apk() { # apk -> sha256 of signer (needs apksigner) or empty
     "$apksigner" verify --print-certs "$1" 2>/dev/null | grep -iE 'certificate SHA-256 digest' | awk '{print $NF}' | sort -u | head -1
 }
 
+aapt2_bin() {
+    local a="" sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+    if [ -n "$sdk" ]; then a=$(ls -d "$sdk"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1 || true); fi
+    [ -n "$a" ] || a=$(command -v aapt2 || true)
+    [ -n "$a" ] || die "aapt2 not found (set ANDROID_HOME to the Android SDK)"
+    echo "$a"
+}
+
+# apk -> the app package's resource ids in aapt2 --stable-ids format ("pkg:type/name = 0x7f......"),
+# read from the APK itself so the table is exactly what the phone has installed.
+resource_ids() {
+    "$(aapt2_bin)" dump resources "$1" | awk '
+        /^Package name=/ { split($2, a, "="); pkg = a[2]; next }
+        /^[ \t]+resource 0x7f[0-9a-fA-F]+ / { print pkg ":" $3 " = " $2 }' | sort
+}
+
+# base ids file, fix ids file -> die if a resource of the base has a different id in the fix
+# (i.e. --stable-ids did not take effect); new resources are fine.
+check_ids_stable() {
+    local moved
+    moved=$(awk 'NR == FNR { b[$1] = $3; next } ($1 in b) && b[$1] != $3 { print "  " $1 ": " b[$1] " -> " $3 }' "$1" "$2" | head -20)
+    [ -z "$moved" ] || die "resource ids moved between the base and the fix (stable ids not applied):
+$moved"
+}
+
 # ---------------------------------------------------------------------------------------------
 archive_base() {
     local variant=release archive="${HERMES_TINKER_ARCHIVE:-$ROOT/tinker-archive}" skip_build=false unsigned=false
@@ -83,10 +109,8 @@ archive_base() {
     git_clean_or_die
     build_cli
     if [ "$skip_build" = false ]; then
-        # --rerun on the resource link task: its --emit-ids file is not a declared output, so an
-        # up-to-date or cache-restored link would not rewrite it.
         log "building the $variant base"
-        "$GRADLEW" ":app:process${V}Resources" --rerun ":app:assemble${V}"
+        "$GRADLEW" ":app:assemble${V}"
     fi
 
     local apk; apk=$(find_apk "$variant")
@@ -108,9 +132,8 @@ archive_base() {
     mkdir -p "$dir"
     cp "$apk" "$dir/base.apk"
 
-    local ids="$ROOT/app/build/outputs/tinker/$variant/stable-ids.txt"
-    [ -s "$ids" ] || die "missing $ids (aapt2 --emit-ids output)"
-    cp "$ids" "$dir/stable-ids.txt"
+    resource_ids "$dir/base.apk" >"$dir/stable-ids.txt"
+    [ -s "$dir/stable-ids.txt" ] || die "could not read resource ids from $apk (aapt2 dump resources)"
 
     local mapping="$ROOT/app/build/outputs/mapping/$variant/mapping.txt"
     if [ -f "$mapping" ]; then cp "$mapping" "$dir/mapping.txt"
@@ -189,6 +212,10 @@ build_patch() {
     [ "$(echo "$info" | sed -n 's/^versionName=//p')" = "$base_vn" ] || die "fix build versionName differs from the base"
     [ "$(echo "$info" | sed -n 's/^packageName=//p')" = "$base_pkg" ] || die "fix build package differs from the base"
     [ "$new_id" != "$base_id" ] || die "fix build has the base's TINKER_ID; commit the fix first"
+    local fix_ids; fix_ids=$(mktemp)
+    resource_ids "$new_apk" >"$fix_ids"
+    check_ids_stable "$base/stable-ids.txt" "$fix_ids"
+    rm -f "$fix_ids"
 
     out="${out:-$base/patches/$patch_version}"
     [ ! -e "$out" ] || die "$out already exists"

@@ -97,6 +97,32 @@ function Apk-Signer([string]$apk) {
     $d = $out | Where-Object { $_ -match 'certificate SHA-256 digest' } | ForEach-Object { ($_ -split '\s+')[-1] } | Sort-Object -Unique
     return ($d | Select-Object -First 1)
 }
+function Aapt2 {
+    $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+    if (-not $sdk) { Die 'aapt2 not found (set ANDROID_HOME to the Android SDK)' }
+    $a = Get-ChildItem (Join-Path $sdk 'build-tools') -Directory | Sort-Object { [version]($_.Name -replace '[^0-9.].*$', '') } |
+        ForEach-Object { Join-Path $_.FullName 'aapt2.exe' } | Where-Object { Test-Path $_ } | Select-Object -Last 1
+    if (-not $a) { Die 'aapt2 not found under ANDROID_HOME\build-tools' }
+    return $a
+}
+# The app package's resource ids in aapt2 --stable-ids format, read from the APK itself.
+function Resource-Ids([string]$apk) {
+    $lines = & (Aapt2) dump resources $apk
+    if ($LASTEXITCODE -ne 0) { Die "aapt2 dump resources failed for $apk" }
+    $pkg = $null
+    $ids = foreach ($l in $lines) {
+        if ($l -match '^Package name=(\S+)') { $pkg = $Matches[1]; continue }
+        if ($l -match '^\s+resource (0x7f[0-9a-fA-F]+) (\S+)') { "${pkg}:$($Matches[2]) = $($Matches[1])" }
+    }
+    return ($ids | Sort-Object)
+}
+# Dies if a resource of the base has a different id in the fix (--stable-ids did not take effect).
+function Assert-IdsStable([string[]]$baseIds, [string[]]$fixIds) {
+    $b = @{}
+    foreach ($l in $baseIds) { $k, $v = $l -split ' = ', 2; $b[$k] = $v }
+    $moved = foreach ($l in $fixIds) { $k, $v = $l -split ' = ', 2; if ($b.ContainsKey($k) -and $b[$k] -ne $v) { "  ${k}: $($b[$k]) -> $v" } }
+    if ($moved) { Die ("resource ids moved between the base and the fix (stable ids not applied):`n" + (($moved | Select-Object -First 20) -join "`n")) }
+}
 function Entry-Hashes([string]$zipPath, [string]$prefix) {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $h = @{}
@@ -131,9 +157,8 @@ function Archive-Base {
     Assert-Clean
     Build-Cli
     if (-not $SkipBuild) {
-        # --rerun on the resource link task: its --emit-ids file is not a declared Gradle output.
         Log "building the $variant base"
-        Invoke-Checked $Gradlew @(":app:process${V}Resources", '--rerun', ":app:assemble${V}")
+        Invoke-Checked $Gradlew @(":app:assemble${V}")
     }
     $apk = Find-Apk $variant
     if ($apk -like '*-unsigned.apk' -and -not $Unsigned) { Die "$apk is unsigned; release bases must be the signed APK you publish (hermes.local.properties)." }
@@ -151,9 +176,9 @@ function Archive-Base {
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
     Copy-Item $apk (Join-Path $dir 'base.apk')
 
-    $ids = Join-Path $Root "app\build\outputs\tinker\$variant\stable-ids.txt"
-    if (-not (Test-Path $ids) -or (Get-Item $ids).Length -eq 0) { Die "missing $ids (aapt2 --emit-ids output)" }
-    Copy-Item $ids (Join-Path $dir 'stable-ids.txt')
+    $ids = Resource-Ids (Join-Path $dir 'base.apk')
+    if (-not $ids) { Die "could not read resource ids from $apk (aapt2 dump resources)" }
+    $ids | Set-Content -Encoding ASCII -LiteralPath (Join-Path $dir 'stable-ids.txt')
 
     $mapping = Join-Path $Root "app\build\outputs\mapping\$variant\mapping.txt"
     if (Test-Path $mapping) { Copy-Item $mapping (Join-Path $dir 'mapping.txt') }
@@ -209,6 +234,7 @@ function Build-Patch {
     if ($info['versionName'] -ne $p['versionName']) { Die 'fix build versionName differs from the base' }
     if ($info['packageName'] -ne $p['packageName']) { Die 'fix build package differs from the base' }
     if ($info['tinkerId'] -eq $p['tinkerId']) { Die "fix build has the base's TINKER_ID; commit the fix first" }
+    Assert-IdsStable (Get-Content -LiteralPath (Join-Path $basePath 'stable-ids.txt')) (Resource-Ids $newApk)
 
     $outDir = if ($Out) { $Out } else { Join-Path $basePath "patches\$PatchVersion" }
     if (Test-Path $outDir) { Die "$outDir already exists" }
