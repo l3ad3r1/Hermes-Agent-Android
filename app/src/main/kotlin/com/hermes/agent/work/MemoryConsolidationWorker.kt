@@ -17,7 +17,7 @@ import timber.log.Timber
  * Periodic memory-consolidation worker — Section 6.2 of the plan.
  *
  * Runs once per day while the device is charging + idle (constraints
- * set in [com.hermes.agent.HermesApp.scheduleMemoryConsolidation]).
+ * set in [com.hermes.agent.HermesAppStartup.scheduleMemoryConsolidation]).
  *
  * Phase 2 body:
  *   1. For each conversation that has had activity since the last

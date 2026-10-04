@@ -90,8 +90,8 @@ class OpenClawWiringTest {
 
     @Test
     fun `heartbeat and presence workers are scheduled on app start`() {
-        val app = source("HermesApp.kt")
-        assertTrue("HermesApp must schedule ambient workers", app.contains("scheduleAmbientWorkers()"))
+        val app = source("HermesAppStartup.kt")
+        assertTrue("HermesAppStartup must schedule ambient workers", app.contains("scheduleAmbientWorkers()"))
         assertTrue("the heartbeat must be scheduled", app.contains("heartbeatSchedulerProvider.get()"))
         assertTrue("the presence beacon must be scheduled", app.contains("presenceBeaconSchedulerProvider.get()"))
     }

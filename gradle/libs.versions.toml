@@ -51,6 +51,11 @@ shizuku = "13.1.5"
 # Browser (Custom Tabs)
 browser = "1.8.0"
 
+# Tinker hot-fix runtime (docs/TINKER-HOTFIX.md). Runtime only: the Tinker Gradle
+# plugin needs the Transform API AGP 8/9 removed, so patches are produced by
+# tools/tinker (tinker-patch-lib, same version) instead.
+tinker = "1.9.15.2"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -64,6 +69,10 @@ archCoreTesting = "2.2.0"
 material-color-utilities = { group = "com.materialkolor", name = "material-color-utilities", version.ref = "materialKolor" }
 # Browser
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+
+# Tinker (hot-fix runtime)
+tinker-android-lib = { group = "com.tencent.tinker", name = "tinker-android-lib", version.ref = "tinker" }
+tinker-android-loader = { group = "com.tencent.tinker", name = "tinker-android-loader", version.ref = "tinker" }
 
 # Shizuku
 shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }

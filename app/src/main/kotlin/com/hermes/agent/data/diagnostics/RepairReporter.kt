@@ -71,13 +71,18 @@ class RepairReporter @Inject constructor(
         String(keystore.decrypt(ALIAS, Base64.decode(stored, Base64.NO_WRAP)))
     }.getOrDefault("")
 
-    /** Returns the issue URL. [body] must already be redacted and shown to the user. */
-    suspend fun file(title: String, body: String): Result<String> = withContext(Dispatchers.IO) {
+    /**
+     * Returns the issue URL. [body] must already be redacted and shown to the user.
+     * [extraLabels] are added to the standard ones (feature evolution files app
+     * changes with `enhancement` and `evolve`).
+     */
+    suspend fun file(title: String, body: String, extraLabels: List<String> = emptyList()): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val token = token().ifBlank { error("No GitHub token set for problem reports.") }
             val labels = buildList {
                 add("from-${APP.lowercase()}")
                 if (autoRepair) add("repair")
+                extraLabels.filter { LABEL.matches(it) }.forEach { if (it !in this) add(it) }
             }
             val payload = buildJsonObject {
                 put("title", JsonPrimitive(title.take(120)))
@@ -107,6 +112,7 @@ class RepairReporter @Inject constructor(
         private const val KEY_TOKEN = "token"
         private const val KEY_AUTO_REPAIR = "auto_repair"
         private const val KEY_AUTO_SEND_CRASHES = "auto_send_crashes"
+        private val LABEL = Regex("^[a-z0-9][a-z0-9-]{0,30}$")
 
         /** The issue body in the shape of the repo's bug-report form. */
         fun body(component: String, what: String, logs: String, version: String): String = buildString {

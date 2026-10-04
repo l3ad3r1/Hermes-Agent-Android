@@ -81,8 +81,10 @@ import com.hermes.agent.data.local.entity.ScriptPluginEntity
         McpServerEntity::class,
         McpToolEntity::class,
         PresenceLogEntity::class,
+        EvolutionProposalEntity::class,
+        EvolutionModuleVersionEntity::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = true,
 )
 abstract class HermesDatabase : RoomDatabase() {
@@ -109,6 +111,7 @@ abstract class HermesDatabase : RoomDatabase() {
     abstract fun scriptPluginDao(): ScriptPluginDao
     abstract fun mcpDao(): McpDao
     abstract fun presenceLogDao(): PresenceLogDao
+    abstract fun evolutionDao(): EvolutionDao
 
     companion object {
         const val DATABASE_NAME = "hermes.db"
@@ -785,6 +788,45 @@ abstract class HermesDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE `presence_logs`")
                 db.execSQL("ALTER TABLE `presence_logs_new` RENAME TO `presence_logs`")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_presence_logs_timestamp` ON `presence_logs` (`timestamp`)")
+            }
+        }
+
+        /**
+         * Feature evolution: proposals and the version history of the modules they
+         * installed. Purely additive — two new tables, nothing existing touched.
+         * The SQL mirrors what Room generates for [EvolutionProposalEntity] and
+         * [EvolutionModuleVersionEntity] (no column defaults, because the entities
+         * declare none), so the post-migration schema check passes.
+         */
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `evolution_proposals` (" +
+                        "`id` TEXT NOT NULL, `title` TEXT NOT NULL, `problem` TEXT NOT NULL, " +
+                        "`evidence` TEXT NOT NULL, `kind` TEXT NOT NULL, `acceptanceCriteria` TEXT NOT NULL, " +
+                        "`targetTool` TEXT, `signalKey` TEXT NOT NULL, `status` TEXT NOT NULL, " +
+                        "`statusMessage` TEXT NOT NULL, `artifact` TEXT, `artifactSha256` TEXT, " +
+                        "`reviewVerdict` TEXT, `reviewFindings` TEXT NOT NULL, `testReport` TEXT NOT NULL, " +
+                        "`rounds` INTEGER NOT NULL, `moduleId` TEXT, `issueUrl` TEXT, " +
+                        "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_evolution_proposals_status` ON `evolution_proposals` (`status`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_evolution_proposals_signalKey` ON `evolution_proposals` (`signalKey`)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `evolution_module_versions` (" +
+                        "`id` TEXT NOT NULL, `moduleId` TEXT NOT NULL, `proposalId` TEXT NOT NULL, " +
+                        "`version` TEXT NOT NULL, `manifestJson` TEXT NOT NULL, `sha256` TEXT NOT NULL, " +
+                        "`grantedPermissions` TEXT NOT NULL, `installedAt` INTEGER NOT NULL, " +
+                        "`active` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_evolution_module_versions_moduleId` " +
+                        "ON `evolution_module_versions` (`moduleId`)",
+                )
             }
         }
 

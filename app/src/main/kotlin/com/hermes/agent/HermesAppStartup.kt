@@ -1,0 +1,385 @@
+package com.hermes.agent
+import com.hermes.agent.domain.settings.*
+
+import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.hermes.agent.work.MemoryConsolidationWorker
+import com.hermes.agent.work.OtaUpdateWorker
+import com.hermes.agent.work.SkillImprovementWorker
+import com.hermes.agent.data.log.FileLogTree
+import com.hermes.agent.data.log.LogManager
+import com.hermes.agent.data.performance.MemoryPressureMonitor
+import com.hermes.agent.debug.DebugScreenAwake
+import com.hermes.agent.core.settings.HermesSettings
+import com.hermes.agent.domain.repository.ExecutionPlanRepository
+import com.hermes.agent.data.mcp.McpManager
+import com.hermes.agent.data.plugin.ScriptPluginRepository
+import com.hermes.agent.domain.repository.SkillRepository
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Provider
+
+/**
+ * Hermes' start-up, run by [com.hermes.agent.tinker.HermesApplicationLike] (patchable) from the
+ * Tinker shell application. This was HermesApp.onCreate before the app gained hot-fix patches;
+ * the code is unchanged apart from `this` becoming [app] and WorkManager being initialized
+ * explicitly. See docs/TINKER-HOTFIX.md.
+ *
+ * Responsibilities:
+ *   - Bootstrap Hilt.
+ *   - Initialize Timber logging.
+ *   - Configure WorkManager with the Hilt-aware WorkerFactory so
+ *     [MemoryConsolidationWorker] can inject its dependencies.
+ *   - Schedule the periodic memory-consolidation worker (charging + idle
+ *     constraint, runs once per day — see Section 5.4 and Section 6.2 of
+ *     the plan).
+ */
+class HermesAppStartup private constructor(private val app: Application) {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var pluginRegistry: Provider<com.hermes.agent.domain.plugin.PluginRegistry>
+
+    @Inject
+    lateinit var proactiveScheduler: Provider<com.hermes.agent.data.proactive.ProactiveScheduler>
+
+    @Inject
+    lateinit var memoryPressureMonitor: MemoryPressureMonitor
+
+    @Inject
+    lateinit var logManager: LogManager
+
+    @Inject
+    lateinit var executionPlanRepositoryProvider: Provider<ExecutionPlanRepository>
+
+    @Inject
+    lateinit var encryptedSettingsProvider:
+        Provider<com.hermes.agent.data.security.EncryptedSettingsRepository>
+
+    @Inject
+    lateinit var skillRepositoryProvider: Provider<SkillRepository>
+
+    @Inject
+    lateinit var scriptPluginRepositoryProvider: Provider<ScriptPluginRepository>
+
+    @Inject
+    lateinit var mcpManagerProvider: Provider<McpManager>
+
+    @Inject
+    lateinit var toolOverrideControllerProvider: Provider<com.hermes.agent.data.plugin.evolution.ToolOverrideController>
+
+    @Inject
+    lateinit var evolutionSettingsProvider: Provider<com.hermes.agent.data.evolution.EvolutionSettings>
+
+    @Inject
+    lateinit var featureEvolutionSchedulerProvider: Provider<com.hermes.agent.data.evolution.FeatureEvolutionScheduler>
+
+    @Inject
+    lateinit var settingsRepositoryProvider: Provider<com.hermes.agent.domain.settings.SettingsRepository>
+
+    @Inject
+    lateinit var heartbeatSchedulerProvider: Provider<com.hermes.agent.work.HeartbeatScheduler>
+
+    @Inject
+    lateinit var presenceBeaconSchedulerProvider: Provider<com.hermes.agent.work.PresenceBeaconScheduler>
+
+    @Inject
+    lateinit var tailnetNodeProvider: Provider<com.hermes.agent.data.remote.TailnetNode>
+
+    @Inject
+    lateinit var cronRepositoryProvider: Provider<com.hermes.agent.domain.repository.CronRepository>
+
+    @Inject
+    lateinit var cronSchedulerProvider: Provider<com.hermes.agent.work.CronScheduler>
+
+    @Inject
+    lateinit var autoBackupStoreProvider: Provider<com.hermes.agent.data.export.AutoBackupStore>
+
+    @Inject
+    lateinit var cloudBackupStoreProvider: Provider<com.hermes.agent.data.export.CloudBackupStore>
+
+    private val applicationScope = CoroutineScope(Dispatchers.Default)
+
+    private fun onCreate() {
+        // WorkManager's default initializer is removed in the manifest so it uses Hilt's worker
+        // factory. The Application can no longer be a Configuration.Provider (it is Tinker's
+        // unpatchable shell), so WorkManager is initialized explicitly, before anything uses it.
+        runCatching {
+            WorkManager.initialize(
+                app,
+                Configuration.Builder()
+                    .setWorkerFactory(workerFactory)
+                    .setMinimumLoggingLevel(android.util.Log.INFO)
+                    .build(),
+            )
+        }.onFailure { Timber.tag("HermesApp").w(it, "WorkManager was already initialized") }
+        DebugScreenAwake.install(app)
+        // Capture logs to a file (all build types) so the user can pull them
+        // from Settings → Logs; keep the console DebugTree in debug builds.
+        Timber.plant(FileLogTree(logManager))
+        com.hermes.agent.data.diagnostics.CrashReporter.install(app, BuildConfig.VERSION_NAME)
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        }
+
+        // Secrets restored from another install are sealed with that install's
+        // keystore key and can never be read here. Left in place they are handed
+        // to providers as API keys, which comes back as "invalid key" from every
+        // provider at once and hides the real cause.
+        // A restored backup brings proactive consent back without its WorkManager jobs.
+        applicationScope.launch {
+            runCatching { proactiveScheduler.get().syncFromConsent() }
+                .onFailure { Timber.tag("Proactive").w(it, "could not sync proactive jobs") }
+        }
+
+        // Plugins the user switched on come back on; their tools were otherwise gone after a restart.
+        applicationScope.launch {
+            runCatching { (pluginRegistry.get() as? com.hermes.agent.data.plugin.PluginRegistryImpl)?.restoreActive() }
+                .onFailure { Timber.tag("PluginRegistry").w(it, "could not restore plugins") }
+        }
+
+        applicationScope.launch {
+            runCatching { encryptedSettingsProvider.get().clearUnreadableSecrets() }
+                .onFailure { Timber.tag("Settings").w(it, "secret sweep unavailable") }
+        }
+
+        // The embedded tailnet node dies with the process; restart it if it was left on.
+        applicationScope.launch(Dispatchers.IO) {
+            runCatching { tailnetNodeProvider.get().startIfEnabled() }
+                .onFailure { Timber.tag("Tailnet").w(it, "tailnet auto-start failed") }
+        }
+
+        scheduleAmbientWorkers()
+
+        // The schedule lives in WorkManager's own database, not with the task rows, so a restored
+        // or reinstalled app has the jobs listed and nothing running them, and a routine the agent
+        // creates is only a row. Follow the rows for as long as the app runs.
+        applicationScope.launch {
+            runCatching {
+                val scheduler = cronSchedulerProvider.get()
+                    var scheduled = emptySet<String>()
+                    cronRepositoryProvider.get().observe().collect { tasks ->
+                        scheduled = scheduler.sync(tasks, scheduled)
+                    }
+            }.onFailure { Timber.tag("Cron").w(it, "could not re-schedule cron jobs") }
+        }
+
+        // Same for scheduled backups: after a reinstall the settings may be gone, and a job that
+        // was scheduled must not be duplicated or restarted, so the existing one is kept.
+        applicationScope.launch {
+            runCatching {
+                com.hermes.agent.data.export.AutoBackupScheduler.apply(app, autoBackupStoreProvider.get(), replace = false)
+            }.onFailure { Timber.tag("AutoBackup").w(it, "could not schedule automatic backups") }
+        }
+        applicationScope.launch {
+            runCatching {
+                com.hermes.agent.data.export.CloudBackupScheduler.apply(app, cloudBackupStoreProvider.get(), replace = false)
+            }.onFailure { Timber.tag("CloudBackup").w(it, "could not schedule cloud backups") }
+        }
+
+        // The Gist backup is gone, but an install that used it still holds the
+        // GitHub token it was given. Deleting the feature does not delete the
+        // credential, so clear it once here. Idempotent: a no-op after the
+        // first run, and on installs that never configured it.
+        applicationScope.launch {
+            runCatching { encryptedSettingsProvider.get().purgeRetiredGistCredentials() }
+                .onFailure { Timber.tag("Settings").w(it, "retired-credential purge failed") }
+        }
+
+        // The built-in skills used to be seeded only by SkillsViewModel, so
+        // they existed only once the user had opened Settings → Skills & Tools.
+        // Anything that reads the skill list first — "Refine skills", skill
+        // activation during a turn — saw an empty table and looked broken.
+        applicationScope.launch {
+            runCatching { skillRepositoryProvider.get().seedBuiltIn() }
+                .onFailure { Timber.tag("Skills").w(it, "built-in skill seeding failed") }
+        }
+
+        // Installed modules register their tools at startup. Without this the
+        // agent would only see them after the user opened Settings → Modules,
+        // so an installed module would silently do nothing until then.
+        applicationScope.launch {
+            // Evolution-module overrides are rewired after every module reload, this
+            // first one included, so the controller must be following before it runs.
+            runCatching { toolOverrideControllerProvider.get().start() }
+                .onFailure { Timber.tag("Modules").w(it, "tool override wiring unavailable") }
+            runCatching { scriptPluginRepositoryProvider.get().reloadEnabled() }
+                .onSuccess { failures ->
+                    if (failures.isNotEmpty()) {
+                        Timber.tag("Modules").w("modules failed to load: %s", failures.joinToString())
+                    }
+                }
+                .onFailure { Timber.tag("Modules").w(it, "module loading unavailable") }
+        }
+
+        // MCP tools are cached in Room after their first sync, but nothing loads
+        // them back into the ToolRegistry on a cold start, so a configured server
+        // would go quiet until the user opened Settings again. Same failure mode
+        // the skills and modules seeding above exists to prevent.
+        applicationScope.launch {
+            runCatching { mcpManagerProvider.get().loadAndRegisterCachedTools() }
+                .onFailure { Timber.tag("Mcp").w(it, "cached MCP tool registration failed") }
+        }
+
+        applicationScope.launch {
+            runCatching { executionPlanRepositoryProvider.get().reconcileInterruptedSteps() }
+                .onSuccess { count ->
+                    if (count > 0) Timber.tag("ExecutionPlan").i("blocked %d interrupted steps", count)
+                }
+                .onFailure { Timber.tag("ExecutionPlan").w(it, "plan reconciliation unavailable") }
+        }
+
+        // Phase 4: start memory pressure polling. If the App Startup
+        // initializer already started it via Hilt EntryPoint, this is a
+        // no-op; otherwise we start it now that Hilt is initialized.
+        memoryPressureMonitor.start()
+        warmUpSettingsStore()
+        scheduleMemoryConsolidation()
+        scheduleSkillImprovement()
+        scheduleOtaUpdateCheck()
+        scheduleFeatureEvolution()
+    }
+
+    /** The weekly usage analysis is opt-in; keep WorkManager in line with the setting. */
+    private fun scheduleFeatureEvolution() {
+        applicationScope.launch {
+            runCatching {
+                featureEvolutionSchedulerProvider.get().applyWeekly(evolutionSettingsProvider.get().current().weeklyAnalysis)
+            }.onFailure { Timber.tag("FeatureEvolution").w(it, "could not schedule the weekly analysis") }
+        }
+    }
+
+    /**
+     * Touch the settings store off the main thread, so its one-time SharedPreferences
+     * migration (which commit()s) does not land on whichever caller gets there first —
+     * MainActivity reads the theme during composition. No-op once warm.
+     */
+    private fun warmUpSettingsStore() {
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching { HermesSettings.prefs(app) }
+                .onFailure { Timber.tag("Migration").w(it, "settings store warm-up failed") }
+        }
+    }
+
+    private fun scheduleOtaUpdateCheck() {
+        // The OTA channel is configurable via `hermes.updateRepo`. A blank value
+        // disables updates entirely; cancel rather than merely skip, since this
+        // unique work is enqueued with ExistingPeriodicWorkPolicy.KEEP and would
+        // otherwise keep running daily on installs that already scheduled it.
+        if (!BuildConfig.OTA_ENABLED) {
+            WorkManager.getInstance(app).cancelUniqueWork(OtaUpdateWorker.UNIQUE_NAME)
+            return
+        }
+        val request = PeriodicWorkRequestBuilder<OtaUpdateWorker>(
+            1, TimeUnit.DAYS,
+        )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+        WorkManager.getInstance(app).enqueueUniquePeriodicWork(
+            OtaUpdateWorker.UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request,
+        )
+    }
+
+    private fun scheduleSkillImprovement() {
+        val request = PeriodicWorkRequestBuilder<SkillImprovementWorker>(
+            7, TimeUnit.DAYS,
+        )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+        WorkManager.getInstance(app).enqueueUniquePeriodicWork(
+            SkillImprovementWorker.UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request,
+        )
+    }
+
+    private fun scheduleMemoryConsolidation() {
+        val constraints = Constraints.Builder()
+            .setRequiresCharging(true)
+            .setRequiresDeviceIdle(true)
+            .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+            .build()
+        val request = PeriodicWorkRequestBuilder<MemoryConsolidationWorker>(
+            1, TimeUnit.DAYS,
+        )
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(app).enqueueUniquePeriodicWork(
+            MemoryConsolidationWorker.UNIQUE_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request,
+        )
+    }
+
+    /**
+     * Bring the heartbeat and presence beacon in line with their settings on every
+     * cold start. WorkManager survives reboots, but a periodic worker that is never
+     * enqueued in the first place never runs at all — which is exactly what left
+     * both features dead until now. Both default to off, so on a fresh install this
+     * cancels nothing and schedules nothing.
+     */
+    private fun scheduleAmbientWorkers() {
+        applicationScope.launch {
+            runCatching {
+                val settings = settingsRepositoryProvider.get().current()
+                heartbeatSchedulerProvider.get()
+                    .updateSchedule(settings.heartbeatEnabled, settings.heartbeatIntervalMinutes)
+                presenceBeaconSchedulerProvider.get().updateSchedule(settings.presenceEnabled)
+            }.onFailure { Timber.tag("HermesApp").w(it, "ambient worker scheduling failed") }
+        }
+    }
+
+    companion object {
+        /**
+         * Called by HermesApplicationLike.onCreate in every process except Tinker's :patch one.
+         * Same order as before the Tinker shell: a staged restore, then Hilt injection, then start-up.
+         */
+        fun start(app: Application) {
+            // A restore is staged by the running app and applied here, on the next launch: this is the
+            // one point before Hilt has built anything the app uses, so the database and settings can
+            // be swapped without racing the code that uses them. Only the main process, since the shell
+            // service runs another copy of the app. It cannot be attachBaseContext: DataStore needs the
+            // application context, which does not exist yet there.
+            if (Application.getProcessName() == app.packageName) {
+                com.hermes.agent.data.export.PendingRestore.applyIfPending(app)
+            }
+            val startup = HermesAppStartup(app)
+            EntryPointAccessors.fromApplication(app, HermesAppStartupEntryPoint::class.java).inject(startup)
+            startup.onCreate()
+        }
+    }
+}
+
+/** Members-injects [HermesAppStartup], which Hilt cannot construct as an Application any more. */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface HermesAppStartupEntryPoint {
+    fun inject(startup: HermesAppStartup)
+}

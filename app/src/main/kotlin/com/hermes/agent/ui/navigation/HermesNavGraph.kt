@@ -286,6 +286,7 @@ fun HermesNavGraph(
             composable("learning") { LearningScreen(onBack = { navController.popBackStack() }) }
             composable("refine_skills") { RefineSkillScreen(onBack = { navController.popBackStack() }) }
             composable("refine_prompts") { RefinePromptScreen(onBack = { navController.popBackStack() }) }
+            composable("evolution") { com.hermes.agent.ui.evolution.EvolutionScreen(onBack = { navController.popBackStack() }) }
             composable("talk") { com.hermes.agent.ui.voice.TalkScreen(onBack = { navController.popBackStack() }) }
         }
     }

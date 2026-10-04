@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.hermes.agent.data.hotfix.OtaDecision
 import com.hermes.agent.data.update.OtaUpdateChecker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -24,23 +25,45 @@ class OtaUpdateWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        // JX-01: HermesApp cancels this unique work when OTA is disabled, but a run
+        // JX-01: HermesAppStartup cancels this unique work when OTA is disabled, but a run
         // already queued before the cancel could still execute once — refuse here too.
         if (!com.hermes.agent.BuildConfig.OTA_ENABLED) {
             Timber.tag("OtaWorker").i("OTA disabled in this build — skipping check")
             return Result.success()
         }
         Timber.tag("OtaWorker").d("checking for update")
-        val update = runCatching { checker.check() }
+        val decision = runCatching { checker.checkOffer() }
             .onFailure { Timber.tag("OtaWorker").w(it, "check failed") }
             .getOrNull() ?: return Result.success()
 
-        Timber.tag("OtaWorker").i("update available: ${update.version}")
-        postNotification(update)
+        // Only ever a notification: downloading and applying stay behind the user's tap.
+        when (decision) {
+            is OtaDecision.Patch -> {
+                val m = decision.offer.manifest
+                Timber.tag("OtaWorker").i("fix #%d available for %s", m.patchVersion, m.baseTinkerId)
+                postNotification(
+                    title = "A fix for Hermes is available",
+                    text = "Open Hermes to apply it — no reinstall, just a restart.",
+                    bigText = m.notes.ifBlank { "Open Hermes to apply it — no reinstall, just a restart." },
+                    releaseUrl = "",
+                )
+            }
+            is OtaDecision.FullApk -> {
+                val update = decision.update
+                Timber.tag("OtaWorker").i("update available: ${update.version}")
+                postNotification(
+                    title = "Hermes ${update.version} available",
+                    text = "Tap to open Hermes and install the update.",
+                    bigText = update.releaseNotes.ifBlank { "Tap to open Hermes and install the update." },
+                    releaseUrl = update.releaseUrl,
+                )
+            }
+            OtaDecision.None -> Unit
+        }
         return Result.success()
     }
 
-    private fun postNotification(update: OtaUpdateChecker.UpdateInfo) {
+    private fun postNotification(title: String, text: String, bigText: String, releaseUrl: String) {
         val nm = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Ensure channel exists.
@@ -63,7 +86,7 @@ class OtaUpdateWorker @AssistedInject constructor(
                 // Deep-link straight to Settings (Updates section) — audit L5.
                 putExtra(EXTRA_OPEN_UPDATES, true)
             }
-            ?: Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl))
+            ?: Intent(Intent.ACTION_VIEW, Uri.parse(releaseUrl.ifBlank { "https://github.com/${com.hermes.agent.BuildConfig.UPDATE_REPO}/releases" }))
 
         val openIntent = PendingIntent.getActivity(
             appContext,
@@ -74,10 +97,9 @@ class OtaUpdateWorker @AssistedInject constructor(
 
         val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Hermes ${update.version} available")
-            .setContentText("Tap to open Hermes and install the update.")
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(update.releaseNotes.ifBlank { "Tap to open Hermes and install the update." }))
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .build()

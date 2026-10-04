@@ -255,6 +255,20 @@ Verify the signer before distributing (must start `99255c31`):
   app/build/outputs/apk/release/app-release.apk | grep -i 'SHA-256'
 ```
 
+### 5a-bis. Archive every release as a hot-fix base
+
+Hot-fix patches ([TINKER-HOTFIX.md](TINKER-HOTFIX.md)) can only target a release whose build
+artifacts (APK, R8 `mapping.txt`, aapt2 resource-id table) were archived from the exact build that
+was published. Build releases through the archiver, which runs the same signed `assembleRelease`
+and then files everything under `tinker-archive/<TINKER_ID>/`:
+
+```powershell
+.\tools\tinker\hermes-tinker.ps1 archive-base     # Windows
+tools/tinker/hermes-tinker.sh archive-base          # Linux/macOS
+```
+
+A CI-signed release (§5b) is not archived and therefore cannot receive patches.
+
 ### 5b. CI-signed releases — required GitHub secrets
 
 `.github/workflows/release.yml` builds, signs, verifies, and attaches the APK on
@@ -304,7 +318,8 @@ Two GitHub Actions workflows ship with the repo:
 
 - **`.github/workflows/ci.yml`** — on every push/PR to `main`, checks out the
   submodule (`submodules: recursive`), builds `:app:assembleDebug` (native libs
-  included), and runs the Robolectric unit suite.
+  included), runs the Robolectric unit suite, and builds an unsigned Tinker
+  smoke patch between two debug builds (`tools/tinker`).
 - **`.github/workflows/release.yml`** — on a `v*` tag push, builds
   `:app:assembleRelease`, verifies the signer SHA-256 is `99255c31…` (hard-fails
   otherwise), and attaches the signed APK to the tag's GitHub Release. It needs
