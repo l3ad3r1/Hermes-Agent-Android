@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -336,6 +337,13 @@ private fun ProviderCredentialCard(
     var apiKey by remember(profile.apiKey) { mutableStateOf(profile.apiKey) }
     val keyMismatch = CloudKeyValidator.mismatchWarning(profile.id, profile.name, apiKey)
     var baseUrl by remember(profile.baseUrl) { mutableStateOf(profile.baseUrl) }
+    val focusManager = LocalFocusManager.current
+    val dirty = apiKey != profile.apiKey || baseUrl != profile.baseUrl
+    val save = {
+        if (apiKey != profile.apiKey) onApiKeyChange(apiKey)
+        if (baseUrl != profile.baseUrl) onBaseUrlChange(baseUrl)
+        focusManager.clearFocus()
+    }
 
     DisposableEffect(profile.id) {
         onDispose {
@@ -428,11 +436,14 @@ private fun ProviderCredentialCard(
                     },
             )
 
+            SaveBar(dirty = dirty, onSave = save)
+
             ModelProbeSection(
                 model = profile.model,
                 state = probeState,
                 enabled = profile.model.isNotBlank() && baseUrl.isNotBlank(),
-                onTest = { onTestModel(apiKey, baseUrl) },
+                // Tests what was typed, so save it first: a pass must describe the stored setting.
+                onTest = { save(); onTestModel(apiKey, baseUrl) },
             )
         }
     }

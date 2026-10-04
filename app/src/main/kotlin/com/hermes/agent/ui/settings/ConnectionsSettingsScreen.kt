@@ -42,6 +42,7 @@ import com.hermes.agent.data.remote.TailnetStatus
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -624,6 +625,16 @@ private fun RemoteGatewaySection(
                     if (!focusState.isFocused && key != settings.remoteGatewayApiKey) {
                         onApiKey(key)
                     }
+                },
+            )
+
+            val focusManager = LocalFocusManager.current
+            SaveBar(
+                dirty = url != settings.remoteGatewayUrl || key != settings.remoteGatewayApiKey,
+                onSave = {
+                    if (url != settings.remoteGatewayUrl) onUrl(url)
+                    if (key != settings.remoteGatewayApiKey) onApiKey(key)
+                    focusManager.clearFocus()
                 },
             )
 
