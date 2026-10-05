@@ -49,7 +49,11 @@ function Cap([string]$s) { $s.Substring(0, 1).ToUpperInvariant() + $s.Substring(
 # Tool output goes to the host, never the pipeline: Archive-Base/Build-Patch return only their
 # directory, and anything a native command printed would otherwise become part of that value.
 function Invoke-Checked([string]$exe, [string[]]$argv) {
-    & $exe @argv | Out-Host
+    # When the caller redirects stderr (`*> build.log`, `2>&1`, a CI step or tool that captures
+    # it), Windows PowerShell 5.1 turns every stderr line of a native command into a terminating
+    # error under 'Stop' -- Gradle's SDK-version warning, tinker-patch-lib's progress output --
+    # even when it succeeds. The exit code is the verdict here, so run it under Quiet.
+    Quiet { & $exe @argv 2>&1 | ForEach-Object { "$_" } | Out-Host }
     if ($LASTEXITCODE -ne 0) { Die "$([IO.Path]::GetFileName($exe)) failed (exit $LASTEXITCODE)" }
 }
 function JavaBin([string]$name) {
@@ -73,7 +77,7 @@ function Build-Cli {
     if (-not (Test-Path $Cli)) { Die "patch CLI not built at $Cli" }
 }
 function Apk-Info([string]$apk) {
-    $lines = & $Cli info $apk
+    $lines = Quiet { & $Cli info $apk 2>$null }
     if ($LASTEXITCODE -ne 0) { Die "cannot read $apk" }
     $h = @{}
     foreach ($l in $lines) { $k, $v = $l -split '=', 2; $h[$k] = $v }
@@ -109,7 +113,7 @@ function Aapt2 {
 }
 # The app package's resource ids in aapt2 --stable-ids format, read from the APK itself.
 function Resource-Ids([string]$apk) {
-    $lines = & (Aapt2) dump resources $apk
+    $lines = Quiet { & (Aapt2) dump resources $apk 2>$null }
     if ($LASTEXITCODE -ne 0) { Die "aapt2 dump resources failed for $apk" }
     $pkg = $null
     $ids = foreach ($l in $lines) {
@@ -288,7 +292,7 @@ function Build-Patch {
         Remove-Item Env:HERMES_TINKER_STOREPASS, Env:HERMES_TINKER_KEYPASS -ErrorAction SilentlyContinue
     }
     Invoke-Checked (JavaBin 'jarsigner') @('-verify', $signed) | Out-Null
-    $certLine = & (JavaBin 'keytool') -printcert -jarfile $signed | Where-Object { $_ -match 'SHA256:' } | Select-Object -First 1
+    $certLine = Quiet { & (JavaBin 'keytool') -printcert -jarfile $signed 2>$null } | Where-Object { $_ -match 'SHA256:' } | Select-Object -First 1
     $signer = (($certLine -replace '.*SHA256:\s*', '') -replace ':', '').ToLowerInvariant()
     if ($variant -eq 'release' -and $signer -ne $ReleaseSigner) { Die "patch signer $signer is not the release key 99255c31..." }
 
