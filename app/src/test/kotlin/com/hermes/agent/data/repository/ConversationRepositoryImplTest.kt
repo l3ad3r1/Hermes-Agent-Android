@@ -93,6 +93,8 @@ class ConversationRepositoryImplTest {
     fun `observeConversations returns most-recently-updated first`() = runTest {
         val first = repo.createConversation(title = "First")
         val second = repo.createConversation(title = "Second")
+        // updated_at has millisecond resolution: make sure the touch below is strictly later.
+        Thread.sleep(5)
         // Touch first by adding a message — its updated_at should now be newer.
         repo.addMessage(
             first,
