@@ -278,9 +278,24 @@ checks, hence the manifest comparison; resource ids are pinned by the stable-ids
 
 **A release whose loader classes call a helper that refers to app classes cannot be patched, and the
 check says so.** The 1.1.4 / 1.1.3 releases are like that (their loader classes call helpers `a83`,
-`px3`, `k03`, ... that refer to many app classes), so they can only be updated with a full release. To
-make a future release patchable, its R8 output must not make loader classes call such helpers; run
-`hermes-tinker check` on a fix build against the archived base to find out before publishing.
+`px3`, `k03`, ... that refer to many app classes), so they can only be updated with a full release.
+
+**Passing the check is necessary but not sufficient (verified on a device).** Building with
+`-Dcom.android.tools.r8.disableHorizontalClassMerging=true` (put in `org.gradle.jvmargs`; about 2% larger
+APK) stops R8 merging its helpers, and the check then passes. A signed patch of such a build was offered,
+installed and loaded, and still crashed at start with the same `AbstractMethodError`
+(`kotlinx.coroutines.channels.Channel`: `r01.c()` on a `BufferedChannel`). Both builds name that class the
+same, but R8 names its members differently (`tryReceive` is `k` in the base and `c` in the fix:
+`-applymapping` does not pin them), so some copy of the *base's* app classes is still in use next to the
+patched ones and the two disagree. Debug builds have no renaming, so the same duplicates are harmless
+there, which is why debug patches work. What loads the base copies is not found. Until it is, treat hot-fix
+of a release build as unsupported; candidates are `-dontobfuscate` (no renaming to drift) or finding and
+removing the early use of base classes.
+
+**Bug found while testing:** `HotfixState.blockedPatchVersions` is a list of bare patch numbers, not tied
+to a base build, and it survives app updates. Patch numbers restart at 1 for every base, so a patch
+rolled back or removed once hides the next release's patch #1 ("You're on the latest version"). It should
+be keyed by base TINKER_ID (or cleared when the installed TINKER_ID changes).
 
 ## Known risks and limits
 
