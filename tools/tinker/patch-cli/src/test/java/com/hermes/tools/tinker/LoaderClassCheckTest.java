@@ -198,4 +198,15 @@ public class LoaderClassCheckTest {
             + helperClass("Lgq1;", "Lcom/hermes/agent/App;"), synthetic("Lwm;", "Lgq1;"));
         assertEquals(List.of(), LoaderClassCheck.unsafeHelpers(d));
     }
+
+    @Test
+    public void aSyntheticClassOfALoaderClassIsALoaderClassNotAHelper() throws Exception {
+        // javac/D8 generate Lcom/tencent/tinker/loader/X$$ExternalSynthetic...; for try-with-resources. It matches the
+        // loader pattern, so it is checked as a loader class and is not "missing" from the helpers.
+        String own = "Lcom/tencent/tinker/loader/Util$$ExternalSyntheticAutoCloseableDispatcher0;";
+        LoaderClassCheck.Dexes d = dexes(dump(own.substring(1, own.length() - 1), "close", "hello", 0x5000)
+            + helperClass(own, "Ljava/lang/String;"), synthetic(own));
+        assertTrue(d.called.contains(own));
+        assertEquals(List.of(), LoaderClassCheck.unsafeHelpers(d));
+    }
 }

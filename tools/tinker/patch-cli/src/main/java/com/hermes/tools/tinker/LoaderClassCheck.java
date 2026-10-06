@@ -200,6 +200,9 @@ final class LoaderClassCheck {
 
     private static void collectAppReferences(String helper, Dexes d, Set<String> seen, Set<String> bad) {
         if (!seen.add(helper)) return;
+        // A synthetic class that belongs to a loader class (for example the one javac/D8 generate for
+        // try-with-resources) is a loader class itself, and is checked as one.
+        if (d.loader.containsKey(helper)) return;
         List<String> lines = d.helpers.get(helper);
         if (lines == null) {
             bad.add(helper + " (not found in the dex)");
@@ -209,7 +212,7 @@ final class LoaderClassCheck {
             Matcher m = DESCRIPTOR.matcher(STRING_LITERAL.matcher(line).replaceAll(""));
             while (m.find()) {
                 String ref = m.group();
-                if (ref.equals(helper) || isFramework(ref)) continue;
+                if (ref.equals(helper) || isFramework(ref) || d.loader.containsKey(ref)) continue;
                 if (d.helpers.containsKey(ref)) collectAppReferences(ref, d, seen, bad);
                 else bad.add(ref);
             }
