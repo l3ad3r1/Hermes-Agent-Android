@@ -54,12 +54,15 @@ class HotfixManager @Inject constructor(
     fun installedBuild(): InstalledBuild {
         val state = store.read()
         val tinker = HotfixPlatform.tinker(context)
+        val tinkerId = HotfixPlatform.installedTinkerId(context)
         return InstalledBuild(
             versionName = BuildConfig.VERSION_NAME,
-            tinkerId = HotfixPlatform.installedTinkerId(context),
-            appliedPatchVersion = state.applied?.patchVersion ?: 0,
-            stagedPatchVersion = state.staged?.patchVersion ?: 0,
-            blockedPatchVersions = state.blockedPatchVersions.toSet(),
+            tinkerId = tinkerId,
+            // Only what was made for this base counts: after a full update, state left by the old base must
+            // not hide or pre-empt the new base's patches (their numbers start again at 1).
+            appliedPatchVersion = state.appliedVersionFor(tinkerId),
+            stagedPatchVersion = state.stagedVersionFor(tinkerId),
+            blockedPatchVersions = state.blockedFor(tinkerId),
             patchingAvailable = tinker != null && tinker.isTinkerEnabled &&
                 ShareTinkerInternals.isTinkerEnableWithSharedPreferences(context),
         )
@@ -171,10 +174,12 @@ class HotfixManager @Inject constructor(
             tinker.cleanPatch()
             HotfixPlatform.inboxDir(context).listFiles()?.forEach { it.delete() }
             store.update { s ->
-                val removed = listOfNotNull(s.applied?.patchVersion, s.staged?.patchVersion)
-                s.copy(
+                s.blocking(
+                    s.applied?.let { BlockedPatch(it.baseTinkerId, it.patchVersion) },
+                    s.staged?.let { BlockedPatch(it.baseTinkerId, it.patchVersion) },
+                    limit = MAX_BLOCKED,
+                ).copy(
                     staged = null,
-                    blockedPatchVersions = (s.blockedPatchVersions + removed).distinct().takeLast(MAX_BLOCKED),
                     restartPending = s.applied != null || s.staged?.installed == true,
                     lastEvent = HotfixEvent(
                         HotfixEvent.Kind.REMOVED,

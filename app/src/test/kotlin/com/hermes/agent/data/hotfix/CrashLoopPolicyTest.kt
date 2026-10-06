@@ -45,10 +45,10 @@ class CrashLoopPolicyTest {
         val store = HotfixStateStore(File(tmp.root, "hotfix"))
         assertEquals(HotfixState(), store.read())
         val staged = StagedPatch(2, "hermes-90-abc", "c".repeat(64), "d".repeat(32), 10, "n", "/x", true, 1L)
-        store.update { it.copy(staged = staged, blockedPatchVersions = listOf(1)) }
+        store.update { it.copy(staged = staged, blockedPatches = listOf(BlockedPatch("hermes-90-abc", 1))) }
         store.update { it.copy(staged = it.staged!!.copy(installed = true)) }
         val read = store.read()
         assertEquals(true, read.staged!!.installed)
-        assertEquals(listOf(1), read.blockedPatchVersions)
+        assertEquals(listOf(BlockedPatch("hermes-90-abc", 1)), read.blockedPatches)
     }
 }

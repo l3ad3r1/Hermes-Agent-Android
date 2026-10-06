@@ -50,10 +50,36 @@ data class HotfixState(
     val staged: StagedPatch? = null,
     val applied: AppliedPatch? = null,
     val lastEvent: HotfixEvent? = null,
-    val blockedPatchVersions: List<Int> = emptyList(),
+    /**
+     * Patches rolled back (crash loop) or removed by the user, which are never offered again. Each is tied to
+     * the base build it was made for: patch numbers restart at 1 for every release, so a bare number would
+     * hide the next release's first patch. (Files from before held bare numbers under `blockedPatchVersions`;
+     * they cannot be attributed to a base and are ignored.)
+     */
+    val blockedPatches: List<BlockedPatch> = emptyList(),
     /** The patch set changed (applied, removed, rolled back) and the running code is not it yet. */
     val restartPending: Boolean = false,
 )
+
+/** A patch that must not be offered again: [patchVersion] of the patches made for [baseTinkerId]. */
+@Serializable
+data class BlockedPatch(val baseTinkerId: String, val patchVersion: Int)
+
+/** This state with [patches] (null ones skipped) added to the block list, which keeps the newest [limit]. */
+fun HotfixState.blocking(vararg patches: BlockedPatch?, limit: Int = 32): HotfixState =
+    copy(blockedPatches = (blockedPatches + patches.filterNotNull()).distinct().takeLast(limit))
+
+/** The blocked patch versions that were made for the installed base [tinkerId]. */
+fun HotfixState.blockedFor(tinkerId: String?): Set<Int> =
+    blockedPatches.filter { TinkerIds.matches(tinkerId, it.baseTinkerId) }.mapTo(HashSet()) { it.patchVersion }
+
+/** The applied patch version if it was made for the installed base [tinkerId], else 0. */
+fun HotfixState.appliedVersionFor(tinkerId: String?): Int =
+    applied?.takeIf { TinkerIds.matches(tinkerId, it.baseTinkerId) }?.patchVersion ?: 0
+
+/** The staged patch version if it was made for the installed base [tinkerId], else 0. */
+fun HotfixState.stagedVersionFor(tinkerId: String?): Int =
+    staged?.takeIf { TinkerIds.matches(tinkerId, it.baseTinkerId) }?.patchVersion ?: 0
 
 /**
  * Patch state shared by the main process and Tinker's `:patch` process, so it is a small JSON

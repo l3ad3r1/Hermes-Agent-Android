@@ -5,10 +5,12 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.os.Process
+import com.hermes.agent.data.hotfix.BlockedPatch
 import com.hermes.agent.data.hotfix.CrashCounterFile
 import com.hermes.agent.data.hotfix.CrashLoopPolicy
 import com.hermes.agent.data.hotfix.HotfixEvent
 import com.hermes.agent.data.hotfix.HotfixPlatform
+import com.hermes.agent.data.hotfix.blocking
 import com.tencent.tinker.loader.shareutil.ShareTinkerInternals
 
 /**
@@ -38,10 +40,9 @@ internal object PatchCrashGuard {
         ShareTinkerInternals.cleanPatch(app)
         HotfixPlatform.stateStore(app).update { s ->
             val version = s.applied?.patchVersion
-            s.copy(
+            s.blocking(s.applied?.let { BlockedPatch(it.baseTinkerId, it.patchVersion) }).copy(
                 applied = null,
                 staged = null,
-                blockedPatchVersions = (s.blockedPatchVersions + listOfNotNull(version)).distinct().takeLast(32),
                 restartPending = false,
                 lastEvent = HotfixEvent(
                     HotfixEvent.Kind.ROLLED_BACK,

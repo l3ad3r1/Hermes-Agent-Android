@@ -86,5 +86,8 @@
 }
 -dontwarn com.tencent.tinker.**
 
-# EXPERIMENT: no renaming, so a base and its fix cannot name the same class's members differently.
+# --- Hot-fix patchability (docs/TINKER-HOTFIX.md, "R8 and loader classes") ---
+# No renaming: with it, R8 names a class's members differently in a release and in a patch build of it,
+# and the patched classes then clash with base copies still in use (an AbstractMethodError at start). Also
+# keeps patches to the changed classes (4 KB instead of 2 MB). Costs about 6% APK size.
 -dontobfuscate
