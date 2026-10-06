@@ -324,9 +324,10 @@ release can be fixed without a reinstall.
   release can be made.
 - **Verified on a device** (Galaxy S24 Ultra): on the published, signed 1.1.5 release a
   4 KB patch was offered, downloaded, prepared, applied on restart (a visible label changed),
-  removed again, and not offered again. On a release-configured build with the same settings,
-  a patch that crashed at start was rolled back by the crash guard, and a removed patch no
-  longer hid the next release's first patch.
+  removed again, and not offered again. A second patch that crashed at start was rolled back by
+  the crash guard after three crashes ("Fix #2 was removed after Hermes crashed 3 times right
+  after start"), the next start ran normally and the fix was not offered again. On an earlier
+  release-configured build a removed patch no longer hid the next release's first patch.
 
 See [docs/TINKER-HOTFIX.md](docs/TINKER-HOTFIX.md) for the trust model, the PC pipeline
 and the verification history.
