@@ -134,7 +134,10 @@ android {
                 if (tinkerBase?.getProperty("variant") == "release") {
                     require(mapping.isFile) { "hermes.tinker.base: $mapping is missing; release bases must archive R8's mapping.txt" }
                 }
-                if (mapping.isFile) {
+                // With -dontobfuscate there are no names to keep, and -applymapping on top of it makes R8
+                // write a dex whose method ids are out of order.
+                val obfuscating = file("proguard-rules.pro").readLines().none { it.trim() == "-dontobfuscate" }
+                if (mapping.isFile && obfuscating) {
                     val rules = project.layout.buildDirectory.file("tinker/applymapping.pro").get().asFile
                     rules.parentFile.mkdirs()
                     rules.writeText("-applymapping \"${mapping.absolutePath.replace('\\', '/')}\"\n")
