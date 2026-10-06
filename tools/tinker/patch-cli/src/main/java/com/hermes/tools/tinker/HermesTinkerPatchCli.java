@@ -5,7 +5,12 @@ import com.tencent.tinker.build.patch.Configuration;
 import com.tencent.tinker.build.patch.Runner;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,6 +21,11 @@ import java.util.Map;
  *       Diffs the archived base against the fix build with tinker-patch-lib (dex, native libs,
  *       resources). Writes outDir/patch_unsigned.apk; signing is done afterwards by the
  *       hermes-tinker scripts (SHA-256 JAR signature with the release key), never here.
+ *       With --old-mapping, --new-mapping and --dexdump (a release build) it first runs the R8-aware
+ *       loader-class and manifest checks (LoaderClassCheck, ManifestCheck) and, only if they pass, lets
+ *       tinker-patch-lib run with ignoreWarning=true; see docs/TINKER-HOTFIX.md, "R8 and loader classes".
+ *   check --old base.apk --new fix.apk --config tinker_config.xml --old-mapping m --new-mapping m --dexdump exe
+ *       Runs only those two checks and prints what they found.
  *   info app.apk
  *       Prints TINKER_ID, package, versionCode and versionName as read from the APK's binary
  *       manifest by the same parser tinker-patch-lib uses, as key=value lines.
@@ -38,6 +48,9 @@ public final class HermesTinkerPatchCli extends Runner {
             switch (args[0]) {
                 case "patch":
                     patch(options(args));
+                    break;
+                case "check":
+                    check(options(args));
                     break;
                 case "info":
                     if (args.length != 2) {
@@ -64,15 +77,66 @@ public final class HermesTinkerPatchCli extends Runner {
         File config = requireFile(o, "--config");
         String out = o.get("--out");
         if (out == null) throw new IllegalArgumentException("--out is required");
-        HermesTinkerPatchCli cli = new HermesTinkerPatchCli();
-        mBeginTime = System.currentTimeMillis();
-        cli.mConfig = new Configuration(config, new File(out), oldApk, newApk);
-        com.tencent.tinker.build.util.Logger.initLogger(cli.mConfig);
-        try {
-            cli.tinkerPatch();
-        } finally {
-            com.tencent.tinker.build.util.Logger.closeLogger();
+        File effectiveConfig = config;
+        if (hasRelease(o)) {
+            runReleaseChecks(o, oldApk, newApk, config);
+            effectiveConfig = withIgnoreWarning(config);
         }
+        try {
+            HermesTinkerPatchCli cli = new HermesTinkerPatchCli();
+            mBeginTime = System.currentTimeMillis();
+            cli.mConfig = new Configuration(effectiveConfig, new File(out), oldApk, newApk);
+            com.tencent.tinker.build.util.Logger.initLogger(cli.mConfig);
+            try {
+                cli.tinkerPatch();
+            } finally {
+                com.tencent.tinker.build.util.Logger.closeLogger();
+            }
+        } finally {
+            if (effectiveConfig != config) effectiveConfig.delete();
+        }
+    }
+
+    private static void check(Map<String, String> o) throws Exception {
+        if (!hasRelease(o)) throw new IllegalArgumentException("--old-mapping, --new-mapping and --dexdump are required");
+        runReleaseChecks(o, requireFile(o, "--old"), requireFile(o, "--new"), requireFile(o, "--config"));
+        System.out.println("loader classes and manifest are consistent between base and fix");
+    }
+
+    private static boolean hasRelease(Map<String, String> o) {
+        boolean any = o.containsKey("--old-mapping") || o.containsKey("--new-mapping") || o.containsKey("--dexdump");
+        if (any && !(o.containsKey("--old-mapping") && o.containsKey("--new-mapping") && o.containsKey("--dexdump"))) {
+            throw new IllegalArgumentException("--old-mapping, --new-mapping and --dexdump go together");
+        }
+        return any;
+    }
+
+    /**
+     * tinker-patch-lib's own loader-class and manifest checks cannot pass on R8 output, so a release
+     * build runs ours instead, then lets the patch library run without them. Exits 1 on any finding.
+     */
+    private static void runReleaseChecks(Map<String, String> o, File oldApk, File newApk, File config) throws Exception {
+        File oldMapping = requireFile(o, "--old-mapping");
+        File newMapping = requireFile(o, "--new-mapping");
+        String dexdump = o.get("--dexdump");
+        if (!new File(dexdump).isFile()) throw new IllegalArgumentException("--dexdump " + dexdump + " does not exist");
+        List<String> problems = new ArrayList<>(LoaderClassCheck.check(oldApk, newApk, oldMapping, newMapping, dexdump, config));
+        problems.addAll(ManifestCheck.check(oldApk, newApk));
+        if (!problems.isEmpty()) {
+            System.err.println("the fix cannot be delivered as a patch:");
+            for (String p : problems) System.err.println("  - " + p);
+            System.exit(ERRNO_ERRORS);
+        }
+    }
+
+    /** A copy of the config with ignoreWarning on; the checks it would have made were just made above. */
+    private static File withIgnoreWarning(File config) throws IOException {
+        String xml = new String(Files.readAllBytes(config.toPath()), StandardCharsets.UTF_8);
+        String patched = xml.replaceAll("<ignoreWarning\\s+value=\"false\"\\s*/>", "<ignoreWarning value=\"true\"/>");
+        if (patched.equals(xml)) throw new IOException(config + " has no <ignoreWarning value=\"false\"/> to relax");
+        File tmp = File.createTempFile("hermes-tinker-config", ".xml");
+        Files.write(tmp.toPath(), patched.getBytes(StandardCharsets.UTF_8));
+        return tmp;
     }
 
     static Map<String, String> info(File apk) throws Exception {
@@ -109,6 +173,8 @@ public final class HermesTinkerPatchCli extends Runner {
 
     private static void usage() {
         System.err.println("usage: hermes-tinker-patch-cli patch --old base.apk --new fix.apk --config tinker_config.xml --out dir");
+        System.err.println("         [--old-mapping base-mapping.txt --new-mapping fix-mapping.txt --dexdump dexdump]  (release builds)");
+        System.err.println("       hermes-tinker-patch-cli check --old base.apk --new fix.apk --config tinker_config.xml --old-mapping m --new-mapping m --dexdump exe");
         System.err.println("       hermes-tinker-patch-cli info app.apk");
         System.exit(ERRNO_USAGE);
     }

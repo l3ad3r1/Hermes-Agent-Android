@@ -111,6 +111,14 @@ function Aapt2 {
     if (-not $a) { Die 'aapt2 not found under ANDROID_HOME\build-tools' }
     return $a
 }
+function Dexdump {
+    $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+    if (-not $sdk) { Die 'dexdump not found (set ANDROID_HOME to the Android SDK; a release patch needs it)' }
+    $d = Get-ChildItem (Join-Path $sdk 'build-tools') -Directory | Sort-Object { [version]($_.Name -replace '[^0-9.].*$', '') } |
+        ForEach-Object { Join-Path $_.FullName 'dexdump.exe' } | Where-Object { Test-Path $_ } | Select-Object -Last 1
+    if (-not $d) { Die 'dexdump not found under ANDROID_HOME\build-tools' }
+    return $d
+}
 # The app package's resource ids in aapt2 --stable-ids format, read from the APK itself.
 function Resource-Ids([string]$apk) {
     $lines = Quiet { & (Aapt2) dump resources $apk 2>$null }
@@ -262,8 +270,17 @@ function Build-Patch {
         Set-Content -Encoding UTF8 (Join-Path $outDir 'tinker_config.xml')
     Copy-Item $newApk (Join-Path $outDir 'fix.apk')
     Log 'diffing with tinker-patch-lib'
-    Invoke-Checked $Cli @('patch', '--old', (Join-Path $basePath 'base.apk'), '--new', (Join-Path $outDir 'fix.apk'),
-        '--config', (Join-Path $outDir 'tinker_config.xml'), '--out', (Join-Path $outDir 'tinker-out'))
+    # A release (R8) build cannot pass tinker-patch-lib's own loader-class and manifest checks, so the CLI
+    # runs R8-aware ones given both mappings and dexdump (docs/TINKER-HOTFIX.md, "R8 and loader classes").
+    $r8 = @()
+    $baseMapping = Join-Path $basePath 'mapping.txt'
+    if (Test-Path $baseMapping) {
+        $newMapping = Join-Path $Root "app\build\outputs\mapping\$variant\mapping.txt"
+        if (-not (Test-Path $newMapping)) { Die "missing $newMapping (the fix build's R8 mapping)" }
+        $r8 = @('--old-mapping', $baseMapping, '--new-mapping', $newMapping, '--dexdump', (Dexdump))
+    }
+    Invoke-Checked $Cli (@('patch', '--old', (Join-Path $basePath 'base.apk'), '--new', (Join-Path $outDir 'fix.apk'),
+        '--config', (Join-Path $outDir 'tinker_config.xml'), '--out', (Join-Path $outDir 'tinker-out')) + $r8)
     $unsignedPatch = Join-Path $outDir 'tinker-out\patch_unsigned.apk'
     if (-not (Test-Path $unsignedPatch)) { Die "tinker-patch-lib produced no patch (no changes?) - see $outDir\tinker-out\log.txt" }
 

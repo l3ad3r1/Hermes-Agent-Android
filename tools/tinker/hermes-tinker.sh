@@ -77,6 +77,14 @@ aapt2_bin() {
     echo "$a"
 }
 
+dexdump_bin() {
+    local d="" sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+    if [ -n "$sdk" ]; then d=$(ls -d "$sdk"/build-tools/*/dexdump 2>/dev/null | sort -V | tail -1 || true); fi
+    [ -n "$d" ] || d=$(command -v dexdump || true)
+    [ -n "$d" ] || die "dexdump not found (set ANDROID_HOME to the Android SDK; a release patch needs it)"
+    echo "$d"
+}
+
 # apk -> the app package's resource ids in aapt2 --stable-ids format ("pkg:type/name = 0x7f......"),
 # read from the APK itself so the table is exactly what the phone has installed.
 resource_ids() {
@@ -242,7 +250,15 @@ build_patch() {
     sed "s/@PATCH_VERSION@/$patch_version/" "$TOOLS/tinker_config.xml" >"$out/tinker_config.xml"
     cp "$new_apk" "$out/fix.apk"
     log "diffing with tinker-patch-lib"
-    "$CLI" patch --old "$base/base.apk" --new "$out/fix.apk" --config "$out/tinker_config.xml" --out "$out/tinker-out" >&2
+    # A release (R8) build cannot pass tinker-patch-lib's own loader-class and manifest checks, so the CLI
+    # runs R8-aware ones given both mappings and dexdump (docs/TINKER-HOTFIX.md, "R8 and loader classes").
+    local r8_args=()
+    if [ -f "$base/mapping.txt" ]; then
+        local new_mapping="$ROOT/app/build/outputs/mapping/$variant/mapping.txt"
+        [ -f "$new_mapping" ] || die "missing $new_mapping (the fix build's R8 mapping)"
+        r8_args=(--old-mapping "$base/mapping.txt" --new-mapping "$new_mapping" --dexdump "$(dexdump_bin)")
+    fi
+    "$CLI" patch --old "$base/base.apk" --new "$out/fix.apk" --config "$out/tinker_config.xml" --out "$out/tinker-out" ${r8_args[@]+"${r8_args[@]}"} >&2
     local unsigned_patch="$out/tinker-out/patch_unsigned.apk"
     [ -s "$unsigned_patch" ] || die "tinker-patch-lib produced no patch (no changes?) — see $out/tinker-out/log.txt"
     unzip -l "$unsigned_patch" | grep -q 'assets/package_meta.txt' || die "patch has no package_meta.txt"

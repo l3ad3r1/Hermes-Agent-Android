@@ -11,6 +11,11 @@ val tinkerVersion = "1.9.15.2" // keep equal to `tinker` in gradle/libs.versions
 
 dependencies {
     implementation("com.tencent.tinker:tinker-patch-lib:$tinkerVersion")
+    testImplementation("junit:junit:4.13.2")
+}
+
+tasks.test {
+    useJUnit()
 }
 
 java {
