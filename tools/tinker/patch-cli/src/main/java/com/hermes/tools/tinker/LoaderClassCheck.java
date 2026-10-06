@@ -27,14 +27,19 @@ import java.util.zip.ZipFile;
  * both on the dex bytes, which a release build cannot satisfy: R8 outlines repeated code (string
  * building, log messages) into synthetic helper classes (<code>X$$ExternalSyntheticOutlineN</code>,
  * <code>$$ExternalSyntheticLambdaN</code>) and renames and regroups them on every build, so the loader
- * classes call a differently named helper in the fix than in the base. The helpers hold plain static
- * code. A loader class always resolves them through the original class loader, to the copy in the
- * installed base, so the difference can never take effect.
+ * classes call a differently named helper in the fix than in the base.
  *
- * This check applies the same two rules with exactly that allowance: a call into an R8 synthetic
- * helper (named in that build's mapping.txt) counts as the same call whatever the helper is called. Any
- * other difference in a loader class, and any reference to a class that is not a loader class, a
- * framework class or a synthetic helper, fails.
+ * That difference alone could never take effect (a loader class always resolves a helper through the
+ * original class loader, to the copy in the installed base), so this check applies the same two rules
+ * with one allowance: a call into an R8 synthetic helper (named in that build's mapping.txt) counts as
+ * the same call whatever the helper is called. The allowance holds only for a helper that is
+ * self-contained. R8 merges unrelated helpers into one class, and such a class refers to app classes;
+ * calling it from a loader class makes the original class loader load its own copies of them, which
+ * clash with the patched ones when the fix starts (observed on a device: an AbstractMethodError in
+ * kotlinx.coroutines, which removed the patch again). So a helper that loader classes call may refer
+ * only to the framework and to other such helpers ({@link #unsafeHelpers}). Any other difference in a
+ * loader class, and any reference to a class that is not a loader class, a framework class or a
+ * synthetic helper, fails too.
  *
  * It works on <code>dexdump -d</code> text from the Android build tools.
  */
@@ -104,10 +109,20 @@ final class LoaderClassCheck {
         return out;
     }
 
-    /** Normalized lines of every loader class in the APK's dex files, by descriptor. */
-    static Map<String, List<String>> loaderClasses(File apk, String dexdump, List<Pattern> loader, Set<String> synthetic)
+    /** What the check reads from one APK. */
+    static final class Dexes {
+        /** Normalized lines of every loader class, by descriptor (calls into R8 helpers made generic). */
+        final Map<String, List<String>> loader = new LinkedHashMap<>();
+        /** Lines of every R8 synthetic class, by descriptor, as they are. */
+        final Map<String, List<String>> helpers = new LinkedHashMap<>();
+        /** The R8 synthetic classes that loader classes call. */
+        final Set<String> called = new LinkedHashSet<>();
+    }
+
+    /** The loader classes and R8 helpers of the APK's dex files. */
+    static Dexes loaderClasses(File apk, String dexdump, List<Pattern> loader, Set<String> synthetic)
         throws IOException, InterruptedException {
-        Map<String, List<String>> out = new LinkedHashMap<>();
+        Dexes out = new Dexes();
         File tmp = Files.createTempDirectory("hermes-loader-check").toFile();
         try (ZipFile zip = new ZipFile(apk)) {
             for (Enumeration<? extends ZipEntry> e = zip.entries(); e.hasMoreElements(); ) {
@@ -130,23 +145,80 @@ final class LoaderClassCheck {
         return out;
     }
 
-    /** Reads dexdump -d text, keeping the normalized lines of the loader classes. */
-    static void parse(BufferedReader r, List<Pattern> loader, Set<String> synthetic, Map<String, List<String>> out)
+    /** Reads dexdump -d text, keeping the lines of the loader classes and of the R8 synthetic classes. */
+    static void parse(BufferedReader r, List<Pattern> loader, Set<String> synthetic, Dexes out)
         throws IOException {
         List<String> current = null;
+        boolean inLoader = false;
         String line;
         while ((line = r.readLine()) != null) {
             Matcher header = CLASS_HEADER.matcher(line);
             if (header.find()) {
                 String descriptor = header.group(1);
-                current = isLoader(loader, descriptor) ? new ArrayList<>() : null;
-                if (current != null) out.put(descriptor, current);
+                inLoader = isLoader(loader, descriptor);
+                if (inLoader) {
+                    current = new ArrayList<>();
+                    out.loader.put(descriptor, current);
+                } else if (synthetic.contains(descriptor)) {
+                    current = new ArrayList<>();
+                    out.helpers.put(descriptor, current);
+                } else {
+                    current = null;
+                }
                 continue;
             }
             if (current == null) continue;
-            String n = normalize(line, synthetic);
+            if (inLoader) {
+                Matcher call = CALL_TARGET.matcher(line);
+                while (call.find()) if (synthetic.contains(call.group(1))) out.called.add(call.group(1));
+            }
+            String n = normalize(line, inLoader ? synthetic : Set.of());
             if (n != null) current.add(n);
         }
+    }
+
+    /**
+     * Whether the R8 helpers the loader classes call are safe to load in the original class loader.
+     * A loader class runs before a patch is loaded, in the original class loader, so a helper it calls
+     * is loaded there too, and loading it loads (or at least verifies against) every class it refers
+     * to. If it refers to app classes, the original loader gets its own copies of those, and the
+     * patched copies the fix then loads clash with them (an AbstractMethodError at start). A helper may
+     * therefore refer only to the framework and to other helpers that are safe in the same way.
+     */
+    static List<String> unsafeHelpers(Dexes d) {
+        List<String> problems = new ArrayList<>();
+        for (String helper : d.called) {
+            Set<String> bad = new LinkedHashSet<>();
+            collectAppReferences(helper, d, new LinkedHashSet<>(), bad);
+            if (!bad.isEmpty()) {
+                problems.add("R8 helper " + helper + ", which loader classes call, refers to app classes " + bad
+                    + ": the original class loader would load its own copies of them and clash with the patched ones");
+            }
+        }
+        return problems;
+    }
+
+    private static void collectAppReferences(String helper, Dexes d, Set<String> seen, Set<String> bad) {
+        if (!seen.add(helper)) return;
+        List<String> lines = d.helpers.get(helper);
+        if (lines == null) {
+            bad.add(helper + " (not found in the dex)");
+            return;
+        }
+        for (String line : lines) {
+            Matcher m = DESCRIPTOR.matcher(STRING_LITERAL.matcher(line).replaceAll(""));
+            while (m.find()) {
+                String ref = m.group();
+                if (ref.equals(helper) || isFramework(ref)) continue;
+                if (d.helpers.containsKey(ref)) collectAppReferences(ref, d, seen, bad);
+                else bad.add(ref);
+            }
+        }
+    }
+
+    private static boolean isFramework(String descriptor) {
+        for (String prefix : FRAMEWORK) if (descriptor.startsWith(prefix)) return true;
+        return false;
     }
 
     static boolean isLoader(List<Pattern> loader, String descriptor) {
@@ -225,12 +297,14 @@ final class LoaderClassCheck {
     static List<String> check(File baseApk, File fixApk, File baseMapping, File fixMapping, String dexdump, File config)
         throws IOException, InterruptedException {
         List<Pattern> loader = loaderPatterns(config);
-        Map<String, List<String>> base = loaderClasses(baseApk, dexdump, loader, syntheticClasses(baseMapping));
-        Map<String, List<String>> fix = loaderClasses(fixApk, dexdump, loader, syntheticClasses(fixMapping));
-        if (base.isEmpty()) return List.of("no loader classes found in " + baseApk + " (is dexdump the right version?)");
-        List<String> problems = differences(base, fix);
-        problems.addAll(illegalReferences(base, loader));
-        problems.addAll(illegalReferences(fix, loader));
+        Dexes base = loaderClasses(baseApk, dexdump, loader, syntheticClasses(baseMapping));
+        Dexes fix = loaderClasses(fixApk, dexdump, loader, syntheticClasses(fixMapping));
+        if (base.loader.isEmpty()) return List.of("no loader classes found in " + baseApk + " (is dexdump the right version?)");
+        List<String> problems = differences(base.loader, fix.loader);
+        problems.addAll(illegalReferences(base.loader, loader));
+        problems.addAll(illegalReferences(fix.loader, loader));
+        problems.addAll(unsafeHelpers(base));
+        problems.addAll(unsafeHelpers(fix));
         return problems;
     }
 }

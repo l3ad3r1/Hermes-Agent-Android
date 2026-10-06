@@ -250,6 +250,38 @@ Once merged, the maintainer runs steps 2–3 against the current release base, a
 phones without a reinstall. The Feature evolution screen says so on filed app changes. Bots never
 build or sign patches.
 
+## R8 and loader classes (release builds)
+
+Tinker requires the loader classes to be identical in base and fix and to refer only to each other
+and the framework, and checks that on the dex bytes. R8 output cannot satisfy that on its own:
+
+- R8 pulls repeated code (string building, log messages) into synthetic helper classes
+  (`X$$ExternalSyntheticOutlineN`, `$$ExternalSyntheticLambdaN`, `EnumUnboxingSharedUtility`) and
+  renames and regroups them on every build, so the same loader class calls a differently named helper
+  in the fix than in the base. `-applymapping` cannot pin them: they are not the same original class.
+  tinker-patch-lib then refuses the patch ("some loader class has been changed in new primary dex").
+- Worse, R8 merges unrelated helpers into one class, and such a class refers to app classes. A loader
+  class runs before the patch loads, in the original class loader, so calling one makes that loader
+  load (or verify against) its own copies of those app classes. When the fix then starts, the patched
+  copies clash with them. Seen on a device with a hand-checked patch of the 1.1.4 release: an
+  `AbstractMethodError` in kotlinx.coroutines at start, three crashes, and the crash guard removed the
+  patch ("Fix #1 was removed after Hermes crashed 3 times right after start"); Hermes then ran the
+  installed version with all its data. That is also the rollback test on a release build.
+
+So `hermes-tinker` runs its own check on release builds (`tools/tinker/patch-cli`, `LoaderClassCheck`,
+`ManifestCheck`, unit-tested), given both R8 mappings and `dexdump` from the build tools. It applies
+Tinker's two rules with one allowance, a call into an R8 helper counts as the same call whatever the
+helper is called, and only when every helper the loader classes call is self-contained (refers to the
+framework and other such helpers only). It also compares the whole manifest, and only then lets
+tinker-patch-lib run with `ignoreWarning` (that flag also relaxes Tinker's manifest and resource
+checks, hence the manifest comparison; resource ids are pinned by the stable-ids table).
+
+**A release whose loader classes call a helper that refers to app classes cannot be patched, and the
+check says so.** The 1.1.4 / 1.1.3 releases are like that (their loader classes call helpers `a83`,
+`px3`, `k03`, ... that refer to many app classes), so they can only be updated with a full release. To
+make a future release patchable, its R8 output must not make loader classes call such helpers; run
+`hermes-tinker check` on a fix build against the archived base to find out before publishing.
+
 ## Known risks and limits
 
 - **Android 16 / target 36 hidden APIs.** Tinker has no hidden-API bypass. It swaps the class
@@ -311,7 +343,9 @@ Jeeves shares the package layout and the OTA code:
   state store), `TinkerWiringTest` (manifest, loader-class rule, config/proguard agreement, Gradle
   gating), `HermesComponentFactoryTest`.
 - CI: compile, debug APK, unit tests, and the unsigned patch smoke check.
-- **Not verified:** loading a patch on a device (no device was available), resource patching on
-  Android 15/16, the release (R8) path end to end, and the PowerShell script on Windows (parsed,
-  not run). Do one full dry run — archive a base, install it, build and apply a trivial patch —
-  before the first real fix.
+- **Verified on a device (S24 Ultra, Android 16):** a signed patch of a release build is offered
+  over OTA, passes `PatchGate` and Tinker, loads, and is rolled back by the crash guard when it
+  crashes (see "R8 and loader classes"). **Not verified:** a release patch that starts cleanly (the
+  1.1.4 release cannot be patched), resource patching on Android 15/16. Before a
+  real fix, do a dry run on the release you are about to ship: archive its base, build a trivial
+  patch, apply it, confirm it starts cleanly.

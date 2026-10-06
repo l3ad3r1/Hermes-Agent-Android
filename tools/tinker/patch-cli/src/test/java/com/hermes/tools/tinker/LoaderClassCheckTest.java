@@ -63,10 +63,24 @@ public class LoaderClassCheckTest {
             + "0000a0: 0e00                               |0000: return-void\n";
     }
 
-    private static Map<String, List<String>> parse(String text, Set<String> synthetic) throws Exception {
-        Map<String, List<String>> out = new LinkedHashMap<>();
+    private static LoaderClassCheck.Dexes dexes(String text, Set<String> synthetic) throws Exception {
+        LoaderClassCheck.Dexes out = new LoaderClassCheck.Dexes();
         LoaderClassCheck.parse(new BufferedReader(new StringReader(text)), loader(), synthetic, out);
         return out;
+    }
+
+    private static Map<String, List<String>> parse(String text, Set<String> synthetic) throws Exception {
+        return dexes(text, synthetic).loader;
+    }
+
+    /** An R8 helper class whose one method refers to the given class (or only to the framework). */
+    private static String helperClass(String descriptor, String refersTo) {
+        return "  Class descriptor  : '" + descriptor + "'\n"
+            + "  Superclass        : 'Ljava/lang/Object;'\n"
+            + "    #0              : (in " + descriptor + ")\n"
+            + "0000b0: 1a00 4d0f                          |0000: const-string v0, \"x\" // string@0001\n"
+            + "0000b4: 6e10 0100 0000                     |0002: invoke-virtual {v0}, " + refersTo + ".length:()I // method@0002\n"
+            + "0000ba: 0e00                               |0005: return-void\n";
     }
 
     @Test
@@ -150,5 +164,38 @@ public class LoaderClassCheckTest {
         assertEquals(ManifestCheck.mask(base, "hermes-91-aaaa", "hermes-91-bbbb"), ManifestCheck.mask(fix, "hermes-91-aaaa", "hermes-91-bbbb"));
         String extra = fix + "<activity name=\".New\"/>";
         assertFalse(ManifestCheck.mask(base, "hermes-91-aaaa", "hermes-91-bbbb").equals(ManifestCheck.mask(extra, "hermes-91-aaaa", "hermes-91-bbbb")));
+    }
+
+    @Test
+    public void aHelperThatOnlyUsesTheFrameworkIsSafe() throws Exception {
+        LoaderClassCheck.Dexes d = dexes(dump("wm", "y", "hello", 0x5000) + helperClass("Lwm;", "Ljava/lang/String;"), synthetic("Lwm;"));
+        assertEquals(synthetic("Lwm;"), d.called);
+        assertEquals(List.of(), LoaderClassCheck.unsafeHelpers(d));
+    }
+
+    @Test
+    public void aHelperThatReferencesAnAppClassIsNotSafe() throws Exception {
+        // Loading it in the original class loader would load that app class there too.
+        LoaderClassCheck.Dexes d = dexes(dump("wm", "y", "hello", 0x5000) + helperClass("Lwm;", "Lcom/hermes/agent/domain/tool/ToolResult;"), synthetic("Lwm;"));
+        List<String> problems = LoaderClassCheck.unsafeHelpers(d);
+        assertEquals(1, problems.size());
+        assertTrue(problems.get(0), problems.get(0).contains("ToolResult"));
+    }
+
+    @Test
+    public void aHelperIsOnlyAsSafeAsTheHelpersItCalls() throws Exception {
+        LoaderClassCheck.Dexes d = dexes(dump("wm", "y", "hello", 0x5000)
+            + helperClass("Lwm;", "Lgq1;") + helperClass("Lgq1;", "Lcom/hermes/agent/App;"), synthetic("Lwm;", "Lgq1;"));
+        assertEquals(1, LoaderClassCheck.unsafeHelpers(d).size());
+        LoaderClassCheck.Dexes ok = dexes(dump("wm", "y", "hello", 0x5000)
+            + helperClass("Lwm;", "Lgq1;") + helperClass("Lgq1;", "Ljava/lang/String;"), synthetic("Lwm;", "Lgq1;"));
+        assertEquals(List.of(), LoaderClassCheck.unsafeHelpers(ok));
+    }
+
+    @Test
+    public void aHelperTheLoaderNeverCallsIsNotChecked() throws Exception {
+        LoaderClassCheck.Dexes d = dexes(dump("wm", "y", "hello", 0x5000) + helperClass("Lwm;", "Ljava/lang/String;")
+            + helperClass("Lgq1;", "Lcom/hermes/agent/App;"), synthetic("Lwm;", "Lgq1;"));
+        assertEquals(List.of(), LoaderClassCheck.unsafeHelpers(d));
     }
 }
