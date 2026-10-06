@@ -85,3 +85,6 @@
     public *** build();
 }
 -dontwarn com.tencent.tinker.**
+
+# EXPERIMENT: no renaming, so a base and its fix cannot name the same class's members differently.
+-dontobfuscate
