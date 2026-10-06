@@ -322,6 +322,11 @@ release can be fixed without a reinstall.
   differ from the base.
 - The base of every release is archived when it is built; without it no patch for that
   release can be made.
+- **Verified on a device** (Galaxy S24 Ultra, a release-configured build with the 1.1.5
+  settings): a signed patch was offered, downloaded, prepared, applied on restart (a visible
+  label changed) and removed again; a patch that crashed at start was rolled back by the crash
+  guard; and a removed patch no longer hides the next release's first patch. The published
+  1.1.5 itself has not yet received a patch.
 
 See [docs/TINKER-HOTFIX.md](docs/TINKER-HOTFIX.md) for the trust model, the PC pipeline
 and the verification history.
