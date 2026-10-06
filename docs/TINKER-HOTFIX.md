@@ -288,9 +288,17 @@ installed and loaded, and still crashed at start with the same `AbstractMethodEr
 same, but R8 names its members differently (`tryReceive` is `k` in the base and `c` in the fix:
 `-applymapping` does not pin them), so some copy of the *base's* app classes is still in use next to the
 patched ones and the two disagree. Debug builds have no renaming, so the same duplicates are harmless
-there, which is why debug patches work. What loads the base copies is not found. Until it is, treat hot-fix
-of a release build as unsupported; candidates are `-dontobfuscate` (no renaming to drift) or finding and
-removing the early use of base classes.
+there, which is why debug patches work. What loads the base copies was not found.
+
+**What works (verified on a device): `-dontobfuscate` as well.** With R8 renaming off (so a base and its fix
+cannot name a class's members differently) and class merging off, a release patch was offered over OTA
+(fix #3, 4 KB: only the changed class, against 2 MB when names drift), installed, loaded ("Fix #3 is
+active") and the app ran without a crash or a linkage error. Tinker's own loader-class warning is gone too.
+The cost is about 6% APK size (32.3 MB against 30.5 MB) and no obfuscation. The settings are on the branch
+`experiment-dontobfuscate`: `-dontobfuscate` in `app/proguard-rules.pro`,
+`-Dcom.android.tools.r8.disableHorizontalClassMerging=true` in `gradle.properties`, and no `-applymapping`
+in patch builds when R8 does not obfuscate (that combination makes R8 write a dex with out-of-order method
+ids). Only a release built with them can be patched: the 1.1.4 and 1.1.3 releases cannot.
 
 **Bug found while testing:** `HotfixState.blockedPatchVersions` is a list of bare patch numbers, not tied
 to a base build, and it survives app updates. Patch numbers restart at 1 for every base, so a patch
