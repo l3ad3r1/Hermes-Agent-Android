@@ -8,7 +8,7 @@ the Android Keystore; nothing is baked into the build.
 
 [![Latest release](https://img.shields.io/github/v/release/l3ad3r1/Hermes-Agent-Android)](https://github.com/l3ad3r1/Hermes-Agent-Android/releases)
 
-**Current version: 1.1.6** · Android 10+ (API 29) · arm64-v8a · signed APKs on the
+**Current version: 1.1.7** · Android 10+ (API 29) · arm64-v8a · signed APKs on the
 [releases page](https://github.com/l3ad3r1/Hermes-Agent-Android/releases)
 (signing certificate SHA-256 starts `99255c31`).
 
