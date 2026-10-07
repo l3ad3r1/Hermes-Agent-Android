@@ -518,13 +518,18 @@ class BotsViewModel @Inject constructor(
     /** Post a draft (or its critic rewrite) in the PC's logged-in Chrome window. No LLM in between. */
     fun approveRedditDraft(draft: RedditDraft, useRewrite: Boolean) = viewModelScope.launch {
         _state.update { it.copy(busyRedditCode = draft.code, redditMessage = null) }
-        runCatching { gateway.approveRedditDraft(draft.code, useRewrite) }
+        // Send the digest of the exact text on screen: the gateway refuses if the draft changed since.
+        runCatching { gateway.approveRedditDraft(draft.code, useRewrite, draft.hashFor(useRewrite)) }
             .onSuccess { result ->
                 _state.update { s ->
                     s.copy(busyRedditCode = null, redditMessage = result, redditDrafts = s.redditDrafts.filterNot { it.code == draft.code })
                 }
             }
-            .onFailure { e -> _state.update { it.copy(busyRedditCode = null, redditMessage = "Post failed: ${e.message}") } }
+            .onFailure { e ->
+                _state.update { it.copy(busyRedditCode = null, redditMessage = "Post failed: ${e.message}") }
+                // A refused post leaves the draft pending, possibly with new text: show what is there now.
+                refreshRedditDrafts()
+            }
     }
 
     fun skipRedditDraft(draft: RedditDraft) = viewModelScope.launch {

@@ -431,16 +431,24 @@ class GatewayApiClient @Inject constructor(
         parseRedditDrafts(body)
     }
 
-    /** Post [code] (or its critic rewrite, if [useRewrite]) in the PC's logged-in Chrome window. No LLM in between. */
-    suspend fun approveRedditDraft(code: String, useRewrite: Boolean): String = withContext(dispatchers.io) {
-        val body = buildJsonObject { put("rewrite", JsonPrimitive(useRewrite)) }.toString()
+    /**
+     * Post [code] (or its critic rewrite, if [useRewrite]) in the PC's logged-in Chrome window. No LLM in between.
+     * [expectedHash] is the digest the gateway sent with the draft version being approved ([RedditDraft.hash] or
+     * [RedditDraft.rewriteHash]): the gateway refuses to post if the draft no longer matches what was reviewed.
+     * Null for a gateway that does not send one.
+     */
+    suspend fun approveRedditDraft(code: String, useRewrite: Boolean, expectedHash: String? = null): String = withContext(dispatchers.io) {
+        val body = buildJsonObject {
+            put("rewrite", JsonPrimitive(useRewrite))
+            if (!expectedHash.isNullOrBlank()) put("hash", JsonPrimitive(expectedHash))
+        }.toString()
         val request = authBuilder("${baseUrl()}/api/reddit/drafts/$code/approve", apiKey())
             .post(body.toRequestBody(jsonMediaType))
             .build()
         val response = client.newCall(request).execute()
         val responseBody = response.body?.string().orEmpty()
         response.close()
-        if (!response.isSuccessful) throw IOException("approve $code failed: ${response.code} ${responseBody.take(300)}")
+        if (!response.isSuccessful) throw IOException("approve $code failed: ${response.code} ${gatewayErrorText(responseBody)}")
         redditResultText(responseBody)
     }
 
@@ -452,12 +460,18 @@ class GatewayApiClient @Inject constructor(
         val response = client.newCall(request).execute()
         val responseBody = response.body?.string().orEmpty()
         response.close()
-        if (!response.isSuccessful) throw IOException("skip $code failed: ${response.code} ${responseBody.take(300)}")
+        if (!response.isSuccessful) throw IOException("skip $code failed: ${response.code} ${gatewayErrorText(responseBody)}")
         redditResultText(responseBody)
     }
 
     private fun redditResultText(body: String): String =
         (json.parseToJsonElement(body).jsonObject["result"] as? JsonPrimitive)?.contentOrNull ?: body
+
+    /** The gateway's `error` message from a JSON error body, else the start of the raw body. */
+    private fun gatewayErrorText(body: String): String =
+        runCatching { (json.parseToJsonElement(body).jsonObject["error"] as? JsonPrimitive)?.contentOrNull }.getOrNull()
+            ?.takeIf { it.isNotBlank() }?.take(300)
+            ?: body.take(300)
 
     private fun parseRedditDrafts(body: String): List<RedditDraft> {
         val drafts = runCatching { json.parseToJsonElement(body).jsonObject["drafts"] }.getOrNull()
@@ -477,6 +491,8 @@ class GatewayApiClient @Inject constructor(
             score = str("score")?.toIntOrNull(),
             issues = str("issues"),
             rewrite = str("rewrite"),
+            hash = str("hash")?.takeIf { it.isNotBlank() },
+            rewriteHash = str("rewrite_hash")?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -691,6 +707,8 @@ data class RemoteJob(
 /**
  * A u/Anshkoshmod Reddit comment draft waiting for approval, mapped from `/api/reddit/drafts`.
  * [critic]/[score]/[issues]/[rewrite] are null until the desktop's critique cron has run.
+ * [hash] / [rewriteHash] identify exactly the text shown for the original / the rewrite; approving sends the
+ * matching one back so the gateway refuses if the draft changed meanwhile. Null from a gateway that sends none.
  */
 data class RedditDraft(
     val code: String,
@@ -702,7 +720,12 @@ data class RedditDraft(
     val score: Int?,
     val issues: String?,
     val rewrite: String?,
-)
+    val hash: String? = null,
+    val rewriteHash: String? = null,
+) {
+    /** The digest to send when approving the original ([useRewrite] false) or the rewrite. */
+    fun hashFor(useRewrite: Boolean): String? = if (useRewrite) rewriteHash else hash
+}
 
 /** A message in a PC gateway session, mapped from `/api/sessions/{id}/messages`. */
 data class RemoteMessage(
