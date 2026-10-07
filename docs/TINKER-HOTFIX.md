@@ -312,9 +312,11 @@ patchable settings above, so it is the first that can receive hot-fixes.
   "unsupported" list today; if a future Android blocks one for target 36, loading fails, Tinker
   reports a load failure, disables itself for that base and Hermes runs unpatched (a partial
   class-loader swap could still crash the start — the safe mode and crash guard then remove the
-  patch). Resource patching is the most exposed part: prefer code-only fixes. **Untested on a
-  device** (none was available when this was written); test every new Android version with a
-  trivial patch before relying on it.
+  patch). Resource patching is the most exposed part: prefer code-only fixes. A string-resource
+  patch (`resources.arsc` plus `res_meta.txt`, 5 KB) was verified on an S24 Ultra (Android 16) on both
+  published 1.1.5 releases: the changed title showed after the restart and went back after removal. Layouts,
+  drawables and other Android versions are untested; test every new Android version with a trivial
+  patch before relying on it.
 - **Loader classes are not patchable** (table above), and neither is anything that changes the
   manifest. `DelegateLastClassLoader` means library classes are patchable too.
 - **R8 mapping / resource-id drift.** `-applymapping` is advisory for R8 in full mode (it may still
@@ -367,7 +369,8 @@ Jeeves shares the package layout and the OTA code:
 - CI: compile, debug APK, unit tests, and the unsigned patch smoke check.
 - **Verified on a device (S24 Ultra, Android 16):** a signed patch of a release build is offered
   over OTA, passes `PatchGate` and Tinker, loads, and is rolled back by the crash guard when it
-  crashes (see "R8 and loader classes"). **Not verified:** a release patch that starts cleanly (the
-  1.1.4 release cannot be patched), resource patching on Android 15/16. Before a
-  real fix, do a dry run on the release you are about to ship: archive its base, build a trivial
+  crashes (see "R8 and loader classes"). On the published 1.1.5 release (same device): a code patch
+  was offered, applied, removed and not re-offered; a crashing patch was rolled back after 3 crashes; and a
+  string-resource patch was applied and removed. **Not verified:** layout/drawable resource patches and Android
+  versions other than 16. Before a real fix, do a dry run on the release you are about to ship: archive its base, build a trivial
   patch, apply it, confirm it starts cleanly.

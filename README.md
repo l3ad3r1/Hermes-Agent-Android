@@ -327,7 +327,9 @@ release can be fixed without a reinstall.
   removed again, and not offered again. A second patch that crashed at start was rolled back by
   the crash guard after three crashes ("Fix #2 was removed after Hermes crashed 3 times right
   after start"), the next start ran normally and the fix was not offered again. On an earlier
-  release-configured build a removed patch no longer hid the next release's first patch.
+  release-configured build a removed patch no longer hid the next release's first patch. A
+  string-resource patch (the Settings title) was also applied and removed on the published
+  release.
 
 See [docs/TINKER-HOTFIX.md](docs/TINKER-HOTFIX.md) for the trust model, the PC pipeline
 and the verification history.
